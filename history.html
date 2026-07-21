@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roulette History</title><link rel="stylesheet" href="history.css"></head>
+<body><main class="history-shell">
+  <header><div><p>European Roulette</p><h1>Archived History</h1></div><div class="header-actions"><span id="saved-status">Saved locally</span><button id="refresh-button" type="button">Refresh</button></div></header>
+  <nav class="tabs" aria-label="History sections"><button class="active" data-tab="spins">Spins</button><button data-tab="triggers">Triggers</button><button data-tab="sessions">Bet Sessions</button><button data-tab="steps">Bet Steps</button><button data-tab="bankroll">Bankroll</button></nav>
+  <section class="summary" id="summary"></section>
+  <section class="table-wrap"><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></section><p id="empty-state" class="empty-state" hidden>No records yet.</p>
+</main><script src="roulette-core.js"></script><script src="dashboard-storage.js"></script><script src="history.js"></script></body></html>

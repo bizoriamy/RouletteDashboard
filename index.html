@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A local European roulette arrangement analysis tool." />
+    <title>European Roulette Analyzer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="page-header">
+        <p class="eyebrow">Milestone 4 · Interactive bet coverage</p>
+        <h1>European Roulette Analyzer</h1>
+        <p class="intro">Move over a number to inspect it. Click a number to keep it selected.</p>
+      </header>
+
+      <section class="bet-explorer panel" aria-labelledby="bet-explorer-title">
+        <div class="bet-explorer-heading">
+          <div>
+            <p class="panel-kicker">Bet explorer</p>
+            <h3 id="bet-explorer-title">Table bets</h3>
+          </div>
+          <button id="clear-all-selection" class="clear-all-button" type="button">Clear all</button>
+        </div>
+        <select id="bet-type" aria-label="Choose a table bet type"></select>
+        <p id="bet-selection-summary" class="bet-selection-summary">No bets selected</p>
+        <div id="bet-options" class="bet-options" aria-label="Available table bets"></div>
+        <p class="bet-help">Click several bets to combine their wheel coverage. Click again to remove.</p>
+      </section>
+
+      <section class="workspace" aria-label="Roulette analysis workspace">
+        <article class="panel table-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Layout 01</p>
+              <h2>Standard table</h2>
+            </div>
+            <button id="clear-selection" class="clear-button" type="button">Clear selection</button>
+          </div>
+
+          <div id="roulette-table" class="roulette-table" aria-label="European roulette betting table"></div>
+
+          <div class="column-key" aria-label="Column definitions">
+            <span><b>Column 1</b> contains 1</span>
+            <span><b>Column 2</b> contains 2</span>
+            <span><b>Column 3</b> contains 3</span>
+          </div>
+
+        </article>
+
+        <article class="panel wheel-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Layout 02</p>
+              <h2>Actual wheel</h2>
+            </div>
+          </div>
+          <div id="roulette-wheel" class="roulette-wheel" aria-label="European roulette wheel with zero at the top">
+            <div class="wheel-centre" aria-hidden="true">
+              <span>European</span>
+              <strong>Single zero</strong>
+            </div>
+          </div>
+          <p class="wheel-caption">Correct clockwise pocket order · 0 fixed at the top</p>
+        </article>
+
+        <article class="panel racetrack-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Layout 03</p>
+              <h2>Racetrack</h2>
+            </div>
+          </div>
+          <div id="racetrack" class="racetrack" aria-label="European roulette racetrack with zero at the top">
+            <div class="track-centre" aria-hidden="true">0 at top</div>
+          </div>
+          <div id="zone-controls" class="zone-controls" aria-label="Racetrack sectors"></div>
+        </article>
+
+        <aside class="panel inspector" aria-live="polite">
+          <p class="panel-kicker">Shared data model</p>
+          <h2 id="info-title">Choose a number</h2>
+          <p id="info-hint" class="info-hint">Hover over any pocket to see its properties.</p>
+          <dl id="number-details" class="number-details" hidden>
+            <div><dt>Colour</dt><dd id="detail-color">—</dd></div>
+            <div><dt>Column</dt><dd id="detail-column">—</dd></div>
+            <div><dt>Dozen</dt><dd id="detail-dozen">—</dd></div>
+            <div><dt>Parity</dt><dd id="detail-parity">—</dd></div>
+            <div><dt>Range</dt><dd id="detail-range">—</dd></div>
+            <div><dt>Wheel position</dt><dd id="detail-wheel">—</dd></div>
+          </dl>
+          <p class="next-note">All three layouts share one selection. Number, racetrack-sector, and table-bet coverage can be previewed or locked.</p>
+        </aside>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

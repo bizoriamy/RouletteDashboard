@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Compact European roulette absence and betting dashboard." />
+    <title>Roulette Live Dashboard</title>
+    <link rel="stylesheet" href="live-dashboard.css" />
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="topbar">
+        <div><p>European Roulette</p><h1>Live Dashboard</h1></div>
+        <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
+          <span class="history-empty">No spins yet</span>
+        </div>
+        <div class="spin-meta"><span id="session-number">Session 1</span><strong id="spin-count">0</strong><small>spins</small></div>
+      </header>
+
+      <div class="session-tools">
+        <button id="dealer-change-button" type="button">Dealer 1 · Mark change</button>
+        <span id="idle-timer">Waiting for first spin</span>
+      </div>
+
+      <button id="history-button" class="history-button" type="button">History</button>
+
+      <section class="entry-panel" aria-label="Manual spin entry">
+        <form id="spin-form" autocomplete="off">
+          <label for="spin-input">Winning number</label>
+          <div class="entry-row">
+            <input id="spin-input" inputmode="numeric" pattern="[0-9]*" min="0" max="36" placeholder="0–36" autofocus />
+            <button class="primary" type="submit">Enter</button>
+            <button id="undo-button" type="button">Undo</button>
+            <button id="reset-session-button" class="danger-quiet" type="button">Reset</button>
+          </div>
+        </form>
+        <div class="last-spin" id="last-spin"><span>Last</span><strong>—</strong></div>
+      </section>
+
+      <p id="notice" class="notice" role="status" aria-live="polite">Type 0–36, then press Enter.</p>
+      <section id="next-bets-panel" class="focus-control" hidden>
+        <button id="focus-mode-button" type="button">Focus mode</button>
+        <div id="next-bets" hidden></div>
+      </section>
+      <section id="tracker-grid" class="tracker-grid" aria-label="Six absence trackers"></section>
+
+      <details class="twelve-panel" open>
+        <summary><strong>Dozens & Columns</strong><span>Fibonacci · trigger after 6</span></summary>
+        <section id="twelve-grid" class="twelve-grid" aria-label="Dozen and column absence trackers"></section>
+        <div class="section-heading twelve-heading"><h2>Active 12-number bets</h2><span id="twelve-slot-count">0 / 4</span></div>
+        <div id="twelve-sessions" class="active-sessions"></div>
+      </details>
+
+      <section class="sessions-panel" aria-labelledby="sessions-title">
+        <div class="section-heading"><h2 id="sessions-title">Active bets · Two-Win Reset</h2><span id="slot-count">0 / 3</span></div>
+        <div id="active-sessions" class="active-sessions"></div>
+        <div id="session-results" class="session-results" aria-label="Completed betting results"></div>
+      </section>
+
+      <section class="risk-strip" aria-label="Bankroll and risk">
+        <label>Bankroll <input id="bankroll-input" type="number" min="0" step="1" value="1000" /></label>
+        <label>Unit <input id="unit-input" type="number" min="0.01" step="0.01" value="1" /></label>
+        <label>Table rule <select id="table-rule"><option value="standard">Standard</option><option value="la-partage">French · Half back</option></select></label>
+        <label>Trigger after <select id="trigger-threshold"><option value="3">3 absences</option><option value="4" selected>4 absences</option><option value="5">5 absences</option></select></label>
+        <div><span>Live balance</span><strong id="live-bankroll">1,000</strong></div>
+        <div><span>Exposure</span><strong id="exposure">0</strong></div>
+      </section>
+      <section class="risk-strip twelve-risk" aria-label="Dozen and column bankroll and risk">
+        <label>12-number bankroll <input id="twelve-bankroll-input" type="number" min="0" step="1" value="1000" /></label>
+        <label>Fibonacci unit <input id="twelve-unit-input" type="number" min="0.01" step="0.01" value="1" /></label>
+        <label>Trigger after <select id="twelve-trigger-threshold"><option value="4">4 absences</option><option value="5">5 absences</option><option value="6" selected>6 absences</option></select></label>
+        <div><span>12-number balance</span><strong id="twelve-live-bankroll">1,000</strong></div>
+        <div><span>12-number exposure</span><strong id="twelve-exposure">0</strong></div>
+      </section>
+      <details class="sync-panel">
+        <summary>Google Sheets <span id="sync-status">Not connected</span></summary>
+        <label>Web app URL<input id="sync-url" type="url" autocomplete="off" /></label>
+        <label>Private token<input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
+        <p id="archive-summary" class="sync-help">Checking local recovery archive…</p>
+        <div class="sync-actions"><button id="save-sync" class="primary" type="button">Connect & sync</button><button id="resync-archive" type="button">Resync last archive</button><button id="download-archive" type="button">Download last archive</button><button id="disable-sync" type="button">Disconnect</button></div>
+      </details>
+    </main>
+    <script src="roulette-core.js"></script>
+    <script src="dashboard-storage.js"></script>
+    <script src="google-sheets-sync.js"></script>
+    <script src="live-dashboard.js"></script>
+  </body>
+</html>
