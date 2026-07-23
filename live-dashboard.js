@@ -29,14 +29,14 @@
       <div class="card-head"><span class="status-dot"></span><h2>${title(side)}</h2><span class="state-label"></span></div>
       <div class="progress"><strong class="absent">0</strong><span>of</span><input class="threshold" type="number" min="1" max="99" value="4" aria-label="${title(side)} absence threshold" /></div>
       <div class="card-detail">Tracking absence</div>
-      <div class="card-actions"><button class="start primary" type="button">Start bet</button><button class="ignore" type="button">Ignore</button><button class="resume" type="button">Resume</button></div>
+      <div class="card-actions"><button class="start primary" type="button">Start</button><button class="ignore" type="button">Ignore</button><button class="resume" type="button">Resume</button></div>
     </article>`;
   }
-  grid.innerHTML = SIDES.map(cardMarkup).join("");
+  grid.innerHTML = ["low", "even", "red", "high", "odd", "black"].map(cardMarkup).join("");
   twelveGrid.innerHTML = TWELVE_SIDES.map((side) => `<article class="tracker-card twelve-card" data-twelve-side="${side}">
     <div class="card-head"><span class="status-dot"></span><h2>${label(side)}</h2><span class="state-label"></span></div>
     <div class="progress"><strong class="absent">0</strong><span>of</span><input class="threshold" type="number" min="1" max="99" value="6" /></div>
-    <div class="card-detail">${twelveNumbers[side]}</div>
+    <div class="card-detail"></div>
     <div class="card-actions"><button class="start primary" type="button">Start</button><button class="ignore" type="button">Ignore</button><button class="resume" type="button">Resume</button></div>
   </article>`).join("");
 
@@ -67,7 +67,7 @@
   document.querySelector("#spin-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const input = document.querySelector("#spin-input");
-    attempt(() => { const number = Number(input.value); engine.addSpin(number); input.value = ""; input.focus(); say(`Spin ${number} recorded.`); });
+    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number); renderHotStreets(); input.value = ""; input.focus(); say(`Spin ${number} recorded.`); });
   });
   document.querySelector("#undo-button").addEventListener("click", () => {
     if (engine.undoLastSpin()) say("Last spin undone."); else say("There is no spin to undo.", true);
@@ -77,10 +77,12 @@
     if (!confirmed) return;
     googleSync.archiveCurrentSession(engine, tableSession.number);
     await googleSync.sync(engine);
-    googleSync.startNewSession();
     engine.resetSession();
+    hotStreets.reset();
+    googleSync.startNewSession();
     tableSession = storage.startNextSession();
     render(engine.getState());
+    renderHotStreets();
     say(`Session ${tableSession.number - 1} ended. Session ${tableSession.number} is ready.`);
     document.querySelector("#spin-input").focus();
   });
@@ -146,9 +148,9 @@
     document.querySelector("#spin-count").textContent = state.spinCount;
     const last = state.spins.at(-1)?.number;
     document.querySelector("#last-spin strong").textContent = last ?? "—";
-    const recentSpins = state.spins.slice(-12).reverse();
+    const recentSpins = state.spins.slice(-8).reverse();
     document.querySelector("#spin-history").innerHTML = recentSpins.length
-      ? recentSpins.map((spin, index) => `<span class="history-number ${numberColor(spin.number)}${index === 0 ? " latest" : ""}" title="Spin ${spin.index}">${spin.number}</span>`).join("")
+      ? recentSpins.map((spin, index) => `<button type="button" class="history-number ${numberColor(spin.number)}${index === 0 ? " latest" : ""}" title="Spin ${spin.index}">${spin.number}</button>`).join("")
       : `<span class="history-empty">No spins yet</span>`;
     document.querySelector("#undo-button").disabled = state.spinCount === 0;
     for (const side of SIDES) {
@@ -161,7 +163,7 @@
       const blocked = state.locked[side];
       card.querySelector(".card-detail").textContent = active
         ? active.system === "two-win" ? `Bet ${active.stage + 1}/8 · wins ${active.winStreak}/2 · stake ${money(active.stake)}` : `Stage ${active.stage + 1}/${active.maxStages} · stake ${money(active.stake)}`
-        : blocked ? "Locked by opposite bet" : tracker.status === "ignored" ? "Muted until this side appears" : "Consecutive spins absent";
+        : blocked ? "Locked by opposite bet" : tracker.status === "ignored" ? "Muted until this side appears" : "";
       card.querySelector(".start").disabled = tracker.status !== "triggered" || blocked || state.activeSessions.length >= 3;
       card.querySelector(".ignore").disabled = tracker.status !== "triggered";
       card.querySelector(".resume").disabled = tracker.status !== "ignored";
@@ -175,7 +177,7 @@
       card.querySelector(".absent").textContent = tracker.absent;
       card.querySelector(".threshold").value = tracker.threshold;
       card.querySelector(".state-label").textContent = tracker.status === "active" ? "FIB" : title(tracker.status);
-      card.querySelector(".card-detail").textContent = active ? `FIB S-${active.stage + 1}/8 · Bet ${money(active.stake)}` : twelveNumbers[side];
+      card.querySelector(".card-detail").textContent = active ? `FIB S-${active.stage + 1}/8 · Bet ${money(active.stake)}` : "";
       card.querySelector(".start").disabled = tracker.status !== "triggered" || groupCount >= 2;
       card.querySelector(".ignore").disabled = tracker.status !== "triggered";
       card.querySelector(".resume").disabled = tracker.status !== "ignored";
@@ -224,8 +226,270 @@
 
   engine.subscribe((state) => {
     render(state);
+    renderHotStreets();
     if (!storage.save(engine)) say("Dashboard updated, but automatic saving failed.", true);
   });
+
+  // ── Hot Streets ──────────────────────────────────────────────
+  const hotStreets = new window.RouletteHotStreets.HotStreets();
+  let hsLastResult = null;
+  const hsModal = document.querySelector("#hs-history-modal");
+  const hsInput = document.querySelector("#hs-history-input");
+  const hsParseStatus = document.querySelector("#hs-parse-status");
+
+  function renderHotStreets() {
+    const s = hotStreets.getState();
+
+    // Notify on win/burst
+    if (s.lastResult && s.lastResult !== hsLastResult) {
+      if (s.lastResult === "win") say(`4-Streets WIN! +2 units · P/L ${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`);
+      else if (s.lastResult === "burst") say(`4-Streets BURST at Stage ${s.betMax} · P/L ${s.totalPL}`, true);
+      hsLastResult = s.lastResult;
+      setTimeout(() => { hsLastResult = null; }, 2000);
+    }
+
+    // Status line in summary
+    const statusEl = document.querySelector("#hs-status");
+    if (s.phase === "idle") statusEl.textContent = s.historyCount > 0 ? `${s.historyCount} numbers loaded` : "No history loaded";
+    else if (s.phase === "ready") statusEl.textContent = `${s.historyCount} numbers · Candidates ready`;
+    else if (s.phase === "observing") statusEl.textContent = `Observation ${s.observationSpin}/${s.observationTotal}`;
+    else if (s.phase === "betting") statusEl.textContent = `Stage ${s.betStage}/${s.betMax} · P/L ${s.cyclePL >= 0 ? "+" : ""}${s.cyclePL}`;
+
+    // History count
+    document.querySelector("#hs-history-count").textContent = s.historyCount > 0
+      ? `${s.historyCount} numbers in history`
+      : "Paste table history to start";
+
+    // Mode buttons
+    document.querySelector("#hs-mode-hot").classList.toggle("primary", s.mode === "hot");
+    document.querySelector("#hs-mode-cold").classList.toggle("primary", s.mode === "cold");
+
+    // Candidates
+    const candPanel = document.querySelector("#hs-candidates");
+    const candList = document.querySelector("#hs-candidate-list");
+    if (s.candidates.length > 0 && (s.phase === "ready" || s.phase === "observing" || s.phase === "betting")) {
+      candPanel.hidden = false;
+      document.querySelector("#hs-obs-label").textContent = s.phase === "observing"
+        ? `Observation ${s.observationSpin}/${s.observationTotal}`
+        : s.phase === "betting" ? "Betting phase" : "Ready";
+      candList.innerHTML = s.candidates.map(c => {
+        const scored = c.score > 0;
+        return `<div class="hs-candidate-card${scored ? " hs-scored" : ""}">
+          <div class="hs-cand-street">${c.start}</div>
+          <div class="hs-cand-score">${c.score} pts</div>
+        </div>`;
+      }).join("");
+    } else {
+      candPanel.hidden = true;
+    }
+
+    // Final pack
+    const finalPanel = document.querySelector("#hs-final");
+    const betBanner = document.querySelector("#hs-bet-banner");
+    const wasHidden = finalPanel.hidden || betBanner.hidden;
+    const startBtn = document.querySelector("#hs-start-bet");
+    if (s.finalStreets.length > 0 && s.phase === "betting") {
+      finalPanel.hidden = false;
+      betBanner.hidden = false;
+      document.querySelector("#hs-bet-stage-label").textContent = `Stage ${s.betStage}/${s.betMax}`;
+      document.querySelector("#hs-bet-info").textContent = `Bet ${s.currentBet} unit${s.currentBet !== 1 ? "s" : ""} per street`;
+      document.querySelector("#hs-final-streets").innerHTML = s.finalStreets.map(f =>
+        `<div class="hs-street-chip"><span>${f.start}</span><small>${f.label}</small></div>`
+      ).join("");
+      startBtn.disabled = true;
+      startBtn.textContent = `Stage ${s.betStage} active`;
+      startBtn.className = "primary";
+      document.querySelector("#hs-ignore-bet").hidden = true;
+    } else if (s.finalStreets.length > 0 && s.phase === "deciding") {
+      finalPanel.hidden = false;
+      betBanner.hidden = true;
+      document.querySelector("#hs-bet-info").textContent = "Observation complete — your choice";
+      document.querySelector("#hs-final-streets").innerHTML = s.finalStreets.map(f =>
+        `<div class="hs-street-chip"><span>${f.start}</span><small>${f.label}</small></div>`
+      ).join("");
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Bet";
+      startBtn.className = "primary";
+      document.querySelector("#hs-ignore-bet").hidden = false;
+      if (wasHidden) say(`Observation done — ${s.finalStreets.map(f => f.start).join(", ")} selected. Place bet?`);
+    } else if (s.candidates.length > 0 && s.phase === "ready" && s.observationSpin === 0) {
+      finalPanel.hidden = false;
+      betBanner.hidden = true;
+      document.querySelector("#hs-bet-info").textContent = "Ready to observe";
+      document.querySelector("#hs-final-streets").innerHTML = `<span style="color:var(--muted);font-size:10px;grid-column:1/-1;">Press Start Observation</span>`;
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Observation";
+      startBtn.className = "primary";
+      document.querySelector("#hs-ignore-bet").hidden = true;
+    } else {
+      finalPanel.hidden = true;
+      betBanner.hidden = true;
+      document.querySelector("#hs-ignore-bet").hidden = true;
+    }
+
+    // Cycle stats
+    const statsPanel = document.querySelector("#hs-cycle-stats");
+    if (s.totalCycles > 0) {
+      statsPanel.hidden = false;
+      document.querySelector("#hs-total-cycles").textContent = s.totalCycles;
+      document.querySelector("#hs-total-wins").textContent = s.cycleWins;
+      document.querySelector("#hs-total-bursts").textContent = s.cycleBursts;
+      const plEl = document.querySelector("#hs-total-pl");
+      plEl.textContent = `${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`;
+      plEl.style.color = s.totalPL >= 0 ? "var(--green)" : "var(--red)";
+    } else {
+      statsPanel.hidden = true;
+    }
+  }
+
+  // Modal open/close
+  document.querySelector("#hs-load-history").addEventListener("click", () => {
+    hsInput.value = "";
+    hsParseStatus.textContent = "";
+    hsParseStatus.className = "hs-parse-status";
+    hsModal.hidden = false;
+    hsInput.focus();
+  });
+  document.querySelector("#hs-history-cancel").addEventListener("click", () => { hsModal.hidden = true; });
+  hsModal.addEventListener("click", (e) => { if (e.target === hsModal) hsModal.hidden = true; });
+
+  // Live parse preview
+  hsInput.addEventListener("input", () => {
+    const nums = window.RouletteHotStreets.parseNumbers(hsInput.value);
+    if (nums.length === 0) {
+      hsParseStatus.textContent = "";
+      hsParseStatus.className = "hs-parse-status";
+    } else {
+      hsParseStatus.textContent = `✓ ${nums.length} numbers parsed`;
+      hsParseStatus.className = "hs-parse-status ok";
+    }
+  });
+
+  // Save history
+  document.querySelector("#hs-history-save").addEventListener("click", () => {
+    try {
+      const count = hotStreets.replaceHistory(hsInput.value);
+      hsModal.hidden = true;
+      say(`${count} numbers loaded for 4-Streets strategy`);
+      renderHotStreets();
+    } catch (err) {
+      hsParseStatus.textContent = err.message;
+      hsParseStatus.className = "hs-parse-status err";
+    }
+  });
+
+  // ── Image OCR ─────────────────────────────────────────────────
+  const ocrStatus = document.querySelector("#hs-ocr-status");
+  const imageInput = document.querySelector("#hs-image-input");
+
+  // Dynamically load Tesseract.js from CDN
+  function loadTesseract() {
+    return new Promise((resolve, reject) => {
+      if (window.Tesseract) return resolve(window.Tesseract);
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+      script.onload = () => resolve(window.Tesseract);
+      script.onerror = () => reject(new Error("Failed to load Tesseract.js"));
+      document.head.appendChild(script);
+    });
+  }
+
+  document.querySelector("#hs-upload-image").addEventListener("click", () => {
+    imageInput.value = "";
+    imageInput.click();
+  });
+
+  imageInput.addEventListener("change", async () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+
+    ocrStatus.textContent = "Loading OCR engine...";
+    ocrStatus.className = "hs-parse-status";
+
+    try {
+      const Tesseract = await loadTesseract();
+      ocrStatus.textContent = "Reading numbers from image...";
+
+      const { data: { text } } = await Tesseract.recognize(file, "eng", {
+        // Only recognize digits and common separators
+        tessedit_char_whitelist: "0123456789\n\r, ",
+      });
+
+      // Extract all numbers 0-36 from the OCR text
+      const nums = text.split(/[\s,]+/)
+        .map(s => s.trim().replace(/[oO]/g, "0"))
+        .filter(s => s.length > 0 && !isNaN(Number(s)))
+        .map(Number)
+        .filter(n => n >= 0 && n <= 36);
+
+      if (nums.length === 0) {
+        ocrStatus.textContent = "No numbers found. Try a clearer screenshot.";
+        ocrStatus.className = "hs-parse-status err";
+        return;
+      }
+
+      // Fill textarea with extracted numbers
+      hsInput.value = nums.join("\n");
+      ocrStatus.textContent = `✓ Found ${nums.length} numbers from image`;
+      ocrStatus.className = "hs-parse-status ok";
+
+      // Trigger live parse preview
+      hsInput.dispatchEvent(new Event("input"));
+    } catch (err) {
+      ocrStatus.textContent = `OCR failed: ${err.message}`;
+      ocrStatus.className = "hs-parse-status err";
+    }
+  });
+
+  // Mode toggle
+  document.querySelector("#hs-mode-hot").addEventListener("click", () => {
+    if (hotStreets.history.length < 12) { say("Load at least 12 numbers first.", true); return; }
+    hotStreets.selectCandidates("hot");
+    renderHotStreets();
+  });
+  document.querySelector("#hs-mode-cold").addEventListener("click", () => {
+    if (hotStreets.history.length < 12) { say("Load at least 12 numbers first.", true); return; }
+    hotStreets.selectCandidates("cold");
+    renderHotStreets();
+  });
+
+  // Start observation / accept bet
+  document.querySelector("#hs-start-bet").addEventListener("click", () => {
+    try {
+      if (hotStreets.state.phase === "ready" && hotStreets.state.observationSpin === 0) {
+        hotStreets.startObservation();
+        say("Observation started — watching candidate streets");
+      } else if (hotStreets.state.phase === "deciding") {
+        hotStreets.acceptBet();
+        say(`BETTING — Stage 1: bet on ${hotStreets.state.finalStreets.map(si => window.RouletteHotStreets.STREET_STARTS[si]).join(", ")}`);
+      }
+      renderHotStreets();
+    } catch (err) {
+      say(err.message, true);
+    }
+  });
+
+  // Ignore this cycle
+  document.querySelector("#hs-ignore-bet").addEventListener("click", () => {
+    try {
+      hotStreets.ignoreBet();
+      say("Observation ignored — new candidates selected");
+      renderHotStreets();
+    } catch (err) {
+      say(err.message, true);
+    }
+  });
+
+  // Reset
+  document.querySelector("#hs-reset").addEventListener("click", () => {
+    if (!window.confirm("Reset 4-Streets strategy? History will be cleared.")) return;
+    hotStreets.reset();
+    renderHotStreets();
+    say("4-Streets strategy reset");
+  });
+
+  // ── End Hot Streets ──────────────────────────────────────────
+
   googleSync.attach(engine, (message, type) => {
     const status = document.querySelector("#sync-status"); status.textContent = message; status.classList.toggle("error", type === "error");
     say(message, type === "error");
@@ -239,6 +503,7 @@
     timer.classList.toggle("warning", seconds >= 75);
   }, 1000);
   render(engine.getState());
+  renderHotStreets();
   if (storage.lastError) say("Saved data could not be restored; a fresh dashboard was opened.", true);
-  window.liveDashboard = { engine, storage, googleSync, exportSnapshot: () => engine.exportSnapshot() };
+  window.liveDashboard = { engine, storage, googleSync, hotStreets, exportSnapshot: () => engine.exportSnapshot() };
 })();

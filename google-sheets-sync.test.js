@@ -14,7 +14,7 @@ function loadSync(saved = {}) {
       setItem: (key, value) => values.set(key, value),
     },
     navigator: { onLine: true },
-    fetch: async () => ({}),
+    fetch: async (url, opts) => opts?.method === "GET" ? { url } : { json: async () => ({ ok: true }) },
     setTimeout,
     Blob,
     URL,
