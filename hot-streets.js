@@ -47,9 +47,11 @@
   }
 
   class HotStreets {
-    constructor() {
+    constructor(options = {}) {
       this.history = this.load_(HISTORY_KEY, []);
       this.state = this.load_(STATE_KEY, this.freshState_());
+      this.progression = options.progression ? [...options.progression] : [...FIB];
+      this.baseUnit = Number(options.baseUnit) > 0 ? Number(options.baseUnit) : 1;
     }
 
     freshState_() {
@@ -164,6 +166,18 @@
       this.save_();
     }
 
+    setProgression(arr) {
+      if (!Array.isArray(arr) || !arr.every(n => n > 0)) throw new Error("Progression must be array of positive numbers.");
+      this.progression = [...arr];
+      this.save_();
+    }
+
+    setBaseUnit(val) {
+      const u = Number(val);
+      if (!(u > 0)) throw new Error("Base unit must be positive.");
+      this.baseUnit = u;
+    }
+
     /** User ignores — skip this cycle, pick new candidates */
     ignoreBet() {
       if (this.state.phase !== "deciding") throw new Error("No observation to ignore.");
@@ -184,7 +198,7 @@
     }
 
     winBet_() {
-      const stake = FIB[this.state.betStage - 1];
+      const stake = this.progression[this.state.betStage - 1] * this.baseUnit;
       const profit = stake * 2; // street pays 11:1, 4 streets at 1/4 each = net +2 per unit
       this.state.cyclePL += profit;
       this.state.totalPL += profit;
@@ -196,10 +210,10 @@
     }
 
     loseBet_() {
-      const stake = FIB[this.state.betStage - 1];
+      const stake = this.progression[this.state.betStage - 1] * this.baseUnit;
       this.state.cyclePL -= stake;
       this.state.totalPL -= stake;
-      if (this.state.betStage >= FIB.length) {
+      if (this.state.betStage >= this.progression.length) {
         // Burst
         this.state.cycleBursts++;
         this.state.totalCycles++;
@@ -227,8 +241,9 @@
     /** Get current state for UI */
     getState() {
       const s = this.state;
-      const totalBet = s.betStage > 0 ? FIB.slice(0, s.betStage).reduce((a, b) => a + b, 0) : 0;
-      const currentBet = s.betStage > 0 ? FIB[s.betStage - 1] : 0;
+      const prog = this.progression;
+      const totalBet = s.betStage > 0 ? prog.slice(0, s.betStage).reduce((a, b) => a + b, 0) * this.baseUnit : 0;
+      const currentBet = s.betStage > 0 ? prog[s.betStage - 1] * this.baseUnit : 0;
       return {
         phase: s.phase,
         mode: s.mode,
@@ -247,7 +262,7 @@
           label: STREET_LABELS[si]
         })),
         betStage: s.betStage,
-        betMax: FIB.length,
+        betMax: this.progression.length,
         currentBet: currentBet,
         totalBet: totalBet,
         cyclePL: s.cyclePL,
@@ -255,7 +270,9 @@
         cycleWins: s.cycleWins,
         cycleBursts: s.cycleBursts,
         totalCycles: s.totalCycles,
-        lastResult: s.lastResult
+        lastResult: s.lastResult,
+        progression: [...this.progression],
+        baseUnit: this.baseUnit
       };
     }
 

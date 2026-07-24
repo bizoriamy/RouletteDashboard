@@ -9,92 +9,107 @@
   </head>
   <body>
     <main class="dashboard-shell">
+      <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard <small class="version">v2.1</small></h1></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
         <div class="spin-meta"><span id="session-number">Session 1</span><strong id="spin-count">0</strong><small>spins</small></div>
       </header>
 
-      <div class="session-tools">
-        <button id="dealer-change-button" type="button">Dealer 1 · Mark change</button>
+      <!-- Session tools + entry -->
+      <div class="toolbar">
+        <button id="dealer-change-button">Dealer 1 · Mark change</button>
         <span id="idle-timer">Waiting for first spin</span>
+        <div class="toolbar-spacer"></div>
+        <button id="history-button">History</button>
+        <button id="session-summary-button">Session Summary</button>
       </div>
 
-      <button id="history-button" class="history-button" type="button">History</button>
-      <button id="session-summary-button" class="history-button" type="button">Session Summary</button>
-
-      <section class="entry-panel" aria-label="Manual spin entry">
-        <form id="spin-form" autocomplete="off">
-          <label for="spin-input">Winning number</label>
-          <div class="entry-row">
-            <input id="spin-input" inputmode="numeric" pattern="[0-9]*" min="0" max="36" placeholder="0–36" autofocus />
-            <button class="primary" type="submit">Enter</button>
-            <button id="undo-button" type="button">Undo</button>
-            <button id="reset-session-button" class="danger-quiet" type="button">Reset</button>
-          </div>
-        </form>
+      <form id="spin-form" autocomplete="off" class="entry-row">
+        <input id="spin-input" inputmode="numeric" pattern="[0-9]*" min="0" max="36" placeholder="0–36" autofocus />
+        <button class="primary" type="submit">Enter</button>
+        <button id="undo-button" type="button">Undo</button>
+        <button id="reset-session-button" class="danger-quiet" type="button">Reset</button>
+        <span id="notice" class="notice" role="status" aria-live="polite">Type 0–36, then press Enter.</span>
         <div class="last-spin" id="last-spin"><span>Last</span><strong>—</strong></div>
-      </section>
+      </form>
 
-      <p id="notice" class="notice" role="status" aria-live="polite">Type 0–36, then press Enter.</p>
       <section id="next-bets-panel" class="focus-control" hidden>
         <button id="focus-mode-button" type="button">Focus mode</button>
         <div id="next-bets" hidden></div>
       </section>
-      <section id="tracker-grid" class="tracker-grid" aria-label="Six absence trackers"></section>
 
-      <details class="twelve-panel" open>
-        <summary><strong>Dozens & Columns</strong><span>Fibonacci · trigger after 6</span></summary>
-        <section id="twelve-grid" class="twelve-grid" aria-label="Dozen and column absence trackers"></section>
-
-        <details class="hotstreets-panel" id="hotstreets-panel" open>
-          <summary><strong>4-Streets Strategy</strong><span id="hs-status">No history loaded</span></summary>
-
-          <div id="hs-controls" class="hs-controls">
-            <div class="hs-mode-row">
-              <button id="hs-mode-hot" class="primary" type="button">Hot</button>
-              <button id="hs-mode-cold" type="button">Cold</button>
-              <button id="hs-load-history" type="button">Load History</button>
-              <button id="hs-reset" type="button" class="danger-quiet">Reset</button>
+      <!-- Even-money system -->
+      <details class="system-panel" open>
+        <summary><strong>Even-Money</strong><span id="even-summary">Martingale · trigger 4</span></summary>
+        <section id="tracker-grid" class="tracker-grid" aria-label="Six absence trackers"></section>
+        <details class="sys-config-collapse">
+          <summary class="cfg-summary">Settings ▸</summary>
+          <section class="system-config">
+            <div class="config-row">
+              <label>Trigger after <select id="trigger-threshold" class="cfg-trigger"><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></label>
+              <label>Bankroll <input id="bankroll-input" type="number" min="0" value="1000" class="cfg-num" /></label>
+              <label>Unit <input id="unit-input" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
+              <label>Live <strong id="live-bankroll">1,000</strong> / Exp <strong id="exposure">0</strong></label>
             </div>
-            <div id="hs-history-count" class="hs-history-count">Paste table history to start</div>
-          </div>
-
-          <div id="hs-candidates" class="hs-candidates" hidden>
-            <div class="section-heading"><h2>Candidate Streets</h2><span id="hs-obs-label">Observation 0/12</span></div>
-            <div id="hs-candidate-list" class="hs-candidate-list"></div>
-          </div>
-
-          <div id="hs-final" class="hs-final" hidden>
-            <div id="hs-bet-banner" class="hs-bet-banner" hidden>
-              <span class="hs-bet-icon">BET NOW</span>
-              <span id="hs-bet-stage-label" class="hs-bet-stage-label"></span>
+            <div class="config-row">
+              <label>Progression <select id="even-prog-preset" class="cfg-prog-preset">
+                <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
+                <option value="1,2,4,8,16,32">Martingale 6-step</option>
+                <option value="1,2,4,8">Martingale 4-step</option>
+                <option value="1,1,2,3,5,8,13,21">Fibonacci 8-step</option>
+                <option value="1,1,2,3,5">Fibonacci 5-step</option>
+                <option value="1,1,2,3">Fibonacci 4-step</option>
+                <option value="1,2,3,4">Step 1-2-3-4</option>
+                <option value="custom">Custom</option>
+              </select></label>
+              <label>Amounts <input id="even-prog-amounts" class="cfg-prog-amt" value="1,2,4,8,16,32,64,128" /></label>
+              <button id="even-backtest-btn" class="btn-small" type="button">Backtest</button>
             </div>
-            <div class="hs-final-header">
-              <h2>4-Streets Pack</h2>
-              <div id="hs-bet-info" class="hs-bet-info"></div>
-            </div>
-            <div id="hs-final-streets" class="hs-final-streets"></div>
-            <div class="hs-bet-actions">
-              <button id="hs-start-bet" class="primary" type="button">Start Observation</button>
-              <button id="hs-ignore-bet" class="danger-quiet" type="button" hidden>Ignore</button>
-            </div>
-          </div>
-
-          <div id="hs-cycle-stats" class="hs-cycle-stats" hidden>
-            <div><span>Cycles</span><strong id="hs-total-cycles">0</strong></div>
-            <div><span>Wins</span><strong id="hs-total-wins">0</strong></div>
-            <div><span>Bursts</span><strong id="hs-total-bursts">0</strong></div>
-            <div><span>P/L</span><strong id="hs-total-pl">0</strong></div>
-          </div>
+            <div id="even-backtest" class="backtest-results" hidden></div>
+          </section>
         </details>
+        <div class="section-heading"><h2>Active bets</h2><span id="slot-count">0 / 3</span></div>
+        <div id="active-sessions" class="active-sessions"></div>
+        <div id="session-results" class="session-results" aria-label="Completed betting results"></div>
+      </details>
 
-        <div class="section-heading twelve-heading"><h2>Active 12-number bets</h2><span id="twelve-slot-count">0 / 4</span></div>
+      <!-- Twelve-number system -->
+      <details class="system-panel" open>
+        <summary><strong>Dozens &amp; Columns</strong><span id="twelve-summary">Fibonacci · trigger 6</span></summary>
+        <section id="twelve-grid" class="twelve-grid" aria-label="Dozen and column absence trackers"></section>
+        <details class="sys-config-collapse">
+          <summary class="cfg-summary">Settings ▸</summary>
+          <section class="system-config">
+            <div class="config-row">
+              <label>Trigger after <select id="twelve-trigger-threshold" class="cfg-trigger"><option value="4">4</option><option value="5">5</option><option value="6" selected>6</option><option value="7">7</option><option value="8">8</option></select></label>
+              <label>Bankroll <input id="twelve-bankroll-input" type="number" min="0" value="1000" class="cfg-num" /></label>
+              <label>Unit <input id="twelve-unit-input" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
+              <label>Live <strong id="twelve-live-bankroll">1,000</strong> / Exp <strong id="twelve-exposure">0</strong></label>
+            </div>
+            <div class="config-row">
+              <label>Progression <select id="twelve-prog-preset" class="cfg-prog-preset">
+                <option value="1,1,2,3,5,8,13,21">Fibonacci 8-step</option>
+                <option value="1,1,2,3,5">Fibonacci 5-step</option>
+                <option value="1,1,2,3">Fibonacci 4-step</option>
+                <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
+                <option value="1,2,4,8">Martingale 4-step</option>
+                <option value="1,2,3,4">Step 1-2-3-4</option>
+                <option value="custom">Custom</option>
+              </select></label>
+              <label>Amounts <input id="twelve-prog-amounts" class="cfg-prog-amt" value="1,1,2,3,5,8,13,21" /></label>
+              <button id="twelve-backtest-btn" class="btn-small" type="button">Backtest</button>
+            </div>
+            <div id="twelve-backtest" class="backtest-results" hidden></div>
+          </section>
+        </details>
+        <div class="section-heading"><h2>Active 12-number bets</h2><span id="twelve-slot-count">0 / 4</span></div>
         <div id="twelve-sessions" class="active-sessions"></div>
       </details>
 
+<<<<<<< HEAD
       <section class="sessions-panel" aria-labelledby="sessions-title">
         <div class="section-heading"><h2 id="sessions-title">Active bets · Two-Win Reset</h2><span id="slot-count">0 / 3</span></div>
         <div id="active-sessions" class="active-sessions"></div>
@@ -160,13 +175,33 @@
           <div class="modal-ocr-row">
             <button id="hs-upload-image" type="button">Upload Screenshot</button>
             <input type="file" id="hs-image-input" accept="image/*" hidden>
+=======
+      <!-- 4-Streets (simplified) -->
+      <details class="system-panel hs-panel" open>
+        <summary><strong>4-Streets</strong><span id="hs-status">No history</span></summary>
+        <div id="hs-controls" class="hs-controls">
+          <div class="hs-mode-row">
+            <button id="hs-mode-hot" class="primary" type="button">Hot</button>
+            <button id="hs-mode-cold" type="button">Cold</button>
+            <button id="hs-load-history" type="button">Load History</button>
+            <button id="hs-reset" class="danger-quiet" type="button">Reset</button>
+>>>>>>> 8210040 (Add configurable progressions, compact card layout, 4-streets config & backtest, charset fix)
           </div>
-          <div id="hs-parse-status" class="hs-parse-status"></div>
-          <div class="modal-actions">
-            <button id="hs-history-cancel" type="button">Cancel</button>
-            <button id="hs-history-save" class="primary" type="button">Save & Close</button>
+          <div id="hs-history-count" class="hs-history-count">Paste table history to start</div>
+        </div>
+        <div id="hs-candidates" hidden>
+          <div class="section-heading"><span>Candidates</span><span id="hs-obs-label">0/12</span></div>
+          <div id="hs-candidate-list"></div>
+        </div>
+        <div id="hs-final" hidden>
+          <div id="hs-bet-banner" hidden><span class="hs-bet-icon">BET NOW</span><span id="hs-bet-stage-label"></span><span id="hs-bet-info"></span></div>
+          <div id="hs-final-streets"></div>
+          <div class="hs-bet-actions">
+            <button id="hs-start-bet" class="primary" type="button">Start Observation</button>
+            <button id="hs-ignore-bet" class="danger-quiet" hidden type="button">Ignore</button>
           </div>
         </div>
+<<<<<<< HEAD
       </div>
 
       <!-- Session Summary Modal -->
@@ -200,6 +235,78 @@
 
     <!-- Hidden video element for display capture -->
     <video id="ac-video" muted playsinline style="position:fixed;left:-9999px;top:0;width:640px;height:360px;"></video>
+=======
+        <div id="hs-cycle-stats" hidden>
+          <span>Cycles <strong id="hs-total-cycles">0</strong></span>
+          <span>Wins <strong id="hs-total-wins">0</strong></span>
+          <span>Bursts <strong id="hs-total-bursts">0</strong></span>
+          <span>P/L <strong id="hs-total-pl">0</strong></span>
+        </div>
+        <details class="sys-config-collapse" style="margin-top:6px;">
+          <summary class="cfg-summary">Settings ▸</summary>
+          <section class="system-config">
+            <div class="config-row">
+              <label>Unit <input id="hs-unit-input" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
+              <label>Progression <select id="hs-prog-preset" class="cfg-prog-preset">
+                <option value="1,1,2,3,5">Fibonacci 5-step</option>
+                <option value="1,1,2,3">Fibonacci 4-step</option>
+                <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
+                <option value="1,2,4,8">Martingale 4-step</option>
+                <option value="1,2,3,4">Step 1-2-3-4</option>
+                <option value="custom">Custom</option>
+              </select></label>
+              <label>Amounts <input id="hs-prog-amounts" class="cfg-prog-amt" value="1,1,2,3,5" /></label>
+              <button id="hs-backtest-btn" class="btn-small" type="button">Backtest</button>
+            </div>
+            <div id="hs-backtest" class="backtest-results" hidden></div>
+          </section>
+        </details>
+      </details>
+
+      <!-- Utilities -->
+      <details class="sync-panel">
+        <summary>Google Sheets <span id="sync-status">Not connected</span></summary>
+        <label>Web app URL <input id="sync-url" type="url" autocomplete="off" /></label>
+        <label>Private token <input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
+        <p id="archive-summary" class="sync-help">Checking local recovery archive…</p>
+        <div class="sync-actions"><button id="save-sync" class="primary">Connect & sync</button><button id="resync-archive">Resync last archive</button><button id="download-archive">Download last archive</button><button id="disable-sync">Disconnect</button></div>
+      </details>
+    </main>
+
+    <!-- HS History modal -->
+    <div id="hs-history-modal" class="modal-overlay" hidden>
+      <div class="modal-box">
+        <h3>Paste Table History</h3>
+        <p class="modal-help">One number per line. "o" auto-corrected to 0.</p>
+        <div id="hs-parse-status" class="hs-parse-status"></div>
+        <div id="hs-ocr-status" class="hs-parse-status"></div>
+        <textarea id="hs-history-input" rows="10" placeholder="Paste numbers here..."></textarea>
+        <div class="modal-actions" style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
+          <button id="hs-modal-upload" type="button" style="flex:1;">Upload Image</button>
+          <input id="hs-image-input" type="file" accept="image/*" hidden />
+          <button id="hs-history-cancel" type="button" style="flex:1;">Cancel</button>
+          <button id="hs-history-save" class="primary" style="flex:2;">Save & Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session Summary modal -->
+    <div id="session-summary-modal" class="modal-overlay" hidden>
+      <div class="modal-box ss-modal">
+        <h3>Session Summary <span id="ss-spin-count"></span></h3>
+        <p class="ss-hint"><strong>Absence streaks</strong> — consecutive misses before a hit.</p>
+        <div class="ss-table-wrap">
+          <table class="ss-table">
+            <thead><tr><th>Category</th><th>1–3</th><th>4–5</th><th>6–7</th><th>8–9</th><th>10–12</th><th>13+</th><th>Total</th><th>Max</th><th title="90th percentile">P90</th><th>Avg</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <button id="ss-modal-cancel" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+>>>>>>> 8210040 (Add configurable progressions, compact card layout, 4-streets config & backtest, charset fix)
 
     <script src="roulette-core.js"></script>
     <script src="dashboard-storage.js"></script>

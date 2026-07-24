@@ -139,6 +139,13 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    def guess_type(self, path):
+        """Serve .js/.css/.html with explicit UTF-8 charset."""
+        base = super().guess_type(path)
+        if base in ("text/javascript", "text/css", "text/html"):
+            return base + "; charset=utf-8"
+        return base
+
     def log_message(self, format, *args):
         # Keep logs quiet for proxy requests, but show errors
         msg = format % args
