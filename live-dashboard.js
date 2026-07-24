@@ -505,5 +505,427 @@
   render(engine.getState());
   renderHotStreets();
   if (storage.lastError) say("Saved data could not be restored; a fresh dashboard was opened.", true);
-  window.liveDashboard = { engine, storage, googleSync, hotStreets, exportSnapshot: () => engine.exportSnapshot() };
+  // ── Auto Capture (In-Page Overlay + Direct OCR) ──
+  const AC_MAGNIFICATION = 4;
+  const AC_REGION_KEY = "roulette-autocapture-region-v1";
+
+  // Pre-load Tesseract so first capture doesn't wait for CDN
+  let acTesseractPromise = null;
+  function ensureTesseract() {
+    if (!acTesseractPromise) acTesseractPromise = loadTesseract().catch(() => null);
+    return acTesseractPromise;
+  }
+  ensureTesseract();
+
+  let acVideo = document.getElementById("ac-video");
+  let acStream = null;
+  let acRegion = null;
+  let acIntervalId = null;
+  let acCaptureCount = 0;
+  let acOverlayActive = false;  // true while overlay is open
+  let acOverlayResolve = null;  // resolves when overlay finishes (region or cancel)
+
+  // Restore saved region
+  try { const d = localStorage.getItem(AC_REGION_KEY); if (d) acRegion = JSON.parse(d); } catch {}
+
+  function acSaveRegion_() { localStorage.setItem(AC_REGION_KEY, JSON.stringify(acRegion)); }
+
+  /** Draw the magnified image onto the preview canvas so the user can see what OCR sees */
+  function debugShowCapture_(sourceCanvas) {
+    const pv = document.querySelector("#ac-preview-canvas");
+    if (!pv) return;
+    const ctx = pv.getContext("2d");
+    const s = Math.min(pv.width / sourceCanvas.width, pv.height / sourceCanvas.height);
+    const dw = Math.round(sourceCanvas.width * s);
+    const dh = Math.round(sourceCanvas.height * s);
+    ctx.clearRect(0, 0, pv.width, pv.height);
+    ctx.drawImage(sourceCanvas, 0, 0, dw, dh);
+  }
+
+  /** Open in-page overlay for region selection */
+  async function acSelectRegion() {
+    const overlay = document.getElementById("ac-overlay");
+    const canvas = document.getElementById("ac-overlay-canvas");
+    const ctx = canvas.getContext("2d");
+    const hint = document.getElementById("ac-overlay-hint");
+    const cancelBtn = document.getElementById("ac-overlay-cancel");
+
+    // Show overlay
+    overlay.hidden = false;
+    acOverlayActive = true;
+    hint.textContent = "Share your screen\u2026";
+
+    try {
+      // Get display stream (prompts user to select a window)
+      acStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: false });
+      acVideo.srcObject = acStream;
+      await acVideo.play();
+      if (!acVideo.videoWidth) await new Promise(r => (acVideo.ontimeupdate = () => { if (acVideo.videoWidth) { acVideo.ontimeupdate = null; r(); } }));
+    } catch (e) {
+      hint.textContent = e.message === "canceled" ? "Cancelled" : `Error: ${e.message}`;
+      setTimeout(() => { overlay.hidden = true; acOverlayActive = false; }, 2000);
+      return;
+    }
+
+    // Set canvas size to video dimensions
+    canvas.width = acVideo.videoWidth;
+    canvas.height = acVideo.videoHeight;
+    hint.textContent = "Draw rectangle around the winning number, then Enter";
+
+    // Fit canvas to available space
+    let acAnimId = null;
+    let acSel = null;
+    let acMouseDown = false;
+    let acCaptureRect = null;
+
+    function fitCanvas() {
+      const wrap = canvas.parentElement;
+      const s = Math.min(wrap.clientWidth / canvas.width, wrap.clientHeight / canvas.height, 1);
+      canvas.style.width = Math.round(canvas.width * s) + "px";
+      canvas.style.height = Math.round(canvas.height * s) + "px";
+    }
+    fitCanvas();
+    new ResizeObserver(fitCanvas).observe(canvas.parentElement);
+
+    // Draw video + selection rect
+    function drawLoop() {
+      if (!canvas.parentElement) return;
+      try { ctx.drawImage(acVideo, 0, 0); } catch (_) {}
+      if (acSel) {
+        const x = Math.min(acSel.x1, acSel.x2), y = Math.min(acSel.y1, acSel.y2);
+        const w = Math.abs(acSel.x2 - acSel.x1), h = Math.abs(acSel.y2 - acSel.y1);
+        if (w > 0 && h > 0) {
+          ctx.fillStyle = "rgba(0,255,136,0.08)"; ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = "#00ff88"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+        }
+      }
+      acAnimId = requestAnimationFrame(drawLoop);
+    }
+    drawLoop();
+
+    function canvasPos(e) {
+      const r = canvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+    }
+
+    canvas.addEventListener("mousedown", e => { const p = canvasPos(e); acSel = { x1: p.x, y1: p.y, x2: p.x, y2: p.y }; acMouseDown = true; });
+    canvas.addEventListener("mousemove", e => { if (!acMouseDown || !acSel) return; const p = canvasPos(e); acSel.x2 = Math.max(0, Math.min(p.x, canvas.width)); acSel.y2 = Math.max(0, Math.min(p.y, canvas.height)); });
+    canvas.addEventListener("mouseup", () => { acMouseDown = false; if (acSel && (Math.abs(acSel.x2 - acSel.x1) < 10 || Math.abs(acSel.y2 - acSel.y1) < 5)) acSel = null; });
+
+    cancelBtn.onclick = cancelOverlay;
+    function cancelOverlay() {
+      if (acStream) { acStream.getTracks().forEach(t => t.stop()); acStream = null; }
+      acVideo.srcObject = null;
+      if (acAnimId) cancelAnimationFrame(acAnimId);
+      overlay.hidden = true;
+      acOverlayActive = false;
+    }
+
+    // Keyboard: Enter saves region, Escape cancels
+    const keyHandler = e => {
+      if (e.key === "Enter") {
+        if (!acSel) { hint.textContent = "Draw a rectangle first"; return; }
+        const cx = Math.round(Math.min(acSel.x1, acSel.x2)), cy = Math.round(Math.min(acSel.y1, acSel.y2));
+        const cw = Math.round(Math.abs(acSel.x2 - acSel.x1)), ch = Math.round(Math.abs(acSel.y2 - acSel.y1));
+        acCaptureRect = { cx, cy, cw, ch };
+        acRegion = { x: cx, y: cy, w: cw, h: ch };
+        acSaveRegion_();
+        // Stream is already playing — don't re-assign srcObject (that resets the video)
+        if (acAnimId) cancelAnimationFrame(acAnimId);
+        document.removeEventListener("keydown", keyHandler);
+        overlay.hidden = true;
+        acOverlayActive = false;
+        acUpdateUI_();
+        const statusEl = document.querySelector("#ac-status");
+        statusEl.textContent = `Region ${acRegion.w}\u00d7${acRegion.h} set`; statusEl.className = "";
+        console.log(`[AutoCapture] Region set: ${JSON.stringify(acRegion)}`);
+        // Do first capture immediately
+        acCaptureFromScreen();
+      } else if (e.key === "Escape") {
+        cancelOverlay();
+        document.removeEventListener("keydown", keyHandler);
+      }
+    };
+    document.addEventListener("keydown", keyHandler);
+
+    // Stream ended → close overlay
+    acStream.getVideoTracks()[0]?.addEventListener("ended", () => {
+      hint.textContent = "Stream ended \u2014 close and re-select region";
+      setTimeout(() => { if (acOverlayActive) cancelOverlay(); }, 3000);
+    });
+  }
+
+  /** Capture: grab frame from video, crop, magnify, OCR */
+  async function acCaptureFromScreen() {
+    const statusEl = document.querySelector("#ac-status");
+    if (!acRegion) { statusEl.textContent = "No region set"; statusEl.className = "error"; return null; }
+    if (!acVideo.srcObject) { statusEl.textContent = "No video stream. Re-select region."; statusEl.className = "error"; return null; }
+
+    // Video diagnostics
+    console.log(`[AutoCapture] Video: ${acVideo.videoWidth}\u00d7${acVideo.videoHeight}, readyState=${acVideo.readyState}, paused=${acVideo.paused}, track=${acStream?.getVideoTracks()?.[0]?.readyState}`);
+
+    // Draw current video frame to offscreen canvas
+    const { x: cx, y: cy, w: cw, h: ch } = acRegion;
+    const ix = Math.round(cx), iy = Math.round(cy), iw = Math.max(1, Math.round(cw)), ih = Math.max(1, Math.round(ch));
+    const cropC = document.createElement("canvas");
+    cropC.width = iw; cropC.height = ih;
+    const cropCtx = cropC.getContext("2d");
+    cropCtx.drawImage(acVideo, ix, iy, iw, ih, 0, 0, iw, ih);
+
+    // Check if the crop actually contains any non-blank pixels
+    const imageData = cropCtx.getImageData(0, 0, iw, ih);
+    let brightPx = 0, totalPx = imageData.data.length / 4;
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const lum = 0.299 * imageData.data[i] + 0.587 * imageData.data[i+1] + 0.114 * imageData.data[i+2];
+      if (lum > 100) brightPx++;
+    }
+    console.log(`[AutoCapture] Crop: ${iw}\u00d7${ih}, bright pixels: ${brightPx}/${totalPx} (${(brightPx/totalPx*100).toFixed(1)}%)`);
+
+    // Magnify at 3× for better accuracy
+    const MAG = 3;
+    const magC = document.createElement("canvas");
+    magC.width = cropC.width * MAG;
+    magC.height = cropC.height * MAG;
+    const magCtx = magC.getContext("2d");
+    magCtx.imageSmoothingEnabled = false;
+    magCtx.drawImage(cropC, 0, 0, magC.width, magC.height);
+
+    // Preview: show what OCR actually sees
+    debugShowCapture_(magC);
+
+    // OCR (Tesseract is pre-loaded by ensureTesseract())
+    try {
+      statusEl.textContent = "Initialising OCR\u2026"; statusEl.className = "";
+      const T = await ensureTesseract();
+      if (!T) { statusEl.textContent = "\u2717 Tesseract not available"; statusEl.className = "error"; return null; }
+
+      // OCR with retry on empty/low-confidence result
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => requestAnimationFrame(r));
+        cropCtx.drawImage(acVideo, ix, iy, iw, ih, 0, 0, iw, ih);
+        magCtx.drawImage(cropC, 0, 0, magC.width, magC.height);
+        debugShowCapture_(magC);
+      }
+
+      statusEl.textContent = `Recognizing${attempt > 0 ? " (retry)" : ""}\u2026`;
+      statusEl.className = "";
+      const t0 = performance.now();
+      const result = await T.recognize(magC, "eng", {
+        tessedit_char_whitelist: "0123456789",
+        tessedit_pageseg_mode: "6",
+        tessedit_ocr_engine_mode: "1"
+      });
+      const t1 = performance.now();
+      console.log(`[AutoCapture] OCR took ${(t1 - t0).toFixed(0)}ms, confidence: ${result.data.confidence}`);
+      const raw = result.data.text.trim();
+      console.log(`[AutoCapture] OCR raw: "${raw}"`);
+      // Strip any non-ASCII chars (Tesseract can output Unicode digits that [0-9] won't match)
+      const cleaned = raw.replace(/[^\x20-\x7E]/g, "");
+
+      // Find first valid number 0-36
+      const m = cleaned.match(/\b([0-9]|[12][0-9]|3[0-6])\b/);
+      if (m) {
+        // Found a number — continue outside the loop
+        const number = parseInt(m[1] || m[0], 10);
+        const state = engine.getState();
+        if (state.spins.length > 0 && state.spins[state.spins.length - 1].number === number) {
+          console.log(`[AutoCapture] Dupe ${number} \u2014 skip`);
+          const lastEl = document.querySelector("#ac-last"); lastEl.textContent = number;
+          return number;
+        }
+
+        console.log(`[AutoCapture] \u2192 ${number}`);
+        engine.addSpin(number);
+        hotStreets.appendSpin(number);
+        render(engine.getState());
+        renderHotStreets();
+        storage.save(engine);
+
+        acCaptureCount++;
+        document.querySelector("#ac-last").textContent = number;
+        document.querySelector("#ac-count").textContent = `Captured: ${acCaptureCount}`;
+        statusEl.textContent = `\u2713 ${number} at ${new Date().toLocaleTimeString()}`; statusEl.className = "";
+        say(`Auto: ${number}`);
+        return number;
+      }
+    }
+    // All 3 attempts failed — return null
+    return null;
+  } catch (e) {
+    statusEl.textContent = `\u2717 ${e.message}`; statusEl.className = "error";
+    console.log("[AutoCapture] Error:", e.message);
+    return null;
+  }
+}
+
+  function acUpdateUI_() {
+    const ready = acRegion !== null && acVideo.srcObject;
+    document.querySelector("#ac-capture-now").disabled = !ready;
+    document.querySelector("#ac-toggle").disabled = !ready;
+    document.querySelector("#ac-interval").disabled = !ready;
+    if (acRegion) {
+      document.querySelector("#ac-region-label").textContent = `Region ${acRegion.w}\u00d7${acRegion.h}`;
+      document.querySelector("#ac-preview-wrap").hidden = false;
+      const pv = document.querySelector("#ac-preview-canvas");
+      const scale = Math.min(120 / acRegion.w, 60 / acRegion.h);
+      pv.width = Math.round(acRegion.w * scale);
+      pv.height = Math.round(acRegion.h * scale);
+      document.querySelector("#ac-preview-coords").textContent = `${acRegion.w}\u00d7${acRegion.h}`;
+    } else {
+      document.querySelector("#ac-region-label").textContent = "No region selected";
+      document.querySelector("#ac-preview-wrap").hidden = true;
+    }
+  }
+
+  // Restore region on load
+  if (acRegion) { acUpdateUI_(); document.querySelector("#ac-status").textContent = "Region loaded. Select screen."; }
+
+  // Event wiring
+  document.querySelector("#ac-select-region").addEventListener("click", acSelectRegion);
+  document.querySelector("#ac-capture-now").addEventListener("click", acCaptureFromScreen);
+  document.querySelector("#ac-toggle").addEventListener("change", () => {
+    const on = document.querySelector("#ac-toggle").checked;
+    const ms = parseInt(document.querySelector("#ac-interval").value, 10) * 1000;
+    if (acIntervalId) { clearInterval(acIntervalId); acIntervalId = null; }
+    if (on) {
+      if (!acRegion || !acVideo.srcObject) {
+        document.querySelector("#ac-status").textContent = "Select region & share screen first";
+        document.querySelector("#ac-status").className = "error";
+        document.querySelector("#ac-toggle").checked = false; return;
+      }
+      console.log(`[AutoCapture] Every ${ms / 1000}s`); document.querySelector("#ac-status").textContent = "Auto active"; document.querySelector("#ac-status").className = "";
+      acCaptureFromScreen(); acIntervalId = setInterval(acCaptureFromScreen, ms);
+    } else { document.querySelector("#ac-status").textContent = "Paused"; document.querySelector("#ac-status").className = ""; }
+  });
+
+  // ── Session Summary (Streak Report) ──────────────────────
+  const STREAK_BUCKETS = [
+    { label: "< 4", min: 1, max: 3 },
+    { label: "4\u20136", min: 4, max: 6 },
+    { label: "6\u20138", min: 6, max: 8 },
+    { label: "8\u201310", min: 8, max: 10 },
+    { label: "10\u201312", min: 10, max: 12 },
+    { label: "13+", min: 13, max: Infinity },
+  ];
+  const STREAK_CATEGORIES = [
+    { key: "low", label: "Low (1\u201318)" },
+    { key: "high", label: "High (19\u201336)" },
+    { key: "even", label: "Even" },
+    { key: "odd", label: "Odd" },
+    { key: "red", label: "Red" },
+    { key: "black", label: "Black" },
+    { key: "dozen1", label: "1st Dozen" },
+    { key: "dozen2", label: "2nd Dozen" },
+    { key: "dozen3", label: "3rd Dozen" },
+    { key: "column1", label: "1st Column" },
+    { key: "column2", label: "2nd Column" },
+    { key: "column3", label: "3rd Column" },
+  ];
+
+  function buildStreakReport(spins) {
+    const { classify, classifyTwelve } = window.RouletteCore;
+    const cats = STREAK_CATEGORIES.map(c => ({ ...c, streaks: [] }));
+    const catMap = Object.fromEntries(cats.map(c => [c.key, c]));
+
+    let current = Object.fromEntries(cats.map(c => [c.key, 0]));
+
+    function flush(catKey) {
+      const len = current[catKey];
+      if (len === 0) return;
+      const bucket = STREAK_BUCKETS.find(b => len >= b.min && len <= b.max);
+      catMap[catKey].streaks.push({ length: len, bucket: bucket ? bucket.label : "13+" });
+      current[catKey] = 0;
+    }
+
+    for (const spin of spins) {
+      const n = Number(spin.number);
+      if (n === 0) {
+        // Zero breaks every streak
+        for (const c of cats) flush(c.key);
+        continue;
+      }
+      const present = new Set([...classify(n), ...classifyTwelve(n)]);
+      for (const c of cats) {
+        if (present.has(c.key)) {
+          current[c.key]++;
+        } else {
+          flush(c.key);
+        }
+      }
+    }
+    // Flush any remaining streaks
+    for (const c of cats) flush(c.key);
+
+    // Build result: for each category, count streaks per bucket
+    const buckets = STREAK_BUCKETS.map(b => b.label);
+    const rows = cats.map(cat => {
+      const counts = Object.fromEntries(buckets.map(b => [b, 0]));
+      for (const s of cat.streaks) counts[s.bucket]++;
+      return { label: cat.label, key: cat.key, counts, total: cat.streaks.length };
+    });
+
+    // Summary row: totals per bucket across all categories
+    const summary = Object.fromEntries(buckets.map(b => [b, 0]));
+    let grandTotal = 0;
+    for (const row of rows) {
+      for (const b of buckets) { summary[b] += row.counts[b]; grandTotal += row.counts[b]; }
+    }
+
+    return { buckets, rows, summary, grandTotal };
+  }
+
+  /** Collect all spins from archives + current session */
+  function collectAllSpins() {
+    const all = [];
+    // Archived sessions (oldest first)
+    for (const archive of (googleSync.archives || [])) {
+      const rows = archive.tables?.Spins || [];
+      for (const row of rows) {
+        all.push({ number: Number(row[2]), at: row[1] });
+      }
+    }
+    // Current session
+    const state = engine.getState();
+    for (const spin of state.spins) {
+      all.push({ number: Number(spin.number), at: spin.at });
+    }
+    return all;
+  }
+
+  document.querySelector("#session-summary-button").addEventListener("click", () => {
+    const allSpins = collectAllSpins();
+    const report = buildStreakReport(allSpins);
+    const modal = document.querySelector("#session-summary-modal");
+    const tbody = modal.querySelector("tbody");
+    const thead = modal.querySelector("thead tr");
+
+    // Headers
+    thead.innerHTML = `<th>Category</th>${report.buckets.map(b => `<th>${b}</th>`).join("")}<th>Total</th>`;
+
+    // Body rows
+    tbody.innerHTML = report.rows.map(row =>
+      `<tr><td class="ss-cat">${row.label}</td>${report.buckets.map(b => `<td class="ss-num">${row.counts[b] || ""}</td>`).join("")}<td class="ss-num">${row.total}</td></tr>`
+    ).join("");
+
+    // Summary row (only show categories that had streaks)
+    const hasData = report.rows.some(r => r.total > 0);
+    if (hasData) {
+      tbody.innerHTML += `<tr class="ss-summary"><td class="ss-cat"><strong>Total</strong></td>${report.buckets.map(b => `<td class="ss-num"><strong>${report.summary[b] || ""}</strong></td>`).join("")}<td class="ss-num"><strong>${report.grandTotal}</strong></td></tr>`;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="${report.buckets.length + 2}" class="ss-empty">No spins yet</td></tr>`;
+    }
+
+    modal.querySelector("#ss-spin-count").textContent = `${allSpins.length} spins (${googleSync.archives?.length || 0} archived sessions + current)`;
+    modal.hidden = false;
+  });
+
+  document.querySelector("#ss-modal-cancel").addEventListener("click", () => {
+    document.querySelector("#session-summary-modal").hidden = true;
+  });
+  document.querySelector("#session-summary-modal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.hidden = true;
+  });
+
+  window.liveDashboard = { engine, storage, googleSync, hotStreets, exportSnapshot: () => engine.exportSnapshot(), autoCaptureResult: acCaptureFromScreen };
 })();

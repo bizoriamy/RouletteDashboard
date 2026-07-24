@@ -13,20 +13,25 @@ import urllib.error
 import urllib.parse
 import sys
 import os
+import re as _re
 
 PORT = 8080
 PROXY_PATH = "/api/sync"
+FETCH_PATH = "/api/fetch"
 
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
-        if self.path != PROXY_PATH:
+        if self.path == PROXY_PATH:
+            self.handle_sync_()
+        elif self.path == FETCH_PATH:
+            self.handle_fetch_()
+        else:
             self.send_error(404)
-            return
 
+    def handle_sync_(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
 
-        # Parse to extract the target URL from the payload
         try:
             payload = json.loads(body)
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -38,10 +43,13 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(400, {"ok": False, "error": "Missing _targetUrl in payload"})
             return
 
-        # Re-encode the remaining payload
         forward_body = json.dumps(payload).encode("utf-8")
 
         try:
+            # Build opener that properly follows Apps Script POST→GET redirects
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPRedirectHandler()
+            )
             req = urllib.request.Request(
                 target_url,
                 data=forward_body,
@@ -51,9 +59,17 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 },
                 method="POST",
             )
-            resp = urllib.request.urlopen(req, timeout=20)
-            resp_body = resp.read().decode("utf-8")
-            self.send_json(200, json.loads(resp_body))
+            resp = opener.open(req, timeout=20)
+            resp_body = resp.read().decode("utf-8", errors="replace")
+            try:
+                self.send_json(200, json.loads(resp_body))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                # Apps Script may wrap JSON in HTML after redirect
+                m = _re.search(r'\{.*\}', resp_body, _re.DOTALL)
+                if m:
+                    self.send_json(200, json.loads(m.group()))
+                else:
+                    self.send_json(200, {"ok": False, "error": f"Non-JSON response: {resp_body[:300]}"})
         except urllib.error.HTTPError as e:
             resp_body = e.read().decode("utf-8", errors="replace")
             try:
@@ -63,6 +79,47 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(e.code, data)
         except urllib.error.URLError as e:
             self.send_json(502, {"ok": False, "error": f"Cannot reach Apps Script: {e.reason}"})
+        except Exception as e:
+            self.send_json(500, {"ok": False, "error": str(e)})
+
+    def handle_fetch_(self):
+        """Proxy: fetch a URL server-side and return its HTML text (bypasses CORS)."""
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+
+        try:
+            payload = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self.send_json(400, {"ok": False, "error": "Invalid JSON body"})
+            return
+
+        target_url = payload.get("url", "")
+        if not target_url:
+            self.send_json(400, {"ok": False, "error": "Missing 'url' in payload"})
+            return
+
+        # Sanity check — only http/https
+        if not re.match(r"^https?://", target_url):
+            self.send_json(400, {"ok": False, "error": "Only http/https URLs supported"})
+            return
+
+        try:
+            req = urllib.request.Request(
+                target_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.5",
+                },
+            )
+            resp = urllib.request.urlopen(req, timeout=20)
+            html = resp.read().decode("utf-8", errors="replace")
+            self.send_json(200, {"ok": True, "html": html})
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode("utf-8", errors="replace")[:300]
+            self.send_json(e.code, {"ok": False, "error": f"HTTP {e.code}: {msg}"})
+        except urllib.error.URLError as e:
+            self.send_json(502, {"ok": False, "error": f"Cannot reach URL: {e.reason}"})
         except Exception as e:
             self.send_json(500, {"ok": False, "error": str(e)})
 
