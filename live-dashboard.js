@@ -97,28 +97,32 @@
   document.querySelector("#history-button").addEventListener("click", () => {
     window.open("history.html", "roulette-history", "width=1000,height=720,resizable=yes,scrollbars=yes");
   });
-  document.querySelector("#sync-url").value = googleSync.config.url;
-  document.querySelector("#sync-token").value = googleSync.config.token;
-  const archiveSummary = googleSync.lastArchiveSummary();
-  document.querySelector("#archive-summary").textContent = archiveSummary
-    ? `Latest local archive: Session ${archiveSummary.sessionNumber || "unknown"} Â· ${archiveSummary.spins} spins Â· ${new Date(archiveSummary.archivedAt).toLocaleString()}`
-    : "No local recovery archive exists in this dashboard file.";
-  document.querySelector("#resync-archive").disabled = !archiveSummary;
-  document.querySelector("#download-archive").disabled = !archiveSummary;
-  document.querySelector("#save-sync").addEventListener("click", () => attempt(() => {
-    googleSync.configure(document.querySelector("#sync-url").value, document.querySelector("#sync-token").value, true);
-    googleSync.sync(engine);
-    document.querySelector("#sync-status").textContent = "Connectingâ€¦";
-  }));
-  document.querySelector("#disable-sync").addEventListener("click", () => {
-    googleSync.disable(); document.querySelector("#sync-status").textContent = "Disconnected"; say("Google Sheets synchronization disabled.");
-  });
-  document.querySelector("#resync-archive").addEventListener("click", async () => {
-    const confirmed = window.confirm("Replace the Google Sheets rows for the most recently archived session? Use this only when a session is missing or incomplete.");
-    if (!confirmed) return;
-    try { await googleSync.resyncLastArchive(); } catch (error) { say(error.message, true); }
-  });
-  document.querySelector("#download-archive").addEventListener("click", () => attempt(() => googleSync.downloadLastArchive()));
+  // ── Google Sheets Sync (guard in case panel is missing) ──
+  const syncUrlEl = document.querySelector("#sync-url");
+  if (syncUrlEl) {
+    syncUrlEl.value = googleSync.config.url;
+    document.querySelector("#sync-token").value = googleSync.config.token;
+    const archiveSummary = googleSync.lastArchiveSummary();
+    document.querySelector("#archive-summary").textContent = archiveSummary
+      ? `Latest local archive: Session ${archiveSummary.sessionNumber || "unknown"} · ${archiveSummary.spins} spins · ${new Date(archiveSummary.archivedAt).toLocaleString()}`
+      : "No local recovery archive exists in this dashboard file.";
+    document.querySelector("#resync-archive").disabled = !archiveSummary;
+    document.querySelector("#download-archive").disabled = !archiveSummary;
+    document.querySelector("#save-sync").addEventListener("click", () => attempt(() => {
+      googleSync.configure(document.querySelector("#sync-url").value, document.querySelector("#sync-token").value, true);
+      googleSync.sync(engine);
+      document.querySelector("#sync-status").textContent = "Connecting…";
+    }));
+    document.querySelector("#disable-sync").addEventListener("click", () => {
+      googleSync.disable(); document.querySelector("#sync-status").textContent = "Disconnected"; say("Google Sheets synchronization disabled.");
+    });
+    document.querySelector("#resync-archive").addEventListener("click", async () => {
+      const confirmed = window.confirm("Replace the Google Sheets rows for the most recently archived session? Use this only when a session is missing or incomplete.");
+      if (!confirmed) return;
+      try { await googleSync.resyncLastArchive(); } catch (error) { say(error.message, true); }
+    });
+    document.querySelector("#download-archive").addEventListener("click", () => attempt(() => googleSync.downloadLastArchive()));
+  }
   sessions.addEventListener("click", (event) => {
     const button = event.target.closest("[data-cancel]"); if (button) attempt(() => engine.cancelBet(button.dataset.cancel));
   });
@@ -476,7 +480,7 @@
   // â”€â”€ End Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   googleSync.attach(engine, (message, type) => {
-    const status = document.querySelector("#sync-status"); status.textContent = message; status.classList.toggle("error", type === "error");
+    const status = document.querySelector("#sync-status"); if (status) { status.textContent = message; status.classList.toggle("error", type === "error"); }
     say(message, type === "error");
   });
   setInterval(() => {

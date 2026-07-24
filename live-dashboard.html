@@ -109,73 +109,6 @@
         <div id="twelve-sessions" class="active-sessions"></div>
       </details>
 
-<<<<<<< HEAD
-      <section class="sessions-panel" aria-labelledby="sessions-title">
-        <div class="section-heading"><h2 id="sessions-title">Active bets · Two-Win Reset</h2><span id="slot-count">0 / 3</span></div>
-        <div id="active-sessions" class="active-sessions"></div>
-        <div id="session-results" class="session-results" aria-label="Completed betting results"></div>
-      </section>
-
-      <section class="risk-strip" aria-label="Bankroll and risk">
-        <label>Bankroll <input id="bankroll-input" type="number" min="0" step="1" value="1000" /></label>
-        <label>Unit <input id="unit-input" type="number" min="0.01" step="0.01" value="1" /></label>
-        <label>Table rule <select id="table-rule"><option value="standard">Standard</option><option value="la-partage">French · Half back</option></select></label>
-        <label>Trigger after <select id="trigger-threshold"><option value="3">3 absences</option><option value="4" selected>4 absences</option><option value="5">5 absences</option></select></label>
-        <div><span>Live balance</span><strong id="live-bankroll">1,000</strong></div>
-        <div><span>Exposure</span><strong id="exposure">0</strong></div>
-      </section>
-      <section class="risk-strip twelve-risk" aria-label="Dozen and column bankroll and risk">
-        <label>12-number bankroll <input id="twelve-bankroll-input" type="number" min="0" step="1" value="1000" /></label>
-        <label>Fibonacci unit <input id="twelve-unit-input" type="number" min="0.01" step="0.01" value="1" /></label>
-        <label>Trigger after <select id="twelve-trigger-threshold"><option value="4">4 absences</option><option value="5">5 absences</option><option value="6" selected>6 absences</option></select></label>
-        <div><span>12-number balance</span><strong id="twelve-live-bankroll">1,000</strong></div>
-        <div><span>12-number exposure</span><strong id="twelve-exposure">0</strong></div>
-      </section>
-      <details class="sync-panel">
-        <summary>Google Sheets <span id="sync-status">Not connected</span></summary>
-        <label>Web app URL<input id="sync-url" type="url" autocomplete="off" /></label>
-        <label>Private token<input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
-        <p id="archive-summary" class="sync-help">Checking local recovery archive…</p>
-        <div class="sync-actions"><button id="save-sync" class="primary" type="button">Connect & sync</button><button id="resync-archive" type="button">Resync last archive</button><button id="download-archive" type="button">Download last archive</button><button id="disable-sync" type="button">Disconnect</button></div>
-      </details>
-
-      <details class="autocapture-panel" id="autocapture-panel">
-        <summary><strong>Auto Capture</strong><span id="ac-status">Not configured</span></summary>
-
-        <!-- Region selection -->
-        <div class="ac-row ac-region-row">
-          <button id="ac-select-region" type="button">🎯 Select Screen Region</button>
-          <span id="ac-region-label" class="ac-region-label">No region selected</span>
-        </div>
-        <div id="ac-preview-wrap" class="ac-preview-wrap" hidden>
-          <canvas id="ac-preview-canvas" class="ac-preview-canvas"></canvas>
-          <span id="ac-preview-coords" class="ac-preview-coords"></span>
-        </div>
-
-        <!-- Manual trigger + auto toggle -->
-        <div class="ac-row ac-controls">
-          <button id="ac-capture-now" type="button" disabled>Capture Now</button>
-          <label class="ac-toggle"><input type="checkbox" id="ac-toggle" disabled /> Auto-capture every</label>
-          <select id="ac-interval" disabled><option value="5">5s</option><option value="10">10s</option><option value="15">15s</option><option value="20">20s</option><option value="30" selected>30s</option><option value="60">60s</option></select>
-        </div>
-
-        <!-- Info -->
-        <div class="ac-row ac-info">
-          <span>Last: <strong id="ac-last">—</strong></span>
-          <span id="ac-count">Captured: 0</span>
-        </div>
-      </details>
-
-      <div id="hs-history-modal" class="modal-overlay" hidden>
-        <div class="modal-box">
-          <h3>Paste Table History</h3>
-          <p class="modal-help">One number per line. "o" is auto-corrected to 0. Or upload a screenshot of your history grid.</p>
-          <textarea id="hs-history-input" class="hs-history-input" rows="12" placeholder="Paste numbers here..."></textarea>
-          <div id="hs-ocr-status" class="hs-parse-status"></div>
-          <div class="modal-ocr-row">
-            <button id="hs-upload-image" type="button">Upload Screenshot</button>
-            <input type="file" id="hs-image-input" accept="image/*" hidden>
-=======
       <!-- 4-Streets (simplified) -->
       <details class="system-panel hs-panel" open>
         <summary><strong>4-Streets</strong><span id="hs-status">No history</span></summary>
@@ -184,9 +117,7 @@
             <button id="hs-mode-hot" class="primary" type="button">Hot</button>
             <button id="hs-mode-cold" type="button">Cold</button>
             <button id="hs-load-history" type="button">Load History</button>
-            <button id="hs-reset" class="danger-quiet" type="button">Reset</button>
->>>>>>> 8210040 (Add configurable progressions, compact card layout, 4-streets config & backtest, charset fix)
-          </div>
+            <button id="hs-reset" class="danger-quiet" type="button">Reset</button>          </div>
           <div id="hs-history-count" class="hs-history-count">Paste table history to start</div>
         </div>
         <div id="hs-candidates" hidden>
@@ -201,41 +132,6 @@
             <button id="hs-ignore-bet" class="danger-quiet" hidden type="button">Ignore</button>
           </div>
         </div>
-<<<<<<< HEAD
-      </div>
-
-      <!-- Session Summary Modal -->
-      <div id="session-summary-modal" class="modal-overlay" hidden>
-        <div class="modal-box ss-modal">
-          <h3>Session Summary <span id="ss-spin-count" class="ss-spin-count"></span></h3>
-          <div class="ss-table-wrap">
-            <table class="ss-table">
-              <thead><tr><th>Category</th><th>&lt; 4</th><th>4–6</th><th>6–8</th><th>8–10</th><th>10–12</th><th>13+</th><th>Total</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <p class="ss-hint">How many consecutive spins each category appeared. Zero (0) breaks any streak.</p>
-          <div class="modal-actions">
-            <button id="ss-modal-cancel" type="button">Close</button>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- In-page screen selection overlay -->
-    <div id="ac-overlay" class="ac-overlay" hidden>
-      <div class="ac-overlay-bar">
-        <span id="ac-overlay-hint" class="ac-overlay-hint">Share your screen, then draw rectangle around the winning number and press <kbd>Enter</kbd></span>
-        <button id="ac-overlay-cancel" class="btn-cancel" type="button">Cancel</button>
-      </div>
-      <div class="ac-overlay-canvas-wrap">
-        <canvas id="ac-overlay-canvas"></canvas>
-      </div>
-    </div>
-
-    <!-- Hidden video element for display capture -->
-    <video id="ac-video" muted playsinline style="position:fixed;left:-9999px;top:0;width:640px;height:360px;"></video>
-=======
         <div id="hs-cycle-stats" hidden>
           <span>Cycles <strong id="hs-total-cycles">0</strong></span>
           <span>Wins <strong id="hs-total-wins">0</strong></span>
@@ -263,13 +159,13 @@
         </details>
       </details>
 
-      <!-- Utilities -->
+      <!-- Google Sheets Sync -->
       <details class="sync-panel">
         <summary>Google Sheets <span id="sync-status">Not connected</span></summary>
-        <label>Web app URL <input id="sync-url" type="url" autocomplete="off" /></label>
-        <label>Private token <input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
+        <label>Web app URL<input id="sync-url" type="url" autocomplete="off" /></label>
+        <label>Private token<input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
         <p id="archive-summary" class="sync-help">Checking local recovery archive…</p>
-        <div class="sync-actions"><button id="save-sync" class="primary">Connect & sync</button><button id="resync-archive">Resync last archive</button><button id="download-archive">Download last archive</button><button id="disable-sync">Disconnect</button></div>
+        <div class="sync-actions"><button id="save-sync" class="primary" type="button">Connect & sync</button><button id="resync-archive" type="button">Resync last archive</button><button id="download-archive" type="button">Download last archive</button><button id="disable-sync" type="button">Disconnect</button></div>
       </details>
     </main>
 
@@ -306,7 +202,6 @@
         </div>
       </div>
     </div>
->>>>>>> 8210040 (Add configurable progressions, compact card layout, 4-streets config & backtest, charset fix)
 
     <script src="roulette-core.js"></script>
     <script src="dashboard-storage.js"></script>
@@ -314,4 +209,3 @@
     <script src="hot-streets.js"></script>
     <script src="live-dashboard.js"></script>
   </body>
-</html>
