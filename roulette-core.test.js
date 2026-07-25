@@ -166,4 +166,12 @@ assert.equal(fibBurst.getState().completedFibSessions[0].reason, "max-stage-loss
 assert.equal(fibBurst.getState().completedFibSessions[0].pl, -54);
 assert.equal(fibBurst.getState().fibBankroll, 146);
 
+const ruleSelector = new RouletteEngine();
+ruleSelector.setTableRule("la-partage");
+assert.equal(ruleSelector.getState().config.tableRule, "la-partage");
+[2, 4, 6, 8].forEach((n) => ruleSelector.addSpin(n));
+ruleSelector.startBet("odd");
+assert.doesNotThrow(() => ruleSelector.setTableRule("la-partage"));
+assert.throws(() => ruleSelector.setTableRule("standard"), /active even-money bets/);
+
 console.log("roulette-core tests passed");

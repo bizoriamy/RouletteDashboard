@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.07.25.7</title>
+    <title>Roulette Live Dashboard · v2026.07.25.9</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
-    <link rel="stylesheet" href="live-dashboard.css?v=2026.07.25.7" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.07.25.9" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.07.25.7</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.07.25.9</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -52,6 +52,7 @@
           <section class="system-config">
             <div class="config-row">
               <label>Trigger after <select id="trigger-threshold" class="cfg-trigger"><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></label>
+              <label>Table rule <select id="table-rule"><option value="standard">Standard European</option><option value="la-partage">La Partage</option></select></label>
               <label>Bankroll <input id="bankroll-input" type="number" min="0" value="1000" class="cfg-num" /></label>
               <label>Unit <input id="unit-input" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
               <label>Live <strong id="live-bankroll">1,000</strong> / Exp <strong id="exposure">0</strong></label>
@@ -215,9 +216,9 @@
       </div>
     </div>
 
-    <script src="roulette-core.js?v=2026.07.25.7"></script>
-    <script src="dashboard-storage.js?v=2026.07.25.7"></script>
-    <script src="google-sheets-sync.js?v=2026.07.25.7"></script>
-    <script src="hot-streets.js?v=2026.07.25.7"></script>
-    <script src="live-dashboard.js?v=2026.07.25.7"></script>
+    <script src="roulette-core.js?v=2026.07.25.9"></script>
+    <script src="dashboard-storage.js?v=2026.07.25.9"></script>
+    <script src="google-sheets-sync.js?v=2026.07.25.9"></script>
+    <script src="hot-streets.js?v=2026.07.25.9"></script>
+    <script src="live-dashboard.js?v=2026.07.25.9"></script>
   </body>

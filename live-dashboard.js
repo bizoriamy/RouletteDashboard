@@ -207,6 +207,7 @@
     document.querySelector("#twelve-exposure").textContent = money(state.fibExposure);
     document.querySelector("#bankroll-input").value = state.config.startingBankroll;
     document.querySelector("#unit-input").value = state.config.baseUnit;
+    document.querySelector("#table-rule").value = state.config.tableRule;
     document.querySelector("#twelve-bankroll-input").value = state.config.twelveStartingBankroll;
     document.querySelector("#twelve-unit-input").value = state.config.twelveBaseUnit;
     
@@ -686,6 +687,8 @@
   document.querySelector("#even-apply-settings").addEventListener("click", () => attempt(() => {
     const progression = readProgression(evenAmounts);
     const threshold = Number(document.querySelector("#trigger-threshold").value);
+    const tableRule = document.querySelector("#table-rule").value;
+    if (tableRule !== engine.config.tableRule) engine.setTableRule(tableRule);
     engine.applyEvenSettings({
       startingBankroll: document.querySelector("#bankroll-input").value,
       baseUnit: document.querySelector("#unit-input").value,
@@ -813,7 +816,8 @@
   render = function(state) {
     origRender(state);
     const evenThresh = SIDES.map(s => state.trackers[s].threshold);
-    document.querySelector("#even-summary").textContent = `Martingale \u00b7 trigger ${evenThresh[0] || 4} \u00b7 ${engine.config.evenProgression.join(",")}`;
+    const tableRuleLabel = engine.config.tableRule === "la-partage" ? "La Partage" : "Standard";
+    document.querySelector("#even-summary").textContent = `${tableRuleLabel} \u00b7 Martingale \u00b7 trigger ${evenThresh[0] || 4} \u00b7 ${engine.config.evenProgression.join(",")}`;
     const twelveThresh = TWELVE_SIDES.map(s => state.twelveTrackers[s].threshold);
     document.querySelector("#twelve-summary").textContent = `Fibonacci \u00b7 trigger ${twelveThresh[0] || 6} \u00b7 ${engine.config.twelveProgression.join(",")}`;
   };
@@ -897,4 +901,10 @@
 
 
 window.liveDashboard = { engine, storage, googleSync, hotStreets, exportSnapshot: () => engine.exportSnapshot() };
+
+// Keep one local control connection open for this dashboard window. The local
+// server exits after the final dashboard window closes.
+if (typeof EventSource !== "undefined") {
+  window.rouletteDashboardSession = new EventSource("/__roulette_session__");
+}
 })();

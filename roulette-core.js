@@ -162,7 +162,7 @@
       this._rebuild();
       this._notify();
     }
-    setTableRule(value) { if (!["standard", "la-partage"].includes(value)) throw new RangeError("Unknown table rule."); if (this.activeSessions.length) throw new Error("Finish or cancel active bets before changing the table rule."); this.config.tableRule = value; this._rebuild(); this._notify(); }
+    setTableRule(value) { if (!["standard", "la-partage"].includes(value)) throw new RangeError("Unknown table rule."); if (value === this.config.tableRule) return; if (this.activeSessions.length) throw new Error("Finish or cancel active even-money bets before changing the table rule."); this.config.tableRule = value; this._rebuild(); this._notify(); }
     markDealerChange() { this._commit({ type: "dealer-change", at: new Date().toISOString() }); }
     _assertSide(side) { if (!SIDES.includes(side)) throw new Error(`Unknown side: ${side}`); }
     _assertTwelveSide(side) { if (!TWELVE_SIDES.includes(side)) throw new Error(`Unknown 12-number side: ${side}`); }

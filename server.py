@@ -16,20 +16,29 @@ import os
 import re as _re
 import ctypes
 import hashlib
+import threading
+import time
 
 PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
-BUILD = "v2026.07.25.7"
+BUILD = "v2026.07.25.9"
 ROOT = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
 HEALTH_PATH = "/__roulette_health__"
+SESSION_PATH = "/__roulette_session__"
+INSTANCE_KEY = os.environ.get("ROULETTE_INSTANCE_KEY", ROOT)
 MUTEX_NAME = "Local\\RouletteDashboard-" + hashlib.sha256(
-    ROOT.encode("utf-8")
+    INSTANCE_KEY.encode("utf-8")
 ).hexdigest()[:20]
 
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
+    _session_lock = threading.Lock()
+    _session_clients = 0
+    _shutdown_generation = 0
+
     def do_GET(self):
-        if urllib.parse.urlsplit(self.path).path == HEALTH_PATH:
+        request_path = urllib.parse.urlsplit(self.path).path
+        if request_path == HEALTH_PATH:
             self.send_json(200, {
                 "ok": True,
                 "app": "RouletteDashboard",
@@ -39,7 +48,53 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 "pid": os.getpid(),
             })
             return
+        if request_path == SESSION_PATH:
+            self.handle_dashboard_session_()
+            return
         super().do_GET()
+
+    def handle_dashboard_session_(self):
+        """Keep the server alive while at least one dashboard window is open."""
+        with self._session_lock:
+            type(self)._session_clients += 1
+            type(self)._shutdown_generation += 1
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+        try:
+            while not getattr(self.server, "_dashboard_stopping", False):
+                self.wfile.write(b": dashboard-window-open\n\n")
+                self.wfile.flush()
+                time.sleep(1)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        finally:
+            with self._session_lock:
+                type(self)._session_clients = max(0, type(self)._session_clients - 1)
+                type(self)._shutdown_generation += 1
+                generation = type(self)._shutdown_generation
+                no_clients = type(self)._session_clients == 0
+            if no_clients:
+                threading.Thread(
+                    target=self._shutdown_if_still_unused_,
+                    args=(generation,),
+                    daemon=True,
+                ).start()
+
+    def _shutdown_if_still_unused_(self, generation):
+        # Allow refreshes and quick reopens without cycling the server.
+        time.sleep(4)
+        with self._session_lock:
+            should_stop = (
+                type(self)._session_clients == 0
+                and type(self)._shutdown_generation == generation
+            )
+        if should_stop:
+            self.server._dashboard_stopping = True
+            self.server.shutdown()
 
     def do_POST(self):
         if self.path == PROXY_PATH:
@@ -188,7 +243,8 @@ if __name__ == "__main__":
             sys.exit(21)
 
     os.chdir(ROOT)
-    with http.server.HTTPServer(("", PORT), ProxyHandler) as httpd:
+    with http.server.ThreadingHTTPServer(("", PORT), ProxyHandler) as httpd:
+        httpd.daemon_threads = True
         print(f"Roulette Live Dashboard {BUILD}")
         print(f"Serving on http://localhost:{PORT}")
         print(f"Dashboard: http://localhost:{PORT}/live-dashboard.html")

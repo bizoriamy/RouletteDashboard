@@ -59,7 +59,7 @@ if ($healthy -and (Test-Dashboard $healthy)) {
         $quotedServer = [regex]::Escape($serverPath)
         $stale = @(Get-CimInstance Win32_Process | Where-Object {
             $_.Name -in @('python.exe', 'pythonw.exe', 'py.exe') -and
-            $_.CommandLine -match "(?i)(?:`"|^)$quotedServer(?:`"|$)"
+            $_.CommandLine -match "(?i)(?:`"|\s|^)$quotedServer(?:`"|\s|$)"
         })
     } catch {
         Fail "Windows denied process command-line inspection. Cannot safely identify this dashboard's stale servers: $($_.Exception.Message)" 12
