@@ -77,7 +77,7 @@
       if (tracker.status !== "triggered") throw new Error(`${side} is not waiting to start.`);
       if (this.activeSessions.length >= this.config.maxSessions) throw new Error("All three betting slots are in use.");
       if (this.activeSessions.some((session) => session.side === PAIRS[side])) throw new Error(`${side} is locked by active ${PAIRS[side]}.`);
-      this._commit({ type: "start", side, system: this.config.evenSystem, tableRule: this.config.tableRule, maxStages: this.config.maxStages, progression: this.config.evenProgression, at: new Date().toISOString() });
+      this._commit({ type: "start", side, system: this.config.evenSystem, tableRule: this.config.tableRule, maxStages: this.config.maxStages, progression: [...this.config.evenProgression], baseUnit: this.config.baseUnit, at: new Date().toISOString() });
     }
     startTwelveBet(side) {
       this._assertTwelveSide(side);
@@ -85,7 +85,7 @@
       const group = TWELVE_GROUP[side];
       if (tracker.status !== "triggered") throw new Error(`${side} is not waiting to start.`);
       if (this.activeFibSessions.filter((session) => session.group === group).length >= this.config.maxTwelvePerGroup) throw new Error(`Two ${group} betting slots are already in use.`);
-      this._commit({ type: "start-fib", side, progression: this.config.twelveProgression, at: new Date().toISOString() });
+      this._commit({ type: "start-fib", side, progression: [...this.config.twelveProgression], baseUnit: this.config.twelveBaseUnit, at: new Date().toISOString() });
     }
     ignore(side) {
       this._assertSide(side);
@@ -135,6 +135,33 @@
     setTwelveStartingBankroll(value) { const bankroll = Number(value); if (!(bankroll >= 0)) throw new RangeError("12-number bankroll cannot be negative."); this.config.twelveStartingBankroll = bankroll; this._rebuild(); this._notify(); }
     setEvenProgression(arr) { if (!Array.isArray(arr) || !arr.every(n => n > 0)) throw new RangeError("Progression must be an array of positive numbers."); this.config.evenProgression = arr; this.config.maxStages = arr.length; this._rebuild(); this._notify(); }
     setTwelveProgression(arr) { if (!Array.isArray(arr) || !arr.every(n => n > 0)) throw new RangeError("Progression must be an array of positive numbers."); this.config.twelveProgression = arr; this._rebuild(); this._notify(); }
+    applyEvenSettings({ startingBankroll, baseUnit, threshold, progression }) {
+      const bankroll = Number(startingBankroll), unit = Number(baseUnit), trigger = Number(threshold);
+      if (!(bankroll >= 0)) throw new RangeError("Starting bankroll cannot be negative.");
+      if (!(unit > 0)) throw new RangeError("Base unit must be positive.");
+      if (!Number.isInteger(trigger) || trigger < 1) throw new RangeError("Trigger must be a positive whole number.");
+      if (!Array.isArray(progression) || !progression.length || !progression.every(n => Number(n) > 0)) throw new RangeError("Progression must contain positive numbers.");
+      this.config.startingBankroll = bankroll;
+      this.config.baseUnit = unit;
+      SIDES.forEach((side) => { this.config.thresholds[side] = trigger; });
+      this.config.evenProgression = progression.map(Number);
+      this.config.maxStages = progression.length;
+      this._rebuild();
+      this._notify();
+    }
+    applyTwelveSettings({ startingBankroll, baseUnit, threshold, progression }) {
+      const bankroll = Number(startingBankroll), unit = Number(baseUnit), trigger = Number(threshold);
+      if (!(bankroll >= 0)) throw new RangeError("Starting bankroll cannot be negative.");
+      if (!(unit > 0)) throw new RangeError("12-number unit must be positive.");
+      if (!Number.isInteger(trigger) || trigger < 1) throw new RangeError("Trigger must be a positive whole number.");
+      if (!Array.isArray(progression) || !progression.length || !progression.every(n => Number(n) > 0)) throw new RangeError("Progression must contain positive numbers.");
+      this.config.twelveStartingBankroll = bankroll;
+      this.config.twelveBaseUnit = unit;
+      TWELVE_SIDES.forEach((side) => { this.config.twelveThresholds[side] = trigger; });
+      this.config.twelveProgression = progression.map(Number);
+      this._rebuild();
+      this._notify();
+    }
     setTableRule(value) { if (!["standard", "la-partage"].includes(value)) throw new RangeError("Unknown table rule."); if (this.activeSessions.length) throw new Error("Finish or cancel active bets before changing the table rule."); this.config.tableRule = value; this._rebuild(); this._notify(); }
     markDealerChange() { this._commit({ type: "dealer-change", at: new Date().toISOString() }); }
     _assertSide(side) { if (!SIDES.includes(side)) throw new Error(`Unknown side: ${side}`); }
@@ -203,7 +230,7 @@
 
       for (const session of [...state.activeSessions]) {
         session.numbers.push(number);
-        const stake = (session.system === "two-win" ? session.nextStake : ((session.progression||DEFAULT_EVEN_PROGRESSION)[session.stage] || 1)) * this.config.baseUnit;
+        const stake = (session.system === "two-win" ? session.nextStake : ((session.progression||DEFAULT_EVEN_PROGRESSION)[session.stage] || 1)) * (session.baseUnit || this.config.baseUnit);
         session.stakes.push(stake);
         if (session.system === "two-win") {
           const won = present.has(session.side);
@@ -239,7 +266,7 @@
       }
       for (const session of [...state.activeFibSessions]) {
         session.numbers.push(number);
-        const stake = ((session.progression||DEFAULT_TWELVE_PROGRESSION)[session.stage] || 1) * this.config.twelveBaseUnit;
+        const stake = ((session.progression||DEFAULT_TWELVE_PROGRESSION)[session.stage] || 1) * (session.baseUnit || this.config.twelveBaseUnit);
         session.stakes.push(stake);
         if (twelvePresent.has(session.side)) {
           const profit = stake * 2;
@@ -258,7 +285,7 @@
       if (tracker.status !== "triggered" || state.activeSessions.length >= this.config.maxSessions) return;
       if (state.activeSessions.some((session) => session.side === PAIRS[event.side])) return;
       tracker.status = "active";
-      state.activeSessions.push({ id: state.nextSessionId++, side: event.side, system: event.system || "martingale", stage: 0, maxStages: event.maxStages || this.config.maxStages, winStreak: 0, nextStake: 1, pl: 0, stakes: [], numbers: [], outcomes: [], plChanges: [], tableRule: event.tableRule || this.config.tableRule, startSpin: state.spinCount + 1, triggerAbsence: tracker.absent, startedAt: event.at, progression: event.progression || this.config.evenProgression });
+      state.activeSessions.push({ id: state.nextSessionId++, side: event.side, system: event.system || "martingale", stage: 0, maxStages: event.maxStages || this.config.maxStages, winStreak: 0, nextStake: 1, pl: 0, stakes: [], numbers: [], outcomes: [], plChanges: [], tableRule: event.tableRule || this.config.tableRule, startSpin: state.spinCount + 1, triggerAbsence: tracker.absent, startedAt: event.at, progression: event.progression || this.config.evenProgression, baseUnit: Number(event.baseUnit) > 0 ? Number(event.baseUnit) : this.config.baseUnit });
     }
 
     _applyFibStart(state, event) {
@@ -266,7 +293,7 @@
       const group = TWELVE_GROUP[event.side];
       if (tracker.status !== "triggered" || state.activeFibSessions.filter((session) => session.group === group).length >= this.config.maxTwelvePerGroup) return;
       tracker.status = "active";
-      state.activeFibSessions.push({ id: state.nextFibSessionId++, side: event.side, group, system: "fibonacci", stage: 0, maxStages: event.maxStages || this.config.twelveProgression.length, pl: 0, stakes: [], numbers: [], outcomes: [], plChanges: [], startSpin: state.spinCount + 1, triggerAbsence: tracker.absent, startedAt: event.at, progression: event.progression || this.config.twelveProgression });
+      state.activeFibSessions.push({ id: state.nextFibSessionId++, side: event.side, group, system: "fibonacci", stage: 0, maxStages: event.maxStages || (event.progression || this.config.twelveProgression).length, pl: 0, stakes: [], numbers: [], outcomes: [], plChanges: [], startSpin: state.spinCount + 1, triggerAbsence: tracker.absent, startedAt: event.at, progression: event.progression || this.config.twelveProgression, baseUnit: Number(event.baseUnit) > 0 ? Number(event.baseUnit) : this.config.twelveBaseUnit });
     }
 
     _finishSession(state, side, reason) {
@@ -293,14 +320,14 @@
       const activePL = this.activeSessions.reduce((sum, session) => sum + session.pl, 0);
       const exposure = this.activeSessions.reduce((sum, session) => sum + (session.system === "two-win"
         ? session.nextStake + Math.max(0, session.maxStages - session.stage - 1)
-        : ((session.progression||DEFAULT_EVEN_PROGRESSION).slice(session.stage, session.maxStages).reduce((a, b) => a + b, 0))) * this.config.baseUnit, 0);
+        : ((session.progression||DEFAULT_EVEN_PROGRESSION).slice(session.stage, session.maxStages).reduce((a, b) => a + b, 0))) * (session.baseUnit || this.config.baseUnit), 0);
       const fibActivePL = this.activeFibSessions.reduce((sum, session) => sum + session.pl, 0);
-      const fibExposure = this.activeFibSessions.reduce((sum, session) => sum + (session.progression||DEFAULT_TWELVE_PROGRESSION).slice(session.stage, session.maxStages).reduce((a, b) => a + b, 0) * this.config.twelveBaseUnit, 0);
+      const fibExposure = this.activeFibSessions.reduce((sum, session) => sum + (session.progression||DEFAULT_TWELVE_PROGRESSION).slice(session.stage, session.maxStages).reduce((a, b) => a + b, 0) * (session.baseUnit || this.config.twelveBaseUnit), 0);
       const locked = Object.fromEntries(SIDES.map((side) => [side, this.activeSessions.some((session) => session.side === PAIRS[side])]));
       return JSON.parse(JSON.stringify({
         spinCount: this.spinCount, spins: this.spins, trackers: this.trackers, twelveTrackers: this.twelveTrackers, dealerChanges: this.dealerChanges,
-        activeSessions: this.activeSessions.map((session) => ({ ...session, stake: (session.system === "two-win" ? session.nextStake : ((session.progression||DEFAULT_EVEN_PROGRESSION)[session.stage] || 1)) * this.config.baseUnit })),
-        activeFibSessions: this.activeFibSessions.map((session) => ({ ...session, stake: ((session.progression||DEFAULT_TWELVE_PROGRESSION)[session.stage] || 1) * this.config.twelveBaseUnit })), completedFibSessions: this.completedFibSessions,
+        activeSessions: this.activeSessions.map((session) => ({ ...session, stake: (session.system === "two-win" ? session.nextStake : ((session.progression||DEFAULT_EVEN_PROGRESSION)[session.stage] || 1)) * (session.baseUnit || this.config.baseUnit) })),
+        activeFibSessions: this.activeFibSessions.map((session) => ({ ...session, stake: ((session.progression||DEFAULT_TWELVE_PROGRESSION)[session.stage] || 1) * (session.baseUnit || this.config.twelveBaseUnit) })), completedFibSessions: this.completedFibSessions,
         completedSessions: this.completedSessions, pendingResults: this.pendingResults, config: this.config, locked,
         bankroll: this.config.startingBankroll + this.realizedPL + activePL,
         fibBankroll: this.config.twelveStartingBankroll + this.fibRealizedPL + fibActivePL,

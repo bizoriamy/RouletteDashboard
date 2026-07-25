@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard</title>
-    <link rel="stylesheet" href="live-dashboard.css?v=2" />
+    <title>Roulette Live Dashboard · v2026.07.25.6</title>
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.07.25.6" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.07.25.6</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -56,17 +56,18 @@
             </div>
             <div class="config-row">
               <label>Progression <select id="even-prog-preset" class="cfg-prog-preset">
-                <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
-                <option value="1,2,4,8,16,32">Martingale 6-step</option>
-                <option value="1,2,4,8">Martingale 4-step</option>
-                <option value="1,1,2,3,5,8,13,21">Fibonacci 8-step</option>
-                <option value="1,1,2,3,5">Fibonacci 5-step</option>
-                <option value="1,1,2,3">Fibonacci 4-step</option>
-                <option value="1,2,3,4">Step 1-2-3-4</option>
+                <option value="1,2,4,8">Martingale — 4 stages (1,2,4,8)</option>
+                <option value="1,2,4,8,16">Martingale — 5 stages (1,2,4,8,16)</option>
+                <option value="1,2,4,8,16,32">Martingale — 6 stages (1,2,4,8,16,32)</option>
+                <option value="1,2,4,8,16,32,64,128">Martingale — 8 stages (1,2,4,8,16,32,64,128)</option>
+                <option value="1,1,2,3">Fibonacci — 4 stages (1,1,2,3)</option>
+                <option value="1,1,2,3,5">Fibonacci — 5 stages (1,1,2,3,5)</option>
+                <option value="1,1,2,3,5,8,13,21">Fibonacci — 8 stages (1,1,2,3,5,8,13,21)</option>
                 <option value="custom">Custom</option>
               </select></label>
               <label>Amounts <input id="even-prog-amounts" class="cfg-prog-amt" value="1,2,4,8,16,32,64,128" /></label>
               <button id="even-backtest-btn" class="btn-small" type="button">Backtest</button>
+              <button id="even-apply-settings" class="btn-small primary" type="button">Apply Settings</button>
             </div>
             <div id="even-backtest" class="backtest-results" hidden></div>
           </section>
@@ -91,16 +92,18 @@
             </div>
             <div class="config-row">
               <label>Progression <select id="twelve-prog-preset" class="cfg-prog-preset">
-                <option value="1,1,2,3,5,8,13,21">Fibonacci 8-step</option>
-                <option value="1,1,2,3,5">Fibonacci 5-step</option>
-                <option value="1,1,2,3">Fibonacci 4-step</option>
-                <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
-                <option value="1,2,4,8">Martingale 4-step</option>
-                <option value="1,2,3,4">Step 1-2-3-4</option>
+                <option value="1,2,4,8">Martingale — 4 stages (1,2,4,8)</option>
+                <option value="1,2,4,8,16">Martingale — 5 stages (1,2,4,8,16)</option>
+                <option value="1,2,4,8,16,32">Martingale — 6 stages (1,2,4,8,16,32)</option>
+                <option value="1,2,4,8,16,32,64,128">Martingale — 8 stages (1,2,4,8,16,32,64,128)</option>
+                <option value="1,1,2,3">Fibonacci — 4 stages (1,1,2,3)</option>
+                <option value="1,1,2,3,5">Fibonacci — 5 stages (1,1,2,3,5)</option>
+                <option value="1,1,2,3,5,8,13,21">Fibonacci — 8 stages (1,1,2,3,5,8,13,21)</option>
                 <option value="custom">Custom</option>
               </select></label>
               <label>Amounts <input id="twelve-prog-amounts" class="cfg-prog-amt" value="1,1,2,3,5,8,13,21" /></label>
               <button id="twelve-backtest-btn" class="btn-small" type="button">Backtest</button>
+              <button id="twelve-apply-settings" class="btn-small primary" type="button">Apply Settings</button>
             </div>
             <div id="twelve-backtest" class="backtest-results" hidden></div>
           </section>
@@ -150,14 +153,15 @@
               <label>Unit <input id="hs-unit-input" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
               <label>Progression <select id="hs-prog-preset" class="cfg-prog-preset">
                 <option value="4,4,8,12,20,32">Standard 4-Streets</option>
-                <option value="1,1,2,3,5">Fibonacci 5-step</option>
-                <option value="1,1,2,3">Fibonacci 4-step</option>
-                <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
-                <option value="1,2,4,8">Martingale 4-step</option>
+                <option value="1,1,2,3,5">Fibonacci 5 stages (1,1,2,3,5)</option>
+                <option value="1,1,2,3">Fibonacci 4 stages (1,1,2,3)</option>
+                <option value="1,2,4,8,16,32,64,128">Martingale 8 stages (1,2,4,8,16,32,64,128)</option>
+                <option value="1,2,4,8">Martingale 4 stages (1,2,4,8)</option>
                 <option value="1,2,3,4">Step 1-2-3-4</option>
                 <option value="custom">Custom</option>
               </select></label>
               <label>Per-street amounts <input id="hs-prog-amounts" class="cfg-prog-amt" value="4,4,8,12,20,32" /></label>
+              <button id="hs-apply-settings" class="btn-small primary" type="button">Apply Settings</button>
               <button id="hs-backtest-btn" class="btn-small" type="button">Backtest</button>
             </div>
             <div id="hs-backtest" class="backtest-results" hidden></div>
@@ -209,9 +213,9 @@
       </div>
     </div>
 
-    <script src="roulette-core.js"></script>
-    <script src="dashboard-storage.js"></script>
-    <script src="google-sheets-sync.js"></script>
-    <script src="hot-streets.js"></script>
-    <script src="live-dashboard.js"></script>
+    <script src="roulette-core.js?v=2026.07.25.6"></script>
+    <script src="dashboard-storage.js?v=2026.07.25.6"></script>
+    <script src="google-sheets-sync.js?v=2026.07.25.6"></script>
+    <script src="hot-streets.js?v=2026.07.25.6"></script>
+    <script src="live-dashboard.js?v=2026.07.25.6"></script>
   </body>

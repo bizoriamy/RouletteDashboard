@@ -15,7 +15,7 @@ import sys
 import os
 import re as _re
 
-PORT = 8080
+PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
 

@@ -17,6 +17,7 @@ input,select { min-width:0; border:1px solid var(--line); border-radius:5px; bac
 .topbar { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px; align-items:center; }
 .topbar p { margin:0 0 1px; color:#2563eb; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
 .topbar h1 { margin:0; font-size:16px; }
+.build-version { display:block; margin-top:1px; color:var(--muted); font-size:8px; font-variant-numeric:tabular-nums; }
 .spin-meta { text-align:right; }
 .spin-meta span { display:block; color:var(--muted); font-size:9px; text-transform:uppercase; }
 .spin-meta strong { font-size:18px; }
@@ -83,7 +84,7 @@ body.focus-mode .tracker-grid,body.focus-mode .twelve-grid,body.focus-mode .syst
 .config-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:4px 0; }
 .config-row label { display:flex; align-items:center; gap:3px; color:var(--muted); font-size:9px; white-space:nowrap; }
 .config-row select.cfg-trigger { width:44px; padding:2px; }
-.config-row select.cfg-prog-preset { width:auto; padding:2px; font-size:9px; max-width:130px; }
+.config-row select.cfg-prog-preset { flex:1 1 220px; width:auto; min-width:150px; max-width:100%; padding:2px; font-size:9px; }
 .config-row input.cfg-num { width:55px; padding:3px; font-size:10px; }
 .config-row input.cfg-prog-amt { flex:1; min-width:80px; padding:3px; font-size:9px; font-family:monospace; }
 .config-row strong { color:var(--text); font-size:12px; }
@@ -106,6 +107,7 @@ body.focus-mode .tracker-grid,body.focus-mode .twelve-grid,body.focus-mode .syst
 .active-sessions { display:grid; gap:4px; }
 .session-row { display:grid; grid-template-columns:auto auto auto auto auto; justify-content:end; align-items:center; gap:4px; padding:5px 7px; border:1px solid #bfdbfe; border-radius:6px; background:#eff6ff; font-size:11px; }
 .session-side { color:#1e40af; font-size:13px; text-align:right; white-space:nowrap; }
+.session-config-tag { display:block; margin-top:2px; color:var(--muted); font-size:8px; font-weight:500; }
 .session-stat { padding:4px 6px; border-radius:4px; background:#dbeafe; font-size:15px; font-weight:850; line-height:1; }
 .session-stat.stage { color:#1d4ed8; }
 .session-stat.stake { color:#1e293b; }
@@ -194,9 +196,9 @@ body.focus-mode .tracker-grid,body.focus-mode .twelve-grid,body.focus-mode .syst
   #hs-bet-info { grid-column:1 / -1; padding-top:4px; border-top:1px solid rgba(255,255,255,.3); text-align:center; }
   .history-number { flex-basis:26px; width:26px; height:26px; font-size:11px; }
   .config-row { gap:4px; }
-  .config-row select.cfg-prog-preset { max-width:100px; }
+  .config-row select.cfg-prog-preset { flex-basis:150px; min-width:120px; }
 }
 @media (min-width:500px) {
-  .config-row select.cfg-prog-preset { max-width:160px; }
+  .config-row select.cfg-prog-preset { max-width:100%; }
   .config-row input.cfg-prog-amt { max-width:200px; }
 }

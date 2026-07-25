@@ -179,6 +179,8 @@
       if (this.state.phase !== "deciding") throw new Error("No observation to accept.");
       this.state.phase = "betting";
       this.state.betStage = 1;
+      this.state.activeProgression = [...this.progression];
+      this.state.activeBaseUnit = this.baseUnit;
       this.save_();
     }
 
@@ -215,7 +217,9 @@
     }
 
     winBet_() {
-      const perStreet = this.progression[this.state.betStage - 1] * this.baseUnit;
+      const progression = this.state.activeProgression || this.progression;
+      const baseUnit = this.state.activeBaseUnit || this.baseUnit;
+      const perStreet = progression[this.state.betStage - 1] * baseUnit;
       // Bet on all 4 streets. One wins (pays 11:1 = 12× per-street stake back).
       // Net: 12 - 4 = 8 × per-street stake
       const profit = perStreet * 8;
@@ -231,12 +235,14 @@
     }
 
     loseBet_() {
-      const perStreet = this.progression[this.state.betStage - 1] * this.baseUnit;
+      const progression = this.state.activeProgression || this.progression;
+      const baseUnit = this.state.activeBaseUnit || this.baseUnit;
+      const perStreet = progression[this.state.betStage - 1] * baseUnit;
       // Lose all 4 street bets
       const loss = perStreet * 4;
       this.state.cyclePL -= loss;
       this.state.totalPL -= loss;
-      if (this.state.betStage >= this.progression.length) {
+      if (this.state.betStage >= progression.length) {
         // Burst
         this.state.cycleBursts++;
         this.state.totalCycles++;
@@ -256,6 +262,8 @@
       this.state.observationSpin = 0;
       this.state.scores = new Array(12).fill(0);
       this.state.finalStreets = [];
+      this.state.activeProgression = null;
+      this.state.activeBaseUnit = null;
       // Re-select candidates for next cycle
       if (this.history.length >= 12) {
         const ranked = rankStreets(this.history, this.state.mode);
@@ -266,9 +274,10 @@
     /** Get current state for UI */
     getState() {
       const s = this.state;
-      const prog = this.progression;
-      const totalBet = s.betStage > 0 ? prog.slice(0, s.betStage).reduce((a, b) => a + b, 0) * this.baseUnit : 0;
-      const currentBet = s.betStage > 0 ? prog[s.betStage - 1] * this.baseUnit : 0;
+      const prog = s.activeProgression || this.progression;
+      const unit = s.activeBaseUnit || this.baseUnit;
+      const totalBet = s.betStage > 0 ? prog.slice(0, s.betStage).reduce((a, b) => a + b, 0) * unit : 0;
+      const currentBet = s.betStage > 0 ? prog[s.betStage - 1] * unit : 0;
       return {
         phase: s.phase,
         mode: s.mode,
@@ -287,7 +296,7 @@
           label: STREET_LABELS[si]
         })),
         betStage: s.betStage,
-        betMax: this.progression.length,
+        betMax: prog.length,
         currentBet: currentBet,
         totalBet: totalBet,
         cyclePL: s.cyclePL,
@@ -298,8 +307,8 @@
         lastResult: s.lastResult,
         lastResultBet: s.lastResultBet || 0,
         resultId: s.resultId || 0,
-        progression: [...this.progression],
-        baseUnit: this.baseUnit
+        progression: [...prog],
+        baseUnit: unit
       };
     }
 
