@@ -235,8 +235,8 @@
 
     // Notify on win/burst
     if (s.lastResult && s.lastResult !== hsLastResult) {
-      if (s.lastResult === "win") say(`4-Streets WIN! +2 units Â· P/L ${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`);
-      else if (s.lastResult === "burst") say(`4-Streets BURST at Stage ${s.betMax} Â· P/L ${s.totalPL}`, true);
+      if (s.lastResult === "win") say(`4-Streets WIN! +${s.currentBet * 8} units · P/L ${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`);
+      else if (s.lastResult === "burst") say(`4-Streets BURST at Stage ${s.betMax} · P/L ${s.totalPL}`, true);
       hsLastResult = s.lastResult;
       setTimeout(() => { hsLastResult = null; }, 2000);
     }
@@ -285,7 +285,7 @@
       finalPanel.hidden = false;
       betBanner.hidden = false;
       document.querySelector("#hs-bet-stage-label").textContent = `Stage ${s.betStage}/${s.betMax}`;
-      document.querySelector("#hs-bet-info").textContent = `Bet ${money(s.currentBet)} per street`;
+      document.querySelector("#hs-bet-info").textContent = `Bet ${money(s.currentBet * 4)}`;
       document.querySelector("#hs-final-streets").innerHTML = s.finalStreets.map(f =>
         `<div class="hs-street-chip"><span>${f.start}</span><small>${f.label}</small></div>`
       ).join("");
