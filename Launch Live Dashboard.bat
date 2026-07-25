@@ -9,7 +9,7 @@ echo Folder: %DASHBOARD_DIR%
 echo Stable local port: 8765
 echo.
 
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%DASHBOARD_DIR%dashboard-launcher.ps1" -DashboardRoot "%DASHBOARD_DIR%" -Build "%BUILD%" -Port 8765
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%DASHBOARD_DIR%dashboard-launcher.ps1" -DashboardRoot "%DASHBOARD_DIR%." -Build "%BUILD%" -Port 8765
 set "RESULT=%ERRORLEVEL%"
 echo.
 if not "%RESULT%"=="0" (

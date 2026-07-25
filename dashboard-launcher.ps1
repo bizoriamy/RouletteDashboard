@@ -11,7 +11,7 @@ $serverPath = [IO.Path]::GetFullPath((Join-Path $root 'server.py'))
 $dashboardPath = Join-Path $root 'live-dashboard.html'
 $healthUrl = "http://127.0.0.1:$Port/__roulette_health__"
 $dashboardUrl = "http://localhost:$Port/live-dashboard.html"
-$expectedTitle = "<title>Roulette Live Dashboard * $Build</title>"
+$expectedTitle = "*<title>Roulette Live Dashboard * $Build</title>*"
 
 function Fail([string]$Message, [int]$Code) {
     Write-Host "ERROR: $Message" -ForegroundColor Red
@@ -126,11 +126,19 @@ if ($SkipBrowser) {
     exit 0
 }
 
-$chromeCandidates = @(
-    (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
-    (if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe' }),
-    (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+$chromeCandidates = @()
+if ($env:ProgramFiles) {
+    $chromeCandidates += Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'
+}
+if (${env:ProgramFiles(x86)}) {
+    $chromeCandidates += Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'
+}
+if ($env:LOCALAPPDATA) {
+    $chromeCandidates += Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'
+}
+$chromeCandidates = @($chromeCandidates | Where-Object {
+    Test-Path -LiteralPath $_ -PathType Leaf
+})
 
 try {
     if ($chromeCandidates.Count -gt 0) {
