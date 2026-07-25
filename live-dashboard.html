@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
     <title>Roulette Live Dashboard</title>
-    <link rel="stylesheet" href="live-dashboard.css" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2" />
   </head>
   <body>
     <main class="dashboard-shell">
@@ -107,6 +107,7 @@
         </details>
         <div class="section-heading"><h2>Active 12-number bets</h2><span id="twelve-slot-count">0 / 4</span></div>
         <div id="twelve-sessions" class="active-sessions"></div>
+        <div id="twelve-session-results" class="session-results" aria-label="Completed 12-number betting results"></div>
       </details>
 
       <!-- 4-Streets (simplified) -->
@@ -125,7 +126,11 @@
           <div id="hs-candidate-list"></div>
         </div>
         <div id="hs-final" hidden>
-          <div id="hs-bet-banner" hidden><span class="hs-bet-icon">BET NOW</span><span id="hs-bet-stage-label"></span><span id="hs-bet-info"></span></div>
+          <div id="hs-bet-banner" hidden>
+            <span class="hs-bet-icon">BET NOW</span>
+            <span id="hs-bet-stage-label"></span>
+            <span id="hs-bet-info"></span>
+          </div>
           <div id="hs-final-streets"></div>
           <div class="hs-bet-actions">
             <button id="hs-start-bet" class="primary" type="button">Start Observation</button>
@@ -144,6 +149,7 @@
             <div class="config-row">
               <label>Unit <input id="hs-unit-input" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
               <label>Progression <select id="hs-prog-preset" class="cfg-prog-preset">
+                <option value="4,4,8,12,20,32">Standard 4-Streets</option>
                 <option value="1,1,2,3,5">Fibonacci 5-step</option>
                 <option value="1,1,2,3">Fibonacci 4-step</option>
                 <option value="1,2,4,8,16,32,64,128">Martingale 8-step</option>
@@ -151,7 +157,7 @@
                 <option value="1,2,3,4">Step 1-2-3-4</option>
                 <option value="custom">Custom</option>
               </select></label>
-              <label>Amounts <input id="hs-prog-amounts" class="cfg-prog-amt" value="1,1,2,3,5" /></label>
+              <label>Per-street amounts <input id="hs-prog-amounts" class="cfg-prog-amt" value="4,4,8,12,20,32" /></label>
               <button id="hs-backtest-btn" class="btn-small" type="button">Backtest</button>
             </div>
             <div id="hs-backtest" class="backtest-results" hidden></div>

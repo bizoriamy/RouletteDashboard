@@ -1,8 +1,8 @@
 (function (root) {
   "use strict";
 
-  const STORAGE_KEY = "roulette-live-dashboard-v1";
-  const SESSION_KEY = "roulette-live-session-v1";
+  const STORAGE_KEY = "roulette-live-dashboard-v2";
+  const SESSION_KEY = "roulette-live-session-v2";
 
   class DashboardStorage {
     constructor(storage = root.localStorage) {

@@ -133,10 +133,12 @@ body.focus-mode .tracker-grid,body.focus-mode .twelve-grid,body.focus-mode .syst
 .hs-candidate-card .hs-cand-street { font-size:11px; font-weight:800; }
 .hs-candidate-card .hs-cand-score { margin-top:1px; font-size:9px; color:var(--muted); }.hs-candidate-card.hs-scored { border-color:var(--blue); background:#eff6ff; }
 .hs-final { margin-top:6px; padding:7px; border:2px solid var(--green); border-radius:7px; background:#f0fdf4; }
-.hs-bet-banner { display:flex; align-items:center; justify-content:center; gap:6px; margin:-7px -7px 6px; padding:6px; background:#16a34a; color:#fff; border-radius:7px 7px 0 0; font-size:11px; font-weight:900; }
+.hs-bet-banner { display:grid; grid-template-columns:minmax(72px,auto) minmax(70px,auto) minmax(0,1fr); align-items:center; gap:8px; margin:-7px -7px 6px; padding:7px 9px; background:#16a34a; color:#fff; border-radius:7px 7px 0 0; font-size:11px; font-weight:900; }
 .hs-bet-banner[hidden] { display:none; }
-.hs-bet-icon { animation:hs-pulse 1.2s ease-in-out infinite; }
-@keyframes hs-pulse { 0%,100% { opacity:1; } 50% { opacity:.6; } }
+.hs-bet-icon { animation:hs-blink 1s step-end infinite; white-space:nowrap; }
+#hs-bet-stage-label { text-align:center; white-space:nowrap; }
+#hs-bet-info { min-width:0; text-align:right; overflow-wrap:anywhere; }
+@keyframes hs-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
 #hs-final-streets { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:5px; }
 .hs-street-chip { padding:8px 3px; border-radius:6px; background:#16a34a; color:#fff; font-size:18px; font-weight:900; text-align:center; line-height:1.1; }
 .hs-street-chip small { display:block; font-size:7px; opacity:.8; }
@@ -187,6 +189,9 @@ body.focus-mode .tracker-grid,body.focus-mode .twelve-grid,body.focus-mode .syst
 
 /* Responsive */
 @media (max-width:420px) {
+  .hs-bet-banner { grid-template-columns:auto 1fr; }
+  #hs-bet-stage-label { text-align:right; }
+  #hs-bet-info { grid-column:1 / -1; padding-top:4px; border-top:1px solid rgba(255,255,255,.3); text-align:center; }
   .history-number { flex-basis:26px; width:26px; height:26px; font-size:11px; }
   .config-row { gap:4px; }
   .config-row select.cfg-prog-preset { max-width:100px; }

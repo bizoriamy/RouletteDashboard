@@ -12,6 +12,7 @@
   const sessions = document.querySelector("#active-sessions");
   const twelveSessions = document.querySelector("#twelve-sessions");
   const results = document.querySelector("#session-results");
+  const twelveResults = document.querySelector("#twelve-session-results");
   const notice = document.querySelector("#notice");
   const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
   const twelveLabels = { dozen1: "1st Dozen", dozen2: "2nd Dozen", dozen3: "3rd Dozen", column1: "Column 1", column2: "Column 2", column3: "Column 3" };
@@ -59,7 +60,8 @@
   document.querySelector("#spin-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const input = document.querySelector("#spin-input");
-    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number); renderHotStreets(); input.value = ""; input.focus(); say(`Spin ${number} recorded.`); });
+    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number); renderHotStreets(); input.value = ""; say(`Spin ${number} recorded.`); });
+    requestAnimationFrame(() => input.focus());
   });
   document.querySelector("#undo-button").addEventListener("click", () => {
     if (engine.undoLastSpin()) say("Last spin undone."); else say("There is no spin to undo.", true);
@@ -133,6 +135,10 @@
     const button = event.target.closest("[data-acknowledge]");
     if (button) attempt(() => engine.acknowledgeResult(button.dataset.acknowledge));
   });
+  twelveResults.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-acknowledge]");
+    if (button) attempt(() => engine.acknowledgeResult(button.dataset.acknowledge));
+  });
   document.querySelector("#focus-mode-button").addEventListener("click", () => {
     document.body.classList.toggle("focus-mode");
     document.querySelector("#focus-mode-button").textContent = document.body.classList.contains("focus-mode") ? "Show dashboard" : "Focus mode";
@@ -156,7 +162,7 @@
       const active = state.activeSessions.find((session) => session.side === side);
       const blocked = state.locked[side];
       card.querySelector(".card-detail").textContent = active
-        ? active.system === "two-win" ? `Bet ${active.stage + 1}/${active.progression.length} · wins ${active.winStreak}/2 · stake ${money(active.stake)}` : `Stage ${active.stage + 1}/${active.progression.length} · stake ${money(active.stake)}`
+        ? active.system === "two-win" ? `Bet ${active.stage + 1}/${(active.progression||[]).length} · wins ${active.winStreak}/2 · stake ${money(active.stake)}` : `Stage ${active.stage + 1}/${(active.progression||[]).length} · stake ${money(active.stake)}`
         : blocked ? "Locked by opposite bet" : tracker.status === "ignored" ? "Muted until this side appears" : "";
       card.querySelector(".start").disabled = tracker.status !== "triggered" || blocked || state.activeSessions.length >= 3;
       card.querySelector(".ignore").disabled = tracker.status !== "triggered";
@@ -170,7 +176,7 @@
       card.dataset.state = tracker.status;
       card.querySelector(".absent").textContent = tracker.absent;
       card.querySelector(".state-label").textContent = tracker.status === "active" ? "FIB" : title(tracker.status);
-      card.querySelector(".card-detail").textContent = active ? `S-${active.stage + 1}/${active.progression.length} Â· Bet ${money(active.stake)}` : "";
+      card.querySelector(".card-detail").textContent = active ? `S-${active.stage + 1}/${(active.progression||[]).length} · Bet ${money(active.stake)}` : "";
       card.querySelector(".start").disabled = tracker.status !== "triggered" || groupCount >= 2;
       card.querySelector(".ignore").disabled = tracker.status !== "triggered";
       card.querySelector(".resume").disabled = tracker.status !== "ignored";
@@ -179,7 +185,7 @@
     nextPanel.hidden = state.activeFibSessions.length === 0;
     document.querySelector("#next-bets").innerHTML = state.activeFibSessions.map((session) => {
       const changed = previousFibStakes[session.side] === undefined || previousFibStakes[session.side] !== session.stake;
-      return `<article class="next-bet${changed ? " changed" : ""}"><div><span class="bet-name">${label(session.side)}</span><span class="bet-step">FIBONACCI Â· STEP ${session.stage + 1}/${session.progression.length} Â· P/L ${money(session.pl)}</span></div><strong class="bet-amount">${money(session.stake)}</strong></article>`;
+      return `<article class="next-bet${changed ? " changed" : ""}"><div><span class="bet-name">${label(session.side)}</span><span class="bet-step">FIBONACCI · STEP ${session.stage + 1}/${(session.progression||[]).length} · P/L ${money(session.pl)}</span></div><strong class="bet-amount">${money(session.stake)}</strong></article>`;
     }).join("");
     previousFibStakes = Object.fromEntries(state.activeFibSessions.map((session) => [session.side, session.stake]));
     if (!state.activeFibSessions.length && document.body.classList.contains("focus-mode")) {
@@ -189,18 +195,24 @@
 
     document.querySelector("#slot-count").textContent = `${state.activeSessions.length} / 3`;
     sessions.innerHTML = state.activeSessions.length ? state.activeSessions.map((session) => `
-      <article class="session-row"><strong class="session-side">${title(session.side)}</strong><span class="session-stat stage" title="Bet ${session.stage + 1} of ${session.progression.length}">${session.system === "two-win" ? `W-${session.winStreak}/2` : `S-${session.stage + 1}/${session.maxStages}`}</span><span class="session-stat stake">Bet ${money(session.stake)}</span><span class="session-stat pl ${session.pl < 0 ? "loss" : session.pl > 0 ? "win" : ""}">P/L ${money(session.pl)}</span><button data-cancel="${session.side}" type="button">Cancel</button></article>`).join("") : `<p class="empty-state">No active bets. Triggered cards will offer a manual start.</p>`;
+      <article class="session-row"><strong class="session-side">${title(session.side)}</strong><span class="session-stat stage" title="Bet ${session.stage + 1} of ${(session.progression||[]).length}">${session.system === "two-win" ? `W-${session.winStreak}/2` : `S-${session.stage + 1}/${session.maxStages}`}</span><span class="session-stat stake">Bet ${money(session.stake)}</span><span class="session-stat pl ${session.pl < 0 ? "loss" : session.pl > 0 ? "win" : ""}">P/L ${money(session.pl)}</span><button data-cancel="${session.side}" type="button">Cancel</button></article>`).join("") : `<p class="empty-state">No active bets. Triggered cards will offer a manual start.</p>`;
     document.querySelector("#twelve-slot-count").textContent = `${state.activeFibSessions.length} / 4`;
-    twelveSessions.innerHTML = state.activeFibSessions.length ? state.activeFibSessions.map((session) => `<article class="session-row fib-row"><strong class="session-side">${label(session.side)} <small class="fib-tag">FIB</small></strong><span class="session-stat stage">S-${session.stage + 1}/${session.progression.length}</span><span class="session-stat stake">Bet ${money(session.stake)}</span><span class="session-stat pl ${session.pl < 0 ? "loss" : session.pl > 0 ? "win" : ""}">P/L ${money(session.pl)}</span><button data-cancel-fib="${session.side}" type="button">Cancel</button></article>`).join("") : `<p class="empty-state">No active Fibonacci bets.</p>`;
-    results.innerHTML = state.pendingResults.map((session) => {
+    twelveSessions.innerHTML = state.activeFibSessions.length ? state.activeFibSessions.map((session) => `<article class="session-row fib-row"><strong class="session-side">${label(session.side)} <small class="fib-tag">FIB</small></strong><span class="session-stat stage">S-${session.stage + 1}/${(session.progression||[]).length}</span><span class="session-stat stake">Bet ${money(session.stake)}</span><span class="session-stat pl ${session.pl < 0 ? "loss" : session.pl > 0 ? "win" : ""}">P/L ${money(session.pl)}</span><button data-cancel-fib="${session.side}" type="button">Cancel</button></article>`).join("") : `<p class="empty-state">No active Fibonacci bets.</p>`;
+    // ── Pending results (split by system) ──
+    function renderResultRow(session) {
       const burst = session.reason === "max-stage-loss", stopped = session.reason === "max-bets-stopped";
+      const tag = session.system === "fibonacci" ? "FIB · " : session.system === "two-win" ? "TWO-WIN · " : "";
       return `<article class="result-row ${burst ? "burst" : stopped ? "stopped" : "won"}">
-        <strong>${label(session.side)} Â· ${session.system === "fibonacci" ? "FIB Â· " : session.system === "two-win" ? "TWO-WIN Â· " : ""}${burst ? "BURST" : stopped ? "STOPPED" : session.reason === "target-reached" ? "TARGET" : "WON"}</strong>
-        <span>${session.system === "two-win" ? "B" : "S"}${session.stage + 1}/${session.progression.length}</span>
+        <strong>${label(session.side)} · ${tag}${burst ? "BURST" : stopped ? "STOPPED" : session.reason === "target-reached" ? "TARGET" : "WON"}</strong>
+        <span>${session.system === "two-win" ? "B" : "S"}${session.stage + 1}/${(session.progression||[]).length}</span>
         <span>P/L ${money(session.pl)}</span>
         <button data-acknowledge="${session.id}" type="button">Acknowledge</button>
       </article>`;
-    }).join("");
+    }
+    const evenPending = state.pendingResults.filter(s => s.system !== "fibonacci");
+    const fibPending = state.pendingResults.filter(s => s.system === "fibonacci");
+    results.innerHTML = evenPending.length ? evenPending.map(renderResultRow).join("") : "";
+    twelveResults.innerHTML = fibPending.length ? fibPending.map(renderResultRow).join("") : "";
     document.querySelector("#live-bankroll").textContent = money(state.bankroll);
     document.querySelector("#exposure").textContent = money(state.exposure);
     document.querySelector("#twelve-live-bankroll").textContent = money(state.fibBankroll);
@@ -225,7 +237,7 @@
 
   // â”€â”€ Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const hotStreets = new window.RouletteHotStreets.HotStreets();
-  let hsLastResult = null;
+  let hsLastResultId = 0;
   const hsModal = document.querySelector("#hs-history-modal");
   const hsInput = document.querySelector("#hs-history-input");
   const hsParseStatus = document.querySelector("#hs-parse-status");
@@ -234,19 +246,18 @@
     const s = hotStreets.getState();
 
     // Notify on win/burst
-    if (s.lastResult && s.lastResult !== hsLastResult) {
-      if (s.lastResult === "win") say(`4-Streets WIN! +2 units Â· P/L ${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`);
-      else if (s.lastResult === "burst") say(`4-Streets BURST at Stage ${s.betMax} Â· P/L ${s.totalPL}`, true);
-      hsLastResult = s.lastResult;
-      setTimeout(() => { hsLastResult = null; }, 2000);
+    if (s.lastResult && s.resultId && s.resultId !== hsLastResultId) {
+      if (s.lastResult === "win") say(`4-Streets WIN! +${money(s.lastResultBet * 8)} units · P/L ${money(s.totalPL)}`);
+      else if (s.lastResult === "burst") say(`4-Streets BURST at Stage ${s.betMax} · P/L ${money(s.totalPL)}`, true);
+      hsLastResultId = s.resultId;
     }
 
     // Status line in summary
     const statusEl = document.querySelector("#hs-status");
     if (s.phase === "idle") statusEl.textContent = s.historyCount > 0 ? `${s.historyCount} numbers loaded` : "No history loaded";
-    else if (s.phase === "ready") statusEl.textContent = `${s.historyCount} numbers Â· Candidates ready`;
+    else if (s.phase === "ready") statusEl.textContent = `${s.historyCount} numbers · Candidates ready`;
     else if (s.phase === "observing") statusEl.textContent = `Observation ${s.observationSpin}/${s.observationTotal}`;
-    else if (s.phase === "betting") statusEl.textContent = `Stage ${s.betStage}/${s.betMax} Â· P/L ${s.cyclePL >= 0 ? "+" : ""}${s.cyclePL}`;
+    else if (s.phase === "betting") statusEl.textContent = `Stage ${s.betStage}/${s.betMax} · P/L ${money(s.cyclePL)}`;
 
     // History count
     document.querySelector("#hs-history-count").textContent = s.historyCount > 0
@@ -285,7 +296,7 @@
       finalPanel.hidden = false;
       betBanner.hidden = false;
       document.querySelector("#hs-bet-stage-label").textContent = `Stage ${s.betStage}/${s.betMax}`;
-      document.querySelector("#hs-bet-info").textContent = `Bet ${money(s.currentBet)} per street`;
+      document.querySelector("#hs-bet-info").textContent = `Bet ${money(s.currentBet)} units per street`;
       document.querySelector("#hs-final-streets").innerHTML = s.finalStreets.map(f =>
         `<div class="hs-street-chip"><span>${f.start}</span><small>${f.label}</small></div>`
       ).join("");
@@ -328,7 +339,7 @@
       document.querySelector("#hs-total-wins").textContent = s.cycleWins;
       document.querySelector("#hs-total-bursts").textContent = s.cycleBursts;
       const plEl = document.querySelector("#hs-total-pl");
-      plEl.textContent = `${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`;
+      plEl.textContent = `${s.totalPL >= 0 ? "+" : ""}${money(s.totalPL)}`;
       plEl.style.color = s.totalPL >= 0 ? "var(--green)" : "var(--red)";
     } else {
       statsPanel.hidden = true;
@@ -662,6 +673,8 @@
   // Even-money progression
   const evenPreset = document.querySelector("#even-prog-preset");
   const evenAmounts = document.querySelector("#even-prog-amounts");
+  if (!engine.config.evenProgression) engine.config.evenProgression = [1,2,4,8,16,32,64,128];
+  if (!engine.config.twelveProgression) engine.config.twelveProgression = [1,1,2,3,5,8,13,21];
   evenAmounts.value = engine.config.evenProgression.join(",");
   // Set preset dropdown to match initial progression
   const evenOpts = Array.from(evenPreset.options).map(o => o.value);
