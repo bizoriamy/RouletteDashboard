@@ -225,7 +225,7 @@
 
   // â”€â”€ Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const hotStreets = new window.RouletteHotStreets.HotStreets();
-  let hsLastResult = null;
+  let hsLastResultId = 0;
   const hsModal = document.querySelector("#hs-history-modal");
   const hsInput = document.querySelector("#hs-history-input");
   const hsParseStatus = document.querySelector("#hs-parse-status");
@@ -234,11 +234,10 @@
     const s = hotStreets.getState();
 
     // Notify on win/burst
-    if (s.lastResult && s.lastResult !== hsLastResult) {
-      if (s.lastResult === "win") say(`4-Streets WIN! +${s.currentBet * 8} units · P/L ${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`);
+    if (s.lastResult && s.resultId && s.resultId !== hsLastResultId) {
+      if (s.lastResult === "win") say(`4-Streets WIN! +${s.lastResultBet * 8} units · P/L ${s.totalPL >= 0 ? "+" : ""}${s.totalPL}`);
       else if (s.lastResult === "burst") say(`4-Streets BURST at Stage ${s.betMax} · P/L ${s.totalPL}`, true);
-      hsLastResult = s.lastResult;
-      setTimeout(() => { hsLastResult = null; }, 2000);
+      hsLastResultId = s.resultId;
     }
 
     // Status line in summary
@@ -285,7 +284,7 @@
       finalPanel.hidden = false;
       betBanner.hidden = false;
       document.querySelector("#hs-bet-stage-label").textContent = `Stage ${s.betStage}/${s.betMax}`;
-      document.querySelector("#hs-bet-info").textContent = `Bet ${money(s.currentBet * 4)}`;
+      document.querySelector("#hs-bet-info").textContent = `Bet ${money(s.currentBet)} units per street`;
       document.querySelector("#hs-final-streets").innerHTML = s.finalStreets.map(f =>
         `<div class="hs-street-chip"><span>${f.start}</span><small>${f.label}</small></div>`
       ).join("");

@@ -10,13 +10,14 @@
   const STREET_LABELS = STREETS.map(s => `${s[0]}-${s[1]}-${s[2]}`);
   const STREET_STARTS = STREETS.map(s => s[0]);
 
-  // Fibonacci progression (stages 1-5)
-  const FIB = [1, 1, 2, 3, 5];
+  // Canonical 4-Streets progression: units placed on each of the four streets.
+  const FIB = [4, 4, 8, 12, 20, 32];
   const OBSERVATION_SPINS = 12;
   const CANDIDATE_COUNT = 6;
   const FINAL_COUNT = 4;
   const HISTORY_KEY = "roulette-hot-streets-history-v1";
   const STATE_KEY = "roulette-hot-streets-state-v1";
+  const SETTINGS_KEY = "roulette-hot-streets-settings-v1";
 
   /** Classify which street a number belongs to (0 = none) */
   function streetOf(number) {
@@ -50,8 +51,9 @@
     constructor(options = {}) {
       this.history = this.load_(HISTORY_KEY, []);
       this.state = this.load_(STATE_KEY, this.freshState_());
-      this.progression = options.progression ? [...options.progression] : [...FIB];
-      this.baseUnit = Number(options.baseUnit) > 0 ? Number(options.baseUnit) : 1;
+      const settings = this.load_(SETTINGS_KEY, {});
+      this.progression = options.progression ? [...options.progression] : settings.progression ? [...settings.progression] : [...FIB];
+      this.baseUnit = Number(options.baseUnit) > 0 ? Number(options.baseUnit) : Number(settings.baseUnit) > 0 ? Number(settings.baseUnit) : 1;
     }
 
     freshState_() {
@@ -68,7 +70,9 @@
         cyclePL: 0,
         totalPL: 0,
         totalCycles: 0,
-        lastResult: null
+        lastResult: null,
+        lastResultBet: 0,
+        resultId: 0
       };
     }
 
@@ -79,6 +83,7 @@
     save_() {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history));
       localStorage.setItem(STATE_KEY, JSON.stringify(this.state));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ progression: this.progression, baseUnit: this.baseUnit }));
     }
 
     /** Replace all history with parsed text */
@@ -176,6 +181,7 @@
       const u = Number(val);
       if (!(u > 0)) throw new Error("Base unit must be positive.");
       this.baseUnit = u;
+      this.save_();
     }
 
     /** User ignores — skip this cycle, pick new candidates */
@@ -198,26 +204,32 @@
     }
 
     winBet_() {
-      const stake = this.progression[this.state.betStage - 1] * this.baseUnit;
-      const profit = stake * 2; // street pays 11:1, 4 streets at 1/4 each = net +2 per unit
+      const perStreet = this.progression[this.state.betStage - 1] * this.baseUnit;
+      // One street pays 11:1 while the other three lose: net profit = 8 × perStreet.
+      const profit = perStreet * 8;
       this.state.cyclePL += profit;
       this.state.totalPL += profit;
       this.state.cycleWins++;
       this.state.totalCycles++;
       this.state.lastResult = "win";
+      this.state.lastResultBet = perStreet;
+      this.state.resultId = (this.state.resultId || 0) + 1;
       this.resetCycle_();
       this.save_();
     }
 
     loseBet_() {
-      const stake = this.progression[this.state.betStage - 1] * this.baseUnit;
-      this.state.cyclePL -= stake;
-      this.state.totalPL -= stake;
+      const perStreet = this.progression[this.state.betStage - 1] * this.baseUnit;
+      const loss = perStreet * 4;
+      this.state.cyclePL -= loss;
+      this.state.totalPL -= loss;
       if (this.state.betStage >= this.progression.length) {
         // Burst
         this.state.cycleBursts++;
         this.state.totalCycles++;
         this.state.lastResult = "burst";
+        this.state.lastResultBet = perStreet;
+        this.state.resultId = (this.state.resultId || 0) + 1;
         this.resetCycle_();
       } else {
         this.state.betStage++;
@@ -271,6 +283,8 @@
         cycleBursts: s.cycleBursts,
         totalCycles: s.totalCycles,
         lastResult: s.lastResult,
+        lastResultBet: s.lastResultBet || 0,
+        resultId: s.resultId || 0,
         progression: [...this.progression],
         baseUnit: this.baseUnit
       };

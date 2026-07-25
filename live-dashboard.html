@@ -60,6 +60,7 @@
                 <option value="1,2,4,8,16,32">Martingale 6-step</option>
                 <option value="1,2,4,8">Martingale 4-step</option>
                 <option value="1,1,2,3,5,8,13,21">Fibonacci 8-step</option>
+                <option value="4,4,8,12,20,32">Standard 4-Streets</option>
                 <option value="1,1,2,3,5">Fibonacci 5-step</option>
                 <option value="1,1,2,3">Fibonacci 4-step</option>
                 <option value="1,2,3,4">Step 1-2-3-4</option>
@@ -125,7 +126,11 @@
           <div id="hs-candidate-list"></div>
         </div>
         <div id="hs-final" hidden>
-          <div id="hs-bet-banner" hidden><span class="hs-bet-icon">BET NOW</span><span id="hs-bet-stage-label"></span><span id="hs-bet-info"></span></div>
+          <div id="hs-bet-banner" hidden>
+            <span class="hs-bet-icon">BET NOW</span>
+            <span id="hs-bet-stage-label"></span>
+            <span id="hs-bet-info"></span>
+          </div>
           <div id="hs-final-streets"></div>
           <div class="hs-bet-actions">
             <button id="hs-start-bet" class="primary" type="button">Start Observation</button>
@@ -151,7 +156,7 @@
                 <option value="1,2,3,4">Step 1-2-3-4</option>
                 <option value="custom">Custom</option>
               </select></label>
-              <label>Amounts <input id="hs-prog-amounts" class="cfg-prog-amt" value="1,1,2,3,5" /></label>
+              <label>Per-street amounts <input id="hs-prog-amounts" class="cfg-prog-amt" value="4,4,8,12,20,32" /></label>
               <button id="hs-backtest-btn" class="btn-small" type="button">Backtest</button>
             </div>
             <div id="hs-backtest" class="backtest-results" hidden></div>
