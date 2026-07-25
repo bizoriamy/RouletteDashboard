@@ -14,12 +14,33 @@ import urllib.parse
 import sys
 import os
 import re as _re
+import ctypes
+import hashlib
 
 PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
+BUILD = "v2026.07.25.7"
+ROOT = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
+HEALTH_PATH = "/__roulette_health__"
+MUTEX_NAME = "Local\\RouletteDashboard-" + hashlib.sha256(
+    ROOT.encode("utf-8")
+).hexdigest()[:20]
 
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if urllib.parse.urlsplit(self.path).path == HEALTH_PATH:
+            self.send_json(200, {
+                "ok": True,
+                "app": "RouletteDashboard",
+                "build": BUILD,
+                "root": ROOT,
+                "server": os.path.normcase(os.path.realpath(__file__)),
+                "pid": os.getpid(),
+            })
+            return
+        super().do_GET()
+
     def do_POST(self):
         if self.path == PROXY_PATH:
             self.handle_sync_()
@@ -99,7 +120,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # Sanity check — only http/https
-        if not re.match(r"^https?://", target_url):
+        if not _re.match(r"^https?://", target_url):
             self.send_json(400, {"ok": False, "error": "Only http/https URLs supported"})
             return
 
@@ -156,8 +177,19 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    mutex = None
+    if os.name == "nt":
+        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+        if not mutex:
+            print("ERROR: Could not create the dashboard singleton lock.", file=sys.stderr)
+            sys.exit(20)
+        if ctypes.windll.kernel32.GetLastError() == 183:
+            print("ERROR: This exact Roulette Dashboard server is already running.", file=sys.stderr)
+            sys.exit(21)
+
+    os.chdir(ROOT)
     with http.server.HTTPServer(("", PORT), ProxyHandler) as httpd:
+        print(f"Roulette Live Dashboard {BUILD}")
         print(f"Serving on http://localhost:{PORT}")
         print(f"Dashboard: http://localhost:{PORT}/live-dashboard.html")
         print(f"Proxy:     POST http://localhost:{PORT}{PROXY_PATH}")
