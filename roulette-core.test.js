@@ -101,6 +101,31 @@ standardZero.startBet("odd");
 standardZero.addSpin(0);
 assert.equal(standardZero.getState().activeSessions[0].stage, 1);
 
+// Exact UI scenario: trigger 6, Standard European, Martingale 3 stages (1,2,4).
+const martingaleThree = new RouletteEngine();
+martingaleThree.applyEvenSettings({
+  startingBankroll: 1000,
+  baseUnit: 1,
+  threshold: 6,
+  progression: [1, 2, 4],
+  tableRule: "standard",
+  evenSystem: "martingale"
+});
+[1, 3, 5, 7, 9, 11].forEach((n) => martingaleThree.addSpin(n));
+assert.equal(martingaleThree.getState().trackers.even.status, "triggered");
+martingaleThree.startBet("even");
+assert.equal(martingaleThree.getState().activeSessions[0].system, "martingale");
+assert.equal(martingaleThree.getState().activeSessions[0].stake, 1);
+martingaleThree.addSpin(1);
+assert.equal(martingaleThree.getState().activeSessions[0].stake, 2);
+martingaleThree.addSpin(3);
+assert.equal(martingaleThree.getState().activeSessions[0].stake, 4);
+martingaleThree.addSpin(5);
+assert.equal(martingaleThree.getState().activeSessions.length, 0);
+assert.deepEqual(martingaleThree.getState().completedSessions[0].stakes, [1, 2, 4]);
+assert.equal(martingaleThree.getState().completedSessions[0].pl, -7);
+assert.equal(martingaleThree.getState().completedSessions[0].reason, "max-stage-loss");
+
 const twoWin = new RouletteEngine();
 [2, 4, 6, 8].forEach((n) => twoWin.addSpin(n));
 twoWin.startBet("odd");

@@ -135,14 +135,19 @@
     setTwelveStartingBankroll(value) { const bankroll = Number(value); if (!(bankroll >= 0)) throw new RangeError("12-number bankroll cannot be negative."); this.config.twelveStartingBankroll = bankroll; this._rebuild(); this._notify(); }
     setEvenProgression(arr) { if (!Array.isArray(arr) || !arr.every(n => n > 0)) throw new RangeError("Progression must be an array of positive numbers."); this.config.evenProgression = arr; this.config.maxStages = arr.length; this._rebuild(); this._notify(); }
     setTwelveProgression(arr) { if (!Array.isArray(arr) || !arr.every(n => n > 0)) throw new RangeError("Progression must be an array of positive numbers."); this.config.twelveProgression = arr; this._rebuild(); this._notify(); }
-    applyEvenSettings({ startingBankroll, baseUnit, threshold, progression }) {
+    applyEvenSettings({ startingBankroll, baseUnit, threshold, progression, tableRule = this.config.tableRule, evenSystem = this.config.evenSystem }) {
       const bankroll = Number(startingBankroll), unit = Number(baseUnit), trigger = Number(threshold);
       if (!(bankroll >= 0)) throw new RangeError("Starting bankroll cannot be negative.");
       if (!(unit > 0)) throw new RangeError("Base unit must be positive.");
       if (!Number.isInteger(trigger) || trigger < 1) throw new RangeError("Trigger must be a positive whole number.");
       if (!Array.isArray(progression) || !progression.length || !progression.every(n => Number(n) > 0)) throw new RangeError("Progression must contain positive numbers.");
+      if (!["standard", "la-partage"].includes(tableRule)) throw new RangeError("Unknown table rule.");
+      if (!["martingale", "two-win"].includes(evenSystem)) throw new RangeError("Unknown even-money method.");
+      if (tableRule !== this.config.tableRule && this.activeSessions.length) throw new Error("Finish or cancel active even-money bets before changing the table rule.");
       this.config.startingBankroll = bankroll;
       this.config.baseUnit = unit;
+      this.config.tableRule = tableRule;
+      this.config.evenSystem = evenSystem;
       SIDES.forEach((side) => { this.config.thresholds[side] = trigger; });
       this.config.evenProgression = progression.map(Number);
       this.config.maxStages = progression.length;

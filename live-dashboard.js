@@ -208,11 +208,12 @@
     document.querySelector("#bankroll-input").value = state.config.startingBankroll;
     document.querySelector("#unit-input").value = state.config.baseUnit;
     document.querySelector("#table-rule").value = state.config.tableRule;
+    document.querySelector("#even-system").value = state.config.evenSystem;
     document.querySelector("#twelve-bankroll-input").value = state.config.twelveStartingBankroll;
     document.querySelector("#twelve-unit-input").value = state.config.twelveBaseUnit;
     
     const thresholds = [...new Set(SIDES.map((side) => state.trackers[side].threshold))];
-    if (thresholds.length === 1 && thresholds[0] >= 3 && thresholds[0] <= 5) document.querySelector("#trigger-threshold").value = String(thresholds[0]);
+    if (thresholds.length === 1 && thresholds[0] >= 3 && thresholds[0] <= 8) document.querySelector("#trigger-threshold").value = String(thresholds[0]);
     const twelveThresholds = [...new Set(TWELVE_SIDES.map((side) => state.twelveTrackers[side].threshold))];
     if (twelveThresholds.length === 1) document.querySelector("#twelve-trigger-threshold").value = String(twelveThresholds[0]);
     document.querySelector("#dealer-change-button").textContent = `Dealer ${state.dealerChanges.length + 1} Â· Mark change`;
@@ -678,22 +679,27 @@
   evenPreset.value = evenOpts.includes(evenAmounts.value) ? evenAmounts.value : "custom";
   evenAmounts.disabled = evenPreset.value !== "custom";
 
-  evenPreset.addEventListener("change", () => syncProgPreset(evenPreset, evenAmounts));
+  evenPreset.addEventListener("change", () => {
+    syncProgPreset(evenPreset, evenAmounts);
+    if (evenPreset.value !== "custom") document.querySelector("#even-system").value = "martingale";
+  });
   evenAmounts.addEventListener("change", () => {
     readProgression(evenAmounts);
     evenPreset.value = "custom";
     evenAmounts.disabled = false;
+    document.querySelector("#even-system").value = "martingale";
   });
   document.querySelector("#even-apply-settings").addEventListener("click", () => attempt(() => {
     const progression = readProgression(evenAmounts);
     const threshold = Number(document.querySelector("#trigger-threshold").value);
     const tableRule = document.querySelector("#table-rule").value;
-    if (tableRule !== engine.config.tableRule) engine.setTableRule(tableRule);
     engine.applyEvenSettings({
       startingBankroll: document.querySelector("#bankroll-input").value,
       baseUnit: document.querySelector("#unit-input").value,
       threshold,
-      progression
+      progression,
+      tableRule,
+      evenSystem: document.querySelector("#even-system").value
     });
     say(engine.getState().activeSessions.length ? "Even-Money settings saved for the next bet. Active bets keep their original unit and progression." : "Even-Money settings applied.");
   }));
@@ -817,7 +823,8 @@
     origRender(state);
     const evenThresh = SIDES.map(s => state.trackers[s].threshold);
     const tableRuleLabel = engine.config.tableRule === "la-partage" ? "La Partage" : "Standard";
-    document.querySelector("#even-summary").textContent = `${tableRuleLabel} \u00b7 Martingale \u00b7 trigger ${evenThresh[0] || 4} \u00b7 ${engine.config.evenProgression.join(",")}`;
+    const evenMethod = engine.config.evenSystem === "two-win" ? "Win-2-Stop" : "Martingale";
+    document.querySelector("#even-summary").textContent = `${tableRuleLabel} \u00b7 ${evenMethod} \u00b7 trigger ${evenThresh[0] || 4} \u00b7 ${engine.config.evenProgression.join(",")}`;
     const twelveThresh = TWELVE_SIDES.map(s => state.twelveTrackers[s].threshold);
     document.querySelector("#twelve-summary").textContent = `Fibonacci \u00b7 trigger ${twelveThresh[0] || 6} \u00b7 ${engine.config.twelveProgression.join(",")}`;
   };
