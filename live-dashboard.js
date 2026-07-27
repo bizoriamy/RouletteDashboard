@@ -341,6 +341,8 @@
     hsInput.value = "";
     hsParseStatus.textContent = "";
     hsParseStatus.className = "hs-parse-status";
+    ocrStatusEl.textContent = "";
+    imagePreviewPanel.hidden = true;
     hsModal.hidden = false;
     hsInput.focus();
   });
@@ -375,6 +377,56 @@
   // â”€â”€   // -> Image OCR <-
   const ocrStatusEl = document.querySelector("#hs-ocr-status");
   const imageInput = document.querySelector("#hs-image-input");
+  const imagePreviewPanel = document.querySelector("#hs-image-preview-panel");
+  const imagePreview = document.querySelector("#hs-image-preview");
+  const imageZoom = document.querySelector("#hs-image-zoom");
+  let imagePreviewUrl = "";
+
+  function setPreviewZoom() {
+    if (!imagePreview.naturalWidth) return;
+    const zoom = Number(imageZoom.value) || 2;
+    imagePreview.style.width = Math.round(imagePreview.naturalWidth * zoom) + "px";
+  }
+
+  imageZoom.addEventListener("change", setPreviewZoom);
+  imagePreview.addEventListener("load", setPreviewZoom);
+
+  function loadImage(source) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("The selected image could not be opened."));
+      img.src = source;
+    });
+  }
+
+  function makeEnlargedOcrCanvas(img) {
+    const maxSide = Math.max(img.naturalWidth, img.naturalHeight);
+    const scale = Math.max(1, Math.min(2, 4096 / maxSide));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Increase contrast while retaining the light/dark differences in coloured digits.
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const gray = Math.round(
+        pixels.data[i] * 0.299 +
+        pixels.data[i + 1] * 0.587 +
+        pixels.data[i + 2] * 0.114
+      );
+      const contrasted = Math.max(0, Math.min(255, Math.round((gray - 128) * 1.35 + 128)));
+      pixels.data[i] = contrasted;
+      pixels.data[i + 1] = contrasted;
+      pixels.data[i + 2] = contrasted;
+    }
+    ctx.putImageData(pixels, 0, 0);
+    return { canvas, scale };
+  }
 
   // Dynamically load Tesseract.js from CDN
   function loadTesseract() {
@@ -397,23 +449,38 @@
     const file = imageInput.files[0];
     if (!file) return;
 
-    ocrStatusEl.textContent = "Loading OCR engine...";
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    imagePreviewUrl = URL.createObjectURL(file);
+    imagePreview.src = imagePreviewUrl;
+    imagePreviewPanel.hidden = false;
+    imageZoom.value = "2";
+    ocrStatusEl.textContent = "Preparing enlarged image...";
     ocrStatusEl.className = "hs-parse-status";
 
     try {
+      const sourceImage = await loadImage(imagePreviewUrl);
+      const enlarged = makeEnlargedOcrCanvas(sourceImage);
       const Tesseract = await loadTesseract();
-      ocrStatusEl.textContent = "Reading numbers from image...";
+      ocrStatusEl.textContent = `Reading numbers from enlarged ${enlarged.scale.toFixed(1)}× image...`;
 
-      const { data: { text } } = await Tesseract.recognize(file, "eng", {
-        tessedit_char_whitelist: "0123456789\n\r, ",
-      });
+      const worker = await Tesseract.createWorker("eng");
+      let data;
+      try {
+        await worker.setParameters({
+          tessedit_char_whitelist: "0123456789",
+        });
+        const result = await worker.recognize(
+          enlarged.canvas,
+          {},
+          { text: true, blocks: true }
+        );
+        data = result.data;
+      } finally {
+        await worker.terminate();
+      }
 
-      // Extract all numbers 0-36
-      const nums = text.split(/[\s,]+/)
-        .map(s => s.trim().replace(/[oO]/g, "0"))
-        .filter(s => s.length > 0 && !isNaN(Number(s)))
-        .map(Number)
-        .filter(n => n >= 0 && n <= 36);
+      // Roulette history grids are read across each row, then down to the next row.
+      const nums = window.RouletteOcrGrid.numbersInReadingOrder(data);
 
       if (nums.length === 0) {
         ocrStatusEl.textContent = "No numbers found. Try a clearer screenshot.";
@@ -422,7 +489,7 @@
       }
 
       hsInput.value = nums.join("\n");
-      ocrStatusEl.textContent = "Found " + nums.length + " numbers from image";
+      ocrStatusEl.textContent = "Found " + nums.length + " numbers · ordered left-to-right, then top-to-bottom";
       ocrStatusEl.className = "hs-parse-status ok";
       hsInput.dispatchEvent(new Event("input"));
     } catch (err) {
