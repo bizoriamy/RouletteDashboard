@@ -251,8 +251,8 @@
 
     // History count
     document.querySelector("#hs-history-count").textContent = s.historyCount > 0
-      ? `${s.historyCount} numbers in history`
-      : "Paste table history to start";
+      ? `${s.historyCount} numbers in history${s.historyCount < 24 ? ` · ${24 - s.historyCount} more needed` : ""}`
+      : "Enter or import 24 numbers to start";
 
     // Mode buttons
     document.querySelector("#hs-mode-hot").classList.toggle("primary", s.mode === "hot");
@@ -362,9 +362,9 @@
   // Save history
   document.querySelector("#hs-history-save").addEventListener("click", () => {
     try {
-      const count = hotStreets.replaceHistory(hsInput.value);
+      const result = hotStreets.prependHistory(hsInput.value);
       hsModal.hidden = true;
-      say(`${count} numbers loaded for 4-Streets strategy`);
+      say(`${result.added} older numbers added before live history · ${result.total} total`);
       renderHotStreets();
     } catch (err) {
       hsParseStatus.textContent = err.message;
@@ -433,12 +433,12 @@
 
 // Mode toggle
   document.querySelector("#hs-mode-hot").addEventListener("click", () => {
-    if (hotStreets.history.length < 12) { say("Load at least 12 numbers first.", true); return; }
+    if (hotStreets.history.length < 24) { say("Record or load at least 24 numbers first.", true); return; }
     hotStreets.selectCandidates("hot");
     renderHotStreets();
   });
   document.querySelector("#hs-mode-cold").addEventListener("click", () => {
-    if (hotStreets.history.length < 12) { say("Load at least 12 numbers first.", true); return; }
+    if (hotStreets.history.length < 24) { say("Record or load at least 24 numbers first.", true); return; }
     hotStreets.selectCandidates("cold");
     renderHotStreets();
   });

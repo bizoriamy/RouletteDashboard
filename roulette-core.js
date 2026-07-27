@@ -32,7 +32,9 @@
         baseUnit: Number(options.baseUnit) > 0 ? Number(options.baseUnit) : 1,
         startingBankroll: Number(options.startingBankroll) >= 0 ? Number(options.startingBankroll) : 1000,
         tableRule: options.tableRule === "la-partage" ? "la-partage" : "standard",
-        evenSystem: options.evenSystem === "martingale" ? "martingale" : "two-win",
+        evenSystem: options.evenSystem === "two-win" ? "two-win" : "martingale",
+        evenSystemExplicit: options.evenSystemExplicit !== false,
+        evenSystemConfigVersion: Number(options.evenSystemConfigVersion) || 2,
         evenProgression: options.evenProgression || DEFAULT_EVEN_PROGRESSION,
         twelveProgression: options.twelveProgression || DEFAULT_TWELVE_PROGRESSION,
         maxStages: options.maxStages || 8,
@@ -56,6 +58,14 @@
       if (!snapshot.config.evenProgression) snapshot.config.evenProgression = DEFAULT_EVEN_PROGRESSION;
       if (!snapshot.config.twelveProgression) snapshot.config.twelveProgression = DEFAULT_TWELVE_PROGRESSION;
       if (!snapshot.config.maxStages) snapshot.config.maxStages = DEFAULT_EVEN_PROGRESSION.length;
+      // Older dashboards silently defaulted to Win-2-Stop even when the UI
+      // displayed a Martingale progression. Migrate that hidden legacy value
+      // for future bets; historical start events retain their original system.
+      if (!(Number(snapshot.config.evenSystemConfigVersion) >= 2)) {
+        snapshot.config.evenSystem = "martingale";
+        snapshot.config.evenSystemExplicit = true;
+        snapshot.config.evenSystemConfigVersion = 2;
+      }
       const engine = new RouletteEngine(snapshot.config);
       engine.events = JSON.parse(JSON.stringify(snapshot.events));
       engine._rebuild();
@@ -148,6 +158,8 @@
       this.config.baseUnit = unit;
       this.config.tableRule = tableRule;
       this.config.evenSystem = evenSystem;
+      this.config.evenSystemExplicit = true;
+      this.config.evenSystemConfigVersion = 2;
       SIDES.forEach((side) => { this.config.thresholds[side] = trigger; });
       this.config.evenProgression = progression.map(Number);
       this.config.maxStages = progression.length;

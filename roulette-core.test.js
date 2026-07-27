@@ -60,12 +60,14 @@ const legacySnapshotEngine = new RouletteEngine({ evenSystem: "martingale" });
 legacySnapshotEngine.startBet("odd");
 legacySnapshotEngine.addSpin(2);
 const legacySnapshot = legacySnapshotEngine.exportSnapshot();
-delete legacySnapshot.config.evenSystem;
+legacySnapshot.config.evenSystem = "two-win";
+legacySnapshot.config.evenSystemExplicit = true;
+delete legacySnapshot.config.evenSystemConfigVersion;
 legacySnapshot.events.filter((event) => event.type === "start").forEach((event) => delete event.system);
 const legacyRestored = RouletteEngine.fromSnapshot(legacySnapshot);
 assert.equal(legacyRestored.getState().activeSessions[0].system, "martingale");
 assert.equal(legacyRestored.getState().activeSessions[0].stake, 2);
-assert.equal(legacyRestored.getState().config.evenSystem, "two-win");
+assert.equal(legacyRestored.getState().config.evenSystem, "martingale");
 
 restored.setThreshold("odd", 6);
 restored.resetSession();
@@ -126,7 +128,7 @@ assert.deepEqual(martingaleThree.getState().completedSessions[0].stakes, [1, 2, 
 assert.equal(martingaleThree.getState().completedSessions[0].pl, -7);
 assert.equal(martingaleThree.getState().completedSessions[0].reason, "max-stage-loss");
 
-const twoWin = new RouletteEngine();
+const twoWin = new RouletteEngine({ evenSystem: "two-win" });
 [2, 4, 6, 8].forEach((n) => twoWin.addSpin(n));
 twoWin.startBet("odd");
 assert.equal(twoWin.getState().activeSessions[0].system, "two-win");
@@ -144,7 +146,7 @@ assert.equal(twoWin.getState().activeSessions.length, 0);
 assert.equal(twoWin.getState().completedSessions[0].reason, "target-reached");
 assert.equal(twoWin.getState().completedSessions[0].pl, 2);
 
-const twoWinStopped = new RouletteEngine();
+const twoWinStopped = new RouletteEngine({ evenSystem: "two-win" });
 [2, 4, 6, 8].forEach((n) => twoWinStopped.addSpin(n));
 twoWinStopped.startBet("odd");
 [2, 4, 6, 8, 10, 12, 14, 16].forEach((n) => twoWinStopped.addSpin(n));
@@ -153,7 +155,7 @@ assert.equal(twoWinStopped.getState().pendingResults[0].reason, "max-bets-stoppe
 assert.equal(twoWinStopped.getState().pendingResults[0].pl, -8);
 assert.equal(twoWinStopped.getState().pendingResults[0].stakes.every((stake) => stake === 1), true);
 
-const twoWinFrench = new RouletteEngine({ tableRule: "la-partage" });
+const twoWinFrench = new RouletteEngine({ tableRule: "la-partage", evenSystem: "two-win" });
 [2, 4, 6, 8].forEach((n) => twoWinFrench.addSpin(n));
 twoWinFrench.startBet("odd");
 twoWinFrench.addSpin(17);

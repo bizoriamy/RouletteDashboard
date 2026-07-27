@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.07.26.10</title>
+    <title>Roulette Live Dashboard · v2026.07.27.1</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
-    <link rel="stylesheet" href="live-dashboard.css?v=2026.07.26.10" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.07.27.1" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.07.26.10</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.07.27.1</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -127,7 +127,7 @@
             <button id="hs-mode-cold" type="button">Cold</button>
             <button id="hs-load-history" type="button">Load History</button>
             <button id="hs-reset" class="danger-quiet" type="button">Reset</button>          </div>
-          <div id="hs-history-count" class="hs-history-count">Paste table history to start</div>
+          <div id="hs-history-count" class="hs-history-count">Enter or import 24 numbers to start</div>
         </div>
         <div id="hs-candidates" hidden>
           <div class="section-heading"><span>Candidates</span><span id="hs-obs-label">0/12</span></div>
@@ -191,12 +191,12 @@
         <p class="modal-help">One number per line. "o" auto-corrected to 0.</p>
         <div id="hs-parse-status" class="hs-parse-status"></div>
         <div id="hs-ocr-status" class="hs-parse-status"></div>
-        <textarea id="hs-history-input" rows="10" placeholder="Paste numbers here..."></textarea>
+        <textarea id="hs-history-input" rows="10" placeholder="Paste older numbers here (oldest to newest)..."></textarea>
         <div class="modal-actions" style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
           <button id="hs-modal-upload" type="button" style="flex:1;">Upload Image</button>
           <input id="hs-image-input" type="file" accept="image/*" hidden />
           <button id="hs-history-cancel" type="button" style="flex:1;">Cancel</button>
-          <button id="hs-history-save" class="primary" style="flex:2;">Save & Close</button>
+          <button id="hs-history-save" class="primary" style="flex:2;">Add Before Live Numbers</button>
         </div>
       </div>
     </div>
@@ -218,9 +218,9 @@
       </div>
     </div>
 
-    <script src="roulette-core.js?v=2026.07.26.10"></script>
-    <script src="dashboard-storage.js?v=2026.07.26.10"></script>
-    <script src="google-sheets-sync.js?v=2026.07.26.10"></script>
-    <script src="hot-streets.js?v=2026.07.26.10"></script>
-    <script src="live-dashboard.js?v=2026.07.26.10"></script>
+    <script src="roulette-core.js?v=2026.07.27.1"></script>
+    <script src="dashboard-storage.js?v=2026.07.27.1"></script>
+    <script src="google-sheets-sync.js?v=2026.07.27.1"></script>
+    <script src="hot-streets.js?v=2026.07.27.1"></script>
+    <script src="live-dashboard.js?v=2026.07.27.1"></script>
   </body>

@@ -20,7 +20,7 @@ import threading
 import time
 
 PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
-BUILD = "v2026.07.25.9"
+BUILD = "v2026.07.27.1"
 ROOT = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"

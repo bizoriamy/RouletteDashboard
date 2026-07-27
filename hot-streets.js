@@ -10,15 +10,32 @@
   const STREET_LABELS = STREETS.map(s => `${s[0]}-${s[1]}-${s[2]}`);
   const STREET_STARTS = STREETS.map(s => s[0]);
 
-  // Canonical 4-Streets progression: units placed on each street.
-  const FIB = [4, 4, 8, 12, 20, 32];
+  // Canonical 4-Streets progression: units placed on EACH street.
+  // With four streets, the total hand wagers are 4, 4, 8, 12, 20 units.
+  const FIB = [1, 1, 2, 3, 5];
   const OBSERVATION_SPINS = 12;
   const CANDIDATE_COUNT = 6;
   const FINAL_COUNT = 4;
+  const MIN_HISTORY = 24;
   const HISTORY_KEY = "roulette-hot-streets-history-v1";
   const STATE_KEY = "roulette-hot-streets-state-v1";
   const SETTINGS_KEY = "roulette-hot-streets-settings-v1";
-  const STATE_VERSION = 2;
+  const STATE_VERSION = 3;
+
+  function sameProgression(a, b) {
+    return Array.isArray(a) && a.length === b.length && a.every((n, i) => Number(n) === b[i]);
+  }
+
+  function storedProgression(settings) {
+    const saved = settings && settings.progression;
+    if (sameProgression(saved, [4, 4, 8, 12, 20, 32]) ||
+        sameProgression(saved, [4, 4, 8, 12, 20])) {
+      return [...FIB];
+    }
+    return Array.isArray(saved) && saved.every(n => Number(n) > 0)
+      ? saved.map(Number)
+      : [...FIB];
+  }
 
   /** Classify which street a number belongs to (0 = none) */
   function streetOf(number) {
@@ -53,11 +70,11 @@
       this.history = this.load_(HISTORY_KEY, []);
       this.state = this.load_(STATE_KEY, this.freshState_());
       const settings = this.load_(SETTINGS_KEY, {});
-      this.progression = options.progression ? [...options.progression] : settings.progression ? [...settings.progression] : [...FIB];
+      this.progression = options.progression ? [...options.progression] : storedProgression(settings);
       this.baseUnit = Number(options.baseUnit) > 0 ? Number(options.baseUnit) : Number(settings.baseUnit) > 0 ? Number(settings.baseUnit) : 1;
       if (this.state.version !== STATE_VERSION) {
         this.state = this.freshState_();
-        if (this.history.length >= 12) {
+        if (this.history.length >= MIN_HISTORY) {
           const ranked = rankStreets(this.history, this.state.mode);
           this.state.phase = "ready";
           this.state.candidates = ranked.slice(0, CANDIDATE_COUNT).map(r => r.street);
@@ -100,10 +117,21 @@
     /** Replace all history with parsed text */
     replaceHistory(text) {
       const nums = parseNumbers(text);
-      if (nums.length < 12) throw new Error("Need at least 12 numbers to start.");
+      if (nums.length === 0) throw new Error("No valid roulette numbers found.");
       this.history = nums;
-      this.selectCandidates(this.state.mode);
+      this.prepareFromHistory_(this.state.mode);
       return nums.length;
+    }
+
+    /** Add older imported/OCR history before numbers already recorded live. */
+    prependHistory(text) {
+      const nums = parseNumbers(text);
+      if (nums.length === 0) throw new Error("No valid roulette numbers found.");
+      // Repeated roulette values are legitimate outcomes, so do not de-duplicate.
+      this.history = [...nums, ...this.history];
+      if (this.history.length > 500) this.history = this.history.slice(-500);
+      this.prepareFromHistory_(this.state.mode);
+      return { added: nums.length, total: this.history.length };
     }
 
     /** Append a single spin to history */
@@ -113,6 +141,9 @@
       this.history.push(n);
       // Keep last 500 to avoid memory bloat
       if (this.history.length > 500) this.history = this.history.slice(-500);
+      if (this.state.phase === "idle" && this.history.length >= MIN_HISTORY) {
+        this.prepareFromHistory_(this.state.mode);
+      }
       // If observing, score it
       if (this.state.phase === "observing") {
         this.scoreSpin_(n);
@@ -125,12 +156,28 @@
 
     /** Select 6 candidate streets from history */
     selectCandidates(mode = "hot") {
-      if (this.history.length < 12) throw new Error("Need at least 12 numbers.");
+      if (this.history.length < MIN_HISTORY) throw new Error(`Need at least ${MIN_HISTORY} numbers.`);
       const ranked = rankStreets(this.history, mode);
       this.state = this.freshState_();
       this.state.mode = mode;
       this.state.phase = "ready";
       this.state.candidates = ranked.slice(0, CANDIDATE_COUNT).map(r => r.street);
+      this.save_();
+    }
+
+    prepareFromHistory_(mode = "hot") {
+      const previous = this.state || this.freshState_();
+      this.state = this.freshState_();
+      this.state.mode = mode;
+      this.state.totalPL = previous.totalPL || 0;
+      this.state.totalCycles = previous.totalCycles || 0;
+      this.state.cycleWins = previous.cycleWins || 0;
+      this.state.cycleBursts = previous.cycleBursts || 0;
+      if (this.history.length >= MIN_HISTORY) {
+        const ranked = rankStreets(this.history, mode);
+        this.state.phase = "ready";
+        this.state.candidates = ranked.slice(0, CANDIDATE_COUNT).map(r => r.street);
+      }
       this.save_();
     }
 
@@ -265,7 +312,7 @@
       this.state.activeProgression = null;
       this.state.activeBaseUnit = null;
       // Re-select candidates for next cycle
-      if (this.history.length >= 12) {
+      if (this.history.length >= MIN_HISTORY) {
         const ranked = rankStreets(this.history, this.state.mode);
         this.state.candidates = ranked.slice(0, CANDIDATE_COUNT).map(r => r.street);
       }
@@ -320,5 +367,5 @@
     }
   }
 
-  root.RouletteHotStreets = { HotStreets, STREETS, STREET_LABELS, STREET_STARTS, FIB, parseNumbers, streetOf, rankStreets };
+  root.RouletteHotStreets = { HotStreets, STREETS, STREET_LABELS, STREET_STARTS, FIB, MIN_HISTORY, parseNumbers, streetOf, rankStreets };
 })(typeof globalThis !== "undefined" ? globalThis : this);
