@@ -60,7 +60,7 @@
   document.querySelector("#spin-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const input = document.querySelector("#spin-input");
-    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number); renderHotStreets(); input.value = ""; say(`Spin ${number} recorded.`); });
+    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number, engine.getState().spinCount); renderHotStreets(); input.value = ""; say(`Spin ${number} recorded.`); });
     requestAnimationFrame(() => input.focus());
   });
   document.querySelector("#undo-button").addEventListener("click", () => {
@@ -69,8 +69,8 @@
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
     const confirmed = window.confirm(`End Session ${tableSession.number} and start a new session? Its synchronized Google Sheets records will remain saved.`);
     if (!confirmed) return;
-    googleSync.archiveCurrentSession(engine, tableSession.number);
-    await googleSync.sync(engine);
+    googleSync.archiveCurrentSession(engine, tableSession.number, hotStreets);
+    await googleSync.sync(engine, hotStreets);
     engine.resetSession();
     hotStreets.reset();
     googleSync.startNewSession();
@@ -100,7 +100,7 @@
     document.querySelector("#download-archive").disabled = !archiveSummary;
     document.querySelector("#save-sync").addEventListener("click", () => attempt(() => {
       googleSync.configure(document.querySelector("#sync-url").value, document.querySelector("#sync-token").value, true);
-      googleSync.sync(engine);
+      googleSync.sync(engine, hotStreets);
       document.querySelector("#sync-status").textContent = "Connecting…";
     }));
     document.querySelector("#disable-sync").addEventListener("click", () => {
@@ -150,7 +150,9 @@
       const active = state.activeSessions.find((session) => session.side === side);
       const blocked = state.locked[side];
       card.querySelector(".card-detail").textContent = active
-        ? active.system === "two-win" ? `Bet ${active.stage + 1}/${(active.progression||[]).length} · wins ${active.winStreak}/2 · stake ${money(active.stake)}` : `Stage ${active.stage + 1}/${(active.progression||[]).length} · stake ${money(active.stake)}`
+        ? active.system === "two-win" ? `Bet ${active.stage + 1}/${(active.progression||[]).length} · wins ${active.winStreak}/2 · stake ${money(active.stake)}`
+          : active.system === "streak-rider" ? `Rider ${active.stage + 1}/${(active.progression||[]).length} · stake ${money(active.stake)}`
+          : `Stage ${active.stage + 1}/${(active.progression||[]).length} · stake ${money(active.stake)}`
         : blocked ? "Locked by opposite bet" : tracker.status === "ignored" ? "Muted until this side appears" : "";
       card.querySelector(".start").disabled = tracker.status !== "triggered" || blocked || state.activeSessions.length >= 3;
       card.querySelector(".ignore").disabled = tracker.status !== "triggered";
@@ -189,7 +191,7 @@
     // ── Pending results (split by system) ──
     function renderResultRow(session) {
       const burst = session.reason === "max-stage-loss", stopped = session.reason === "max-bets-stopped";
-      const tag = session.system === "fibonacci" ? "FIB · " : session.system === "two-win" ? "TWO-WIN · " : "";
+      const tag = session.system === "fibonacci" ? "FIB · " : session.system === "two-win" ? "TWO-WIN · " : session.system === "streak-rider" ? "RIDER · " : "";
       return `<article class="result-row ${burst ? "burst" : stopped ? "stopped" : "won"}">
         <strong>${label(session.side)} · ${tag}${burst ? "BURST" : stopped ? "STOPPED" : session.reason === "target-reached" ? "TARGET" : "WON"}</strong>
         <span>${session.system === "two-win" ? "B" : "S"}${session.stage + 1}/${(session.progression||[]).length}</span>
@@ -208,7 +210,6 @@
     document.querySelector("#bankroll-input").value = state.config.startingBankroll;
     document.querySelector("#unit-input").value = state.config.baseUnit;
     document.querySelector("#table-rule").value = state.config.tableRule;
-    document.querySelector("#even-system").value = state.config.evenSystem;
     document.querySelector("#twelve-bankroll-input").value = state.config.twelveStartingBankroll;
     document.querySelector("#twelve-unit-input").value = state.config.twelveBaseUnit;
     
@@ -514,13 +515,14 @@
   document.querySelector("#hs-start-bet").addEventListener("click", () => {
     try {
       if (hotStreets.state.phase === "ready" && hotStreets.state.observationSpin === 0) {
-        hotStreets.startObservation();
+        hotStreets.startObservation(engine.getState().spinCount);
         say("Observation started â€” watching candidate streets");
       } else if (hotStreets.state.phase === "deciding") {
         hotStreets.acceptBet();
         say(`BETTING â€” Stage 1: bet on ${hotStreets.state.finalStreets.map(si => window.RouletteHotStreets.STREET_STARTS[si]).join(", ")}`);
       }
       renderHotStreets();
+      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets);
     } catch (err) {
       say(err.message, true);
     }
@@ -532,6 +534,7 @@
       hotStreets.ignoreBet();
       say("Observation ignored â€” new candidates selected");
       renderHotStreets();
+      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets);
     } catch (err) {
       say(err.message, true);
     }
@@ -547,7 +550,7 @@
 
   // â”€â”€ End Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  googleSync.attach(engine, (message, type) => {
+  googleSync.attach(engine, hotStreets, (message, type) => {
     const status = document.querySelector("#sync-status"); if (status) { status.textContent = message; status.classList.toggle("error", type === "error"); }
     say(message, type === "error");
   });
@@ -715,18 +718,6 @@
 
   
   // ── Progression config wiring ──
-  function syncProgPreset(presetSelect, amountsInput, engineSetter) {
-    const val = presetSelect.value;
-    if (val === "custom") {
-      amountsInput.disabled = false;
-      return;
-    }
-    amountsInput.value = val;
-    amountsInput.disabled = true;
-    const arr = val.split(",").map(Number);
-    if (engineSetter) engineSetter(arr);
-  }
-
   function readProgression(input) {
     const values = input.value.split(",").map((value) => Number(value.trim()));
     if (!values.length || !values.every((value) => Number.isFinite(value) && value > 0)) {
@@ -735,28 +726,79 @@
     return values;
   }
 
+  function setStepCount(stepInput, progression) {
+    stepInput.value = progression.length;
+  }
+
+  function progressionFamily(values) {
+    if (values.length >= 2 && values[0] === 1 && values[1] === 1) return "fibonacci";
+    if (values.length >= 2 && values[0] === 1 && values[1] === 2) return "martingale";
+    return "custom";
+  }
+
+  function resizeProgression(values, requestedSteps, family = progressionFamily(values)) {
+    const steps = Math.max(1, Math.min(30, Number(requestedSteps) || values.length || 1));
+    const next = values.slice(0, steps);
+    while (next.length < steps) {
+      if (family === "martingale") {
+        next.push((next[next.length - 1] || 1) * 2);
+      } else if (family === "fibonacci") {
+        next.push(next.length < 2 ? 1 : next[next.length - 1] + next[next.length - 2]);
+      } else {
+        next.push(next[next.length - 1] || 1);
+      }
+    }
+    return next;
+  }
+
+  function strategyProgression(strategy, steps, current = [1]) {
+    if (strategy === "martingale") return resizeProgression([1, 2], steps, "martingale");
+    if (strategy === "fibonacci") return resizeProgression([1, 1], steps, "fibonacci");
+    if (strategy === "streak-rider" || strategy === "two-win") {
+      return Array.from({ length: Math.max(1, Number(steps) || 1) }, (_, index) => index % 2 === 0 ? 1 : 2);
+    }
+    return resizeProgression(current, steps, "custom");
+  }
+
+  function applyStrategySelect(strategySelect, stepInput, amountsInput) {
+    const strategy = strategySelect.value;
+    if (strategy === "custom") {
+      amountsInput.disabled = false;
+      setStepCount(stepInput, readProgression(amountsInput));
+      return;
+    }
+    const progression = strategyProgression(strategy, stepInput.value, readProgression(amountsInput));
+    amountsInput.value = progression.join(",");
+    amountsInput.disabled = true;
+    setStepCount(stepInput, progression);
+  }
+
+  function wireProgressionControls(strategySelect, stepInput, amountsInput) {
+    strategySelect.addEventListener("change", () => applyStrategySelect(strategySelect, stepInput, amountsInput));
+    stepInput.addEventListener("change", () => applyStrategySelect(strategySelect, stepInput, amountsInput));
+    amountsInput.addEventListener("change", () => {
+      const progression = readProgression(amountsInput);
+      strategySelect.value = "custom";
+      amountsInput.disabled = false;
+      setStepCount(stepInput, progression);
+    });
+  }
+
   // Even-money progression
   const evenPreset = document.querySelector("#even-prog-preset");
   const evenAmounts = document.querySelector("#even-prog-amounts");
+  const evenSteps = document.querySelector("#even-prog-steps");
   if (!engine.config.evenProgression) engine.config.evenProgression = [1,2,4,8,16,32,64,128];
   if (!engine.config.twelveProgression) engine.config.twelveProgression = [1,1,2,3,5,8,13,21];
   evenAmounts.value = engine.config.evenProgression.join(",");
-  // Set preset dropdown to match initial progression
-  const evenOpts = Array.from(evenPreset.options).map(o => o.value);
-  evenPreset.value = evenOpts.includes(evenAmounts.value) ? evenAmounts.value : "custom";
+  evenPreset.value = engine.config.evenSystem === "two-win" ? "two-win"
+    : engine.config.evenSystem === "streak-rider" ? "streak-rider"
+    : progressionFamily(engine.config.evenProgression);
   evenAmounts.disabled = evenPreset.value !== "custom";
+  setStepCount(evenSteps, engine.config.evenProgression);
+  wireProgressionControls(evenPreset, evenSteps, evenAmounts);
 
-  evenPreset.addEventListener("change", () => {
-    syncProgPreset(evenPreset, evenAmounts);
-    if (evenPreset.value !== "custom") document.querySelector("#even-system").value = "martingale";
-  });
-  evenAmounts.addEventListener("change", () => {
-    readProgression(evenAmounts);
-    evenPreset.value = "custom";
-    evenAmounts.disabled = false;
-    document.querySelector("#even-system").value = "martingale";
-  });
-  document.querySelector("#even-apply-settings").addEventListener("click", () => attempt(() => {
+  function applyEvenFormSettings(announce = true) {
     const progression = readProgression(evenAmounts);
     const threshold = Number(document.querySelector("#trigger-threshold").value);
     const tableRule = document.querySelector("#table-rule").value;
@@ -766,25 +808,31 @@
       threshold,
       progression,
       tableRule,
-      evenSystem: document.querySelector("#even-system").value
+      evenSystem: ["two-win", "streak-rider"].includes(evenPreset.value) ? evenPreset.value : "martingale"
     });
-    say(engine.getState().activeSessions.length ? "Even-Money settings saved for the next bet. Active bets keep their original unit and progression." : "Even-Money settings applied.");
+    if (announce) {
+      say(engine.getState().activeSessions.length ? "Even-Money settings saved for the next bet. Active bets keep their original unit and progression." : "Even-Money settings applied.");
+    }
+  }
+
+  // Strategy and step changes take effect immediately for the next bet.
+  // The Apply button remains available for unit, bankroll, trigger, table rule, and custom amounts.
+  evenPreset.addEventListener("change", () => attempt(() => {
+    applyEvenFormSettings(false);
+    say(`${evenPreset.options[evenPreset.selectedIndex].text} selected for the next Even-Money bet.`);
   }));
+  evenSteps.addEventListener("change", () => attempt(() => applyEvenFormSettings(false)));
+  document.querySelector("#even-apply-settings").addEventListener("click", () => attempt(() => applyEvenFormSettings(true)));
 
   // Twelve-number progression
   const twelvePreset = document.querySelector("#twelve-prog-preset");
   const twelveAmounts = document.querySelector("#twelve-prog-amounts");
+  const twelveSteps = document.querySelector("#twelve-prog-steps");
   twelveAmounts.value = engine.config.twelveProgression.join(",");
-  const twelveOpts = Array.from(twelvePreset.options).map(o => o.value);
-  twelvePreset.value = twelveOpts.includes(twelveAmounts.value) ? twelveAmounts.value : "custom";
+  twelvePreset.value = progressionFamily(engine.config.twelveProgression);
   twelveAmounts.disabled = twelvePreset.value !== "custom";
-
-  twelvePreset.addEventListener("change", () => syncProgPreset(twelvePreset, twelveAmounts));
-  twelveAmounts.addEventListener("change", () => {
-    readProgression(twelveAmounts);
-    twelvePreset.value = "custom";
-    twelveAmounts.disabled = false;
-  });
+  setStepCount(twelveSteps, engine.config.twelveProgression);
+  wireProgressionControls(twelvePreset, twelveSteps, twelveAmounts);
   document.querySelector("#twelve-apply-settings").addEventListener("click", () => attempt(() => {
     const progression = readProgression(twelveAmounts);
     const threshold = Number(document.querySelector("#twelve-trigger-threshold").value);
@@ -800,19 +848,14 @@
   // ── 4-Streets progression config ──
   const hsPreset = document.querySelector("#hs-prog-preset");
   const hsAmounts = document.querySelector("#hs-prog-amounts");
+  const hsSteps = document.querySelector("#hs-prog-steps");
   const hsUnit = document.querySelector("#hs-unit-input");
   hsAmounts.value = hotStreets.progression.join(",");
-  const hsOpts = Array.from(hsPreset.options).map(o => o.value);
-  hsPreset.value = hsOpts.includes(hsAmounts.value) ? hsAmounts.value : "custom";
+  hsPreset.value = progressionFamily(hotStreets.progression);
   hsAmounts.disabled = hsPreset.value !== "custom";
+  setStepCount(hsSteps, hotStreets.progression);
   hsUnit.value = hotStreets.baseUnit;
-
-  hsPreset.addEventListener("change", () => syncProgPreset(hsPreset, hsAmounts));
-  hsAmounts.addEventListener("change", () => {
-    readProgression(hsAmounts);
-    hsPreset.value = "custom";
-    hsAmounts.disabled = false;
-  });
+  wireProgressionControls(hsPreset, hsSteps, hsAmounts);
   document.querySelector("#hs-apply-settings").addEventListener("click", () => attempt(() => {
     const progression = readProgression(hsAmounts);
     const wasActive = hotStreets.getState().phase === "betting";
@@ -890,14 +933,19 @@
     origRender(state);
     const evenThresh = SIDES.map(s => state.trackers[s].threshold);
     const tableRuleLabel = engine.config.tableRule === "la-partage" ? "La Partage" : "Standard";
-    const evenMethod = engine.config.evenSystem === "two-win" ? "Win-2-Stop" : "Martingale";
+    const evenMethod = engine.config.evenSystem === "two-win" ? "2 Win Stop"
+      : engine.config.evenSystem === "streak-rider" ? "Streak Rider"
+      : progressionFamily(engine.config.evenProgression) === "fibonacci" ? "Fibonacci"
+      : evenPreset.value === "custom" ? "Custom" : "Martingale";
     document.querySelector("#even-summary").textContent = `${tableRuleLabel} \u00b7 ${evenMethod} \u00b7 trigger ${evenThresh[0] || 4} \u00b7 ${engine.config.evenProgression.join(",")}`;
     const twelveThresh = TWELVE_SIDES.map(s => state.twelveTrackers[s].threshold);
-    document.querySelector("#twelve-summary").textContent = `Fibonacci \u00b7 trigger ${twelveThresh[0] || 6} \u00b7 ${engine.config.twelveProgression.join(",")}`;
+    const twelveMethod = progressionFamily(engine.config.twelveProgression) === "fibonacci" ? "Fibonacci"
+      : twelvePreset.value === "custom" ? "Custom" : "Martingale";
+    document.querySelector("#twelve-summary").textContent = `${twelveMethod} \u00b7 trigger ${twelveThresh[0] || 6} \u00b7 ${engine.config.twelveProgression.join(",")}`;
   };
 
   // ── Backtest ──
-  function runBacktestAll(sides, trigger, progression, isTwelve) {
+  function runBacktestAll(sides, trigger, progression, isTwelve, strategy = "martingale") {
     const allSpins = collectAllSpins();
     const { classify, classifyTwelve } = window.RouletteCore;
     const payout = isTwelve ? 2 : 1;
@@ -915,7 +963,15 @@
 
         if (betting) {
           const stake = progression[stage] || progression[progression.length - 1];
-          if (present.includes(side)) {
+          const won = present.includes(side);
+          if (strategy === "streak-rider") {
+            pl += won ? stake : -stake;
+            stage++;
+            if (!won || stage >= progression.length) {
+              if (won) wins++; else bursts++;
+              betting = false; stage = 0; absent = 0;
+            }
+          } else if (won) {
             pl += stake * payout;
             wins++;
             betting = false; stage = 0; absent = 0;
@@ -962,14 +1018,14 @@
   document.querySelector("#even-backtest-btn").addEventListener("click", () => {
     const trigger = Number(document.querySelector("#trigger-threshold").value);
     const prog = document.querySelector("#even-prog-amounts").value.split(",").map(Number);
-    const data = runBacktestAll(SIDES, trigger, prog, false);
+    const data = runBacktestAll(SIDES, trigger, prog, false, evenPreset.value);
     renderBacktest(document.querySelector("#even-backtest"), data);
   });
 
   document.querySelector("#twelve-backtest-btn").addEventListener("click", () => {
     const trigger = Number(document.querySelector("#twelve-trigger-threshold").value);
     const prog = document.querySelector("#twelve-prog-amounts").value.split(",").map(Number);
-    const data = runBacktestAll(TWELVE_SIDES, trigger, prog, true);
+    const data = runBacktestAll(TWELVE_SIDES, trigger, prog, true, twelvePreset.value);
     renderBacktest(document.querySelector("#twelve-backtest"), data);
   });
 

@@ -32,7 +32,7 @@
         baseUnit: Number(options.baseUnit) > 0 ? Number(options.baseUnit) : 1,
         startingBankroll: Number(options.startingBankroll) >= 0 ? Number(options.startingBankroll) : 1000,
         tableRule: options.tableRule === "la-partage" ? "la-partage" : "standard",
-        evenSystem: options.evenSystem === "two-win" ? "two-win" : "martingale",
+        evenSystem: ["two-win", "streak-rider"].includes(options.evenSystem) ? options.evenSystem : "martingale",
         evenSystemExplicit: options.evenSystemExplicit !== false,
         evenSystemConfigVersion: Number(options.evenSystemConfigVersion) || 2,
         evenProgression: options.evenProgression || DEFAULT_EVEN_PROGRESSION,
@@ -152,7 +152,7 @@
       if (!Number.isInteger(trigger) || trigger < 1) throw new RangeError("Trigger must be a positive whole number.");
       if (!Array.isArray(progression) || !progression.length || !progression.every(n => Number(n) > 0)) throw new RangeError("Progression must contain positive numbers.");
       if (!["standard", "la-partage"].includes(tableRule)) throw new RangeError("Unknown table rule.");
-      if (!["martingale", "two-win"].includes(evenSystem)) throw new RangeError("Unknown even-money method.");
+      if (!["martingale", "two-win", "streak-rider"].includes(evenSystem)) throw new RangeError("Unknown even-money method.");
       if (tableRule !== this.config.tableRule && this.activeSessions.length) throw new Error("Finish or cancel active even-money bets before changing the table rule.");
       this.config.startingBankroll = bankroll;
       this.config.baseUnit = unit;
@@ -263,6 +263,20 @@
           }
           if (session.stage === session.maxStages - 1) this._finishSession(state, session.side, "max-bets-stopped");
           else session.stage += 1;
+          continue;
+        }
+        if (session.system === "streak-rider") {
+          if (present.has(session.side)) {
+            session.pl += stake; session.outcomes.push("win"); session.plChanges.push(stake);
+            if (session.stage === session.maxStages - 1) this._finishSession(state, session.side, "max-bets-stopped");
+            else session.stage += 1;
+          } else {
+            const change = number === 0 && session.tableRule === "la-partage" ? -stake / 2 : -stake;
+            session.pl += change;
+            session.outcomes.push(number === 0 && session.tableRule === "la-partage" ? "half-loss" : "loss");
+            session.plChanges.push(change);
+            this._finishSession(state, session.side, "first-loss-stopped");
+          }
           continue;
         }
         if (present.has(session.side)) {

@@ -20,7 +20,7 @@
   const HISTORY_KEY = "roulette-hot-streets-history-v1";
   const STATE_KEY = "roulette-hot-streets-state-v1";
   const SETTINGS_KEY = "roulette-hot-streets-settings-v1";
-  const STATE_VERSION = 3;
+  const STATE_VERSION = 4;
 
   function sameProgression(a, b) {
     return Array.isArray(a) && a.length === b.length && a.every((n, i) => Number(n) === b[i]);
@@ -100,7 +100,11 @@
         totalCycles: 0,
         lastResult: null,
         lastResultBet: 0,
-        resultId: 0
+        resultId: 0,
+        nextCycleId: 1,
+        currentCycleId: null,
+        syncCycles: [],
+        syncSteps: []
       };
     }
 
@@ -135,7 +139,7 @@
     }
 
     /** Append a single spin to history */
-    appendSpin(number) {
+    appendSpin(number, liveSpinIndex = null) {
       const n = Number(number);
       if (isNaN(n) || n < 0 || n > 36) return;
       this.history.push(n);
@@ -146,9 +150,9 @@
       }
       // If observing, score it
       if (this.state.phase === "observing") {
-        this.scoreSpin_(n);
+        this.scoreSpin_(n, liveSpinIndex);
       } else if (this.state.phase === "betting") {
-        this.checkBet_(n);
+        this.checkBet_(n, liveSpinIndex);
       }
       // deciding = waiting for user, don't process spins
       this.save_();
@@ -158,7 +162,15 @@
     selectCandidates(mode = "hot") {
       if (this.history.length < MIN_HISTORY) throw new Error(`Need at least ${MIN_HISTORY} numbers.`);
       const ranked = rankStreets(this.history, mode);
+      const previous = this.state;
       this.state = this.freshState_();
+      this.state.totalPL = previous.totalPL || 0;
+      this.state.totalCycles = previous.totalCycles || 0;
+      this.state.cycleWins = previous.cycleWins || 0;
+      this.state.cycleBursts = previous.cycleBursts || 0;
+      this.state.nextCycleId = previous.nextCycleId || 1;
+      this.state.syncCycles = previous.syncCycles || [];
+      this.state.syncSteps = previous.syncSteps || [];
       this.state.mode = mode;
       this.state.phase = "ready";
       this.state.candidates = ranked.slice(0, CANDIDATE_COUNT).map(r => r.street);
@@ -173,6 +185,9 @@
       this.state.totalCycles = previous.totalCycles || 0;
       this.state.cycleWins = previous.cycleWins || 0;
       this.state.cycleBursts = previous.cycleBursts || 0;
+      this.state.nextCycleId = previous.nextCycleId || 1;
+      this.state.syncCycles = previous.syncCycles || [];
+      this.state.syncSteps = previous.syncSteps || [];
       if (this.history.length >= MIN_HISTORY) {
         const ranked = rankStreets(this.history, mode);
         this.state.phase = "ready";
@@ -182,16 +197,31 @@
     }
 
     /** Start observation phase */
-    startObservation() {
+    startObservation(liveSpinIndex = 0) {
       if (this.state.phase !== "ready") throw new Error("Select candidates first.");
       this.state.phase = "observing";
       this.state.observationSpin = 0;
       this.state.scores = new Array(12).fill(0);
+      const cycleId = `C${Date.now().toString(36)}-${this.state.nextCycleId++}`;
+      this.state.currentCycleId = cycleId;
+      this.state.syncCycles.push({
+        id: cycleId,
+        mode: this.state.mode,
+        historyCount: this.history.length,
+        candidates: this.state.candidates.map(si => STREET_STARTS[si]),
+        observationStartSpin: Number(liveSpinIndex) + 1,
+        observationEndSpin: "",
+        finalStreets: [],
+        status: "Observing",
+        resultSpin: "",
+        resultNumber: "",
+        cyclePL: 0
+      });
       this.save_();
     }
 
     /** Score a spin during observation */
-    scoreSpin_(number) {
+    scoreSpin_(number, liveSpinIndex = null) {
       const si = streetOf(number);
       // Count every spin toward observation, but only score candidate streets
       if (si >= 0 && this.state.candidates.includes(si)) {
@@ -200,12 +230,12 @@
       this.state.observationSpin++;
       // After 12 spins, finalize and wait for user decision
       if (this.state.observationSpin >= OBSERVATION_SPINS) {
-        this.finalize_();
+        this.finalize_(liveSpinIndex);
       }
     }
 
     /** Finalize top 4 from candidates — phase becomes "deciding" (user chooses) */
-    finalize_() {
+    finalize_(liveSpinIndex = null) {
       const scored = this.state.candidates.map(si => ({
         street: si,
         score: this.state.scores[si]
@@ -218,6 +248,12 @@
       scored.sort((a, b) => b.score - a.score || historyCounts[b.street] - historyCounts[a.street] || a.street - b.street);
       this.state.finalStreets = scored.slice(0, FINAL_COUNT).map(s => s.street);
       this.state.phase = "deciding";
+      const cycle = this.currentSyncCycle_();
+      if (cycle) {
+        cycle.observationEndSpin = Number(liveSpinIndex) || "";
+        cycle.finalStreets = this.state.finalStreets.map(si => STREET_STARTS[si]);
+        cycle.status = "Awaiting decision";
+      }
       this.save_();
     }
 
@@ -228,6 +264,8 @@
       this.state.betStage = 1;
       this.state.activeProgression = [...this.progression];
       this.state.activeBaseUnit = this.baseUnit;
+      const cycle = this.currentSyncCycle_();
+      if (cycle) cycle.status = "Betting";
       this.save_();
     }
 
@@ -247,13 +285,17 @@
     /** User ignores — skip this cycle, pick new candidates */
     ignoreBet() {
       if (this.state.phase !== "deciding") throw new Error("No observation to ignore.");
+      const cycle = this.currentSyncCycle_();
+      if (cycle) cycle.status = "Ignored";
       this.state.totalCycles++;
       this.resetCycle_();
       this.save_();
     }
 
     /** Check if current bet wins */
-    checkBet_(number) {
+    checkBet_(number, liveSpinIndex = null) {
+      this.state.syncSpinNumber = number;
+      this.state.syncSpinIndex = Number(liveSpinIndex) || "";
       const si = streetOf(number);
       if (si < 0) { this.loseBet_(); return; }
       if (this.state.finalStreets.includes(si)) {
@@ -270,6 +312,7 @@
       // Bet on all 4 streets. One wins (pays 11:1 = 12× per-street stake back).
       // Net: 12 - 4 = 8 × per-street stake
       const profit = perStreet * 8;
+      this.recordSyncStep_("Win", profit);
       this.state.cyclePL += profit;
       this.state.totalPL += profit;
       this.state.cycleWins++;
@@ -277,7 +320,9 @@
       this.state.lastResult = "win";
       this.state.lastResultBet = perStreet;
       this.state.resultId = (this.state.resultId || 0) + 1;
+      this.finishSyncCycle_("Won");
       this.resetCycle_();
+      this.startObservation(this.state.syncSpinIndex);
       this.save_();
     }
 
@@ -287,6 +332,7 @@
       const perStreet = progression[this.state.betStage - 1] * baseUnit;
       // Lose all 4 street bets
       const loss = perStreet * 4;
+      this.recordSyncStep_("Loss", -loss);
       this.state.cyclePL -= loss;
       this.state.totalPL -= loss;
       if (this.state.betStage >= progression.length) {
@@ -296,7 +342,9 @@
         this.state.lastResult = "burst";
         this.state.lastResultBet = perStreet;
         this.state.resultId = (this.state.resultId || 0) + 1;
+        this.finishSyncCycle_("Burst");
         this.resetCycle_();
+        this.startObservation(this.state.syncSpinIndex);
       } else {
         this.state.betStage++;
       }
@@ -311,11 +359,56 @@
       this.state.finalStreets = [];
       this.state.activeProgression = null;
       this.state.activeBaseUnit = null;
+      this.state.currentCycleId = null;
       // Re-select candidates for next cycle
       if (this.history.length >= MIN_HISTORY) {
         const ranked = rankStreets(this.history, this.state.mode);
         this.state.candidates = ranked.slice(0, CANDIDATE_COUNT).map(r => r.street);
       }
+    }
+
+    currentSyncCycle_() {
+      return this.state.syncCycles.find(cycle => cycle.id === this.state.currentCycleId) || null;
+    }
+
+    recordSyncStep_(outcome, handPL) {
+      const cycle = this.currentSyncCycle_();
+      if (!cycle) return;
+      const progression = this.state.activeProgression || this.progression;
+      const baseUnit = this.state.activeBaseUnit || this.baseUnit;
+      const perStreet = progression[this.state.betStage - 1] * baseUnit;
+      this.state.syncSteps.push({
+        id: `${cycle.id}:S${this.state.betStage}`,
+        cycleId: cycle.id,
+        stage: this.state.betStage,
+        streets: this.state.finalStreets.map(si => STREET_STARTS[si]),
+        perStreet,
+        totalWager: perStreet * 4,
+        spinIndex: this.state.syncSpinIndex,
+        number: this.state.syncSpinNumber,
+        numberStreet: streetOf(this.state.syncSpinNumber) >= 0 ? STREET_STARTS[streetOf(this.state.syncSpinNumber)] : 0,
+        outcome,
+        handPL,
+        runningPL: this.state.cyclePL + handPL
+      });
+    }
+
+    finishSyncCycle_(status) {
+      const cycle = this.currentSyncCycle_();
+      if (!cycle) return;
+      cycle.status = status;
+      cycle.resultSpin = this.state.syncSpinIndex;
+      cycle.resultNumber = this.state.syncSpinNumber;
+      cycle.cyclePL = this.state.cyclePL;
+      const lastStep = this.state.syncSteps.at(-1);
+      if (lastStep && lastStep.cycleId === cycle.id) cycle.cyclePL = lastStep.runningPL;
+    }
+
+    getSyncData() {
+      return {
+        cycles: JSON.parse(JSON.stringify(this.state.syncCycles || [])),
+        steps: JSON.parse(JSON.stringify(this.state.syncSteps || []))
+      };
     }
 
     /** Get current state for UI */

@@ -86,8 +86,15 @@ body.focus-mode .tracker-grid,body.focus-mode .twelve-grid,body.focus-mode .syst
 .config-row select.cfg-trigger { width:44px; padding:2px; }
 .config-row select.cfg-prog-preset { flex:1 1 220px; width:auto; min-width:150px; max-width:100%; padding:2px; font-size:9px; }
 .config-row input.cfg-num { width:55px; padding:3px; font-size:10px; }
+.config-row input.cfg-steps { width:42px; padding:3px; font-size:10px; }
+.config-row input.cfg-bankroll { width:72px; padding:3px; font-size:10px; }
 .config-row input.cfg-prog-amt { flex:1; min-width:80px; padding:3px; font-size:9px; font-family:monospace; }
 .config-row strong { color:var(--text); font-size:12px; }
+.config-row-standard { align-items:flex-end; padding:5px; border:1px solid var(--line); border-radius:7px; background:#fbfcfe; }
+.config-actions-row { justify-content:flex-end; }
+.config-actions-row .cfg-live { margin-right:auto; color:var(--muted); font-size:9px; }
+.config-actions-row .cfg-rule-note { color:var(--muted); font-size:9px; }
+.config-row select:disabled { color:var(--muted); background:#f2f4f7; opacity:1; }
 
 /* Backtest results */
 .backtest-results { margin:4px 0; padding:5px; border:1px solid var(--line); border-radius:6px; background:#f9fafb; font-size:9px; }

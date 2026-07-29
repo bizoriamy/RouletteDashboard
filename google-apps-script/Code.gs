@@ -11,6 +11,8 @@ const TABLES = Object.freeze({
   Triggers: ['Trigger ID', 'Date / Time', 'Side', 'Threshold', 'Trigger Spin', 'Trigger Number', 'Action', 'Start Absence'],
   'Bet Sessions': ['Session ID', 'Side', 'System / Trigger', 'Start Spin', 'End Spin', 'Stages', 'Result', 'P/L', 'End Reason', 'Base Unit / Concurrent Bets', 'Table Rule'],
   'Bet Steps': ['Session ID', 'Side', 'Stage', 'Stake', 'Spin ID', 'Number', 'Outcome', 'Running P/L'],
+  '4-Street Cycles': ['Cycle ID', 'Table Session', 'Mode', 'History Count', 'Six Candidates', 'Observation Start Spin', 'Observation End Spin', 'Final Four Streets', 'Status', 'Result Spin', 'Result Number', 'Cycle P/L'],
+  '4-Street Steps': ['Step ID', 'Cycle ID', 'Stage', 'Four Streets', 'Per-Street Stake', 'Total Wager', 'Spin ID', 'Winning Number', 'Winning Street', 'Outcome', 'Hand P/L', 'Running Cycle P/L'],
   Bankroll: ['Date / Time', 'Starting Bankroll', 'Current Bankroll', 'Realized P/L', 'Active P/L', 'Exposure', 'Unit Value', 'Won', 'Burst', 'Bankroll Group', 'Table Session'],
 });
 
@@ -59,10 +61,9 @@ function doPost(event) {
       if (!Array.isArray(rows)) throw new Error(name + ' rows must be an array.');
       const sheet = ensureSheet_(spreadsheet, name, TABLES[name]);
       const normalized = rows.map(row => normalizeRow_(row, TABLES[name]));
-      if (normalized.length) {
-        sheet.getRange(sheet.getLastRow() + 1, 1, normalized.length, TABLES[name].length).setValues(normalized);
-      }
-      written[name] = normalized.length;
+      written[name] = name === 'Bankroll'
+        ? replaceBankrollRows_(sheet, normalized, TABLES[name].length)
+        : appendUniqueRows_(sheet, normalized, TABLES[name].length);
     });
 
     log.appendRow([payload.requestId, new Date(), payload.sessionId]);
@@ -92,7 +93,7 @@ function normalizeRow_(row, headers) {
 }
 
 function deleteSessionRows_(spreadsheet, sessionId) {
-  const exactSessionColumn = { Spins: 7, Bankroll: 11 };
+  const exactSessionColumn = { Spins: 7, Bankroll: 11, '4-Street Cycles': 2 };
   Object.keys(TABLES).forEach(name => {
     const sheet = spreadsheet.getSheetByName(name);
     if (!sheet || sheet.getLastRow() < 2) return;
@@ -104,6 +105,77 @@ function deleteSessionRows_(spreadsheet, sessionId) {
       if (matches) sheet.deleteRow(index + 2);
     }
   });
+}
+
+/** Run once after installing this version to remove exact retry duplicates. */
+function cleanupDuplicateRows() {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const removed = {};
+  Object.keys(TABLES).forEach(name => {
+    const sheet = spreadsheet.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 3) {
+      removed[name] = 0;
+      return;
+    }
+    const width = TABLES[name].length;
+    const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, width);
+    const rawValues = dataRange.getValues();
+    const values = dataRange.getDisplayValues();
+    const seen = new Set();
+    const kept = [];
+    for (let index = values.length - 1; index >= 0; index--) {
+      const row = values[index];
+      const key = name === 'Bankroll'
+        ? `${row[9] || ''}\u001f${row[10] || ''}`
+        : row.join('\u001f');
+      if (!seen.has(key)) {
+        seen.add(key);
+        kept.push(rawValues[index]);
+      }
+    }
+    kept.reverse();
+    dataRange.clearContent();
+    if (kept.length) sheet.getRange(2, 1, kept.length, width).setValues(kept);
+    const count = values.length - kept.length;
+    removed[name] = count;
+  });
+  SpreadsheetApp.flush();
+  console.log('Duplicate cleanup complete: ' + JSON.stringify(removed));
+  return removed;
+}
+
+function appendUniqueRows_(sheet, rows, width) {
+  if (!rows.length) return 0;
+  const existing = new Set();
+  if (sheet.getLastRow() >= 2) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getDisplayValues()
+      .forEach(row => existing.add(row.join('\u001f')));
+  }
+  const unique = rows.filter(row => {
+    const key = row.map(value => String(value)).join('\u001f');
+    if (existing.has(key)) return false;
+    existing.add(key);
+    return true;
+  });
+  if (unique.length) sheet.getRange(sheet.getLastRow() + 1, 1, unique.length, width).setValues(unique);
+  return unique.length;
+}
+
+function replaceBankrollRows_(sheet, rows, width) {
+  if (!rows.length) return 0;
+  rows.forEach(row => {
+    if (sheet.getLastRow() >= 2) {
+      const values = sheet.getRange(2, 10, sheet.getLastRow() - 1, 2).getDisplayValues();
+      for (let index = values.length - 1; index >= 0; index--) {
+        if (String(values[index][0]) === String(row[9]) &&
+            String(values[index][1]) === String(row[10])) {
+          sheet.deleteRow(index + 2);
+        }
+      }
+    }
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, width).setValues([row]);
+  });
+  return rows.length;
 }
 
 function safeCell_(value) {
