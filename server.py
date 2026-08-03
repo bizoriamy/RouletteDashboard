@@ -20,8 +20,15 @@ import threading
 import time
 
 PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
-BUILD = "v2026.08.03.2"
 ROOT = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
+VERSION_PATH = os.path.join(ROOT, "VERSION")
+try:
+    with open(VERSION_PATH, "r", encoding="utf-8") as version_file:
+        BUILD = version_file.read().strip()
+except OSError as error:
+    raise RuntimeError(f"Unable to read dashboard VERSION file: {VERSION_PATH}") from error
+if not BUILD:
+    raise RuntimeError(f"Dashboard VERSION file is empty: {VERSION_PATH}")
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
 FREDDY_TOPMOST_PATH = "/api/freddy/topmost"

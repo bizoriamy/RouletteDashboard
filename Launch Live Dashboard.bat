@@ -1,8 +1,23 @@
 ﻿@echo off
 setlocal
-title Roulette Dashboard Launcher v2026.08.03.2
-set "BUILD=v2026.08.03.2"
 set "DASHBOARD_DIR=%~dp0"
+set "VERSION_FILE=%DASHBOARD_DIR%VERSION"
+
+if not exist "%VERSION_FILE%" (
+  echo ERROR: VERSION file not found:
+  echo %VERSION_FILE%
+  pause
+  exit /b 20
+)
+
+set /p BUILD=<"%VERSION_FILE%"
+if not defined BUILD (
+  echo ERROR: VERSION file is empty.
+  pause
+  exit /b 21
+)
+
+title Roulette Dashboard Launcher %BUILD%
 
 echo Roulette Live Dashboard %BUILD%
 echo Folder: %DASHBOARD_DIR%
