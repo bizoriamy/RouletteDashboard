@@ -10,7 +10,7 @@ $root = [IO.Path]::GetFullPath($DashboardRoot).TrimEnd('\')
 $serverPath = [IO.Path]::GetFullPath((Join-Path $root 'server.py'))
 $dashboardPath = Join-Path $root 'live-dashboard.html'
 $healthUrl = "http://127.0.0.1:$Port/__roulette_health__"
-$dashboardUrl = "http://localhost:$Port/live-dashboard.html"
+$dashboardUrl = "http://localhost:$Port/live-dashboard.html?build=$([uri]::EscapeDataString($Build))"
 $expectedTitle = "*<title>Roulette Live Dashboard * $Build</title>*"
 
 function Fail([string]$Message, [int]$Code) {

@@ -1,7 +1,7 @@
-@echo off
+﻿@echo off
 setlocal
-title Roulette Dashboard Launcher v2026.07.29.1
-set "BUILD=v2026.07.29.1"
+title Roulette Dashboard Launcher v2026.08.03.2
+set "BUILD=v2026.08.03.2"
 set "DASHBOARD_DIR=%~dp0"
 
 echo Roulette Live Dashboard %BUILD%

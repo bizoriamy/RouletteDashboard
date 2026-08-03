@@ -213,7 +213,7 @@
         if (event.type === "dealer-change") state.dealerChanges.push({ dealer: state.dealerChanges.length + 2, afterSpin: state.spinCount, at: event.at });
       }
       state.pendingResults = [...state.completedSessions, ...state.completedFibSessions].filter((session) =>
-        (session.reason === "won" || session.reason === "target-reached" || session.reason === "max-stage-loss" || session.reason === "max-bets-stopped") && !state.acknowledgedSessionIds.has(session.id));
+        (session.reason === "won" || session.reason === "target-reached" || session.reason === "max-stage-loss" || session.reason === "max-bets-stopped" || session.reason === "first-loss-stopped") && !state.acknowledgedSessionIds.has(session.id));
       Object.assign(this, state);
     }
 

@@ -1,0 +1,53 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Freddy Triangle Snake — Floating</title>
+    <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
+    <link rel="stylesheet" href="freddy-window.css?v=2026.08.03.2" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <small>LIVE COMPANION</small>
+          <h1>Freddy’s Triangle Snake</h1>
+          <p id="connection">Connecting to main dashboard…</p>
+        </div>
+        <label class="topmost"><input id="always-on-top" type="checkbox" checked /> Always on top</label>
+      </header>
+
+      <section class="summary">
+        <span>Session <strong id="session-number">â€”</strong></span>
+        <span>Spins <strong id="spin-count">0</strong></span>
+        <span>Active <strong id="active-count">0/4</strong></span>
+        <span>Next <strong id="exposure">0 U</strong></span>
+      </section>
+
+      <section id="ribbon" class="ribbon" aria-label="Freddy selections"></section>
+      <p class="hint">Press a selection to start it. Press its lit button again to stop it. Spin entry remains in the main dashboard.</p>
+
+      <section id="active" class="active"></section>
+
+      <details>
+        <summary>Settings</summary>
+        <div class="settings">
+          <label>Table Rule<select id="table-rule"><option value="la-partage">La Partage</option><option value="standard">Standard European</option></select></label>
+          <label>Max Level<input id="max-level" type="number" min="1" max="21" /></label>
+          <label>Starting Bankroll<input id="bankroll" type="number" min="1" step="0.5" /></label>
+          <label>Initial Unit ($)<input id="base-unit" type="number" min="0.01" step="0.01" /></label>
+          <label>Cycle Target<input id="cycle-target" type="number" min="0.5" step="0.5" /></label>
+          <label>Loss Limit<input id="loss-limit" type="number" min="0.5" step="0.5" /></label>
+          <button id="apply" type="button">Apply Settings</button>
+          <button id="backtest" type="button">Backtest Current Spins</button>
+        </div>
+      </details>
+
+      <section id="backtest-results" class="backtest" hidden></section>
+      <section id="completed" class="completed"></section>
+      <footer><span id="status">Waiting for dashboard…</span><strong>v2026.08.03.2</strong></footer>
+    </main>
+    <script src="freddy-window.js?v=2026.08.03.2"></script>
+  </body>
+</html>

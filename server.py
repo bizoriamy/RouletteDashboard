@@ -1,4 +1,4 @@
-"""
+﻿"""
 Local development server with Google Apps Script proxy.
 Run: python server.py
 Then open: http://localhost:8080/live-dashboard.html
@@ -20,16 +20,49 @@ import threading
 import time
 
 PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
-BUILD = "v2026.07.29.1"
+BUILD = "v2026.08.03.2"
 ROOT = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
+FREDDY_TOPMOST_PATH = "/api/freddy/topmost"
 HEALTH_PATH = "/__roulette_health__"
 SESSION_PATH = "/__roulette_session__"
 INSTANCE_KEY = os.environ.get("ROULETTE_INSTANCE_KEY", ROOT)
 MUTEX_NAME = "Local\\RouletteDashboard-" + hashlib.sha256(
     INSTANCE_KEY.encode("utf-8")
 ).hexdigest()[:20]
+
+def set_freddy_topmost(enabled):
+    """Toggle topmost for the detached Freddy browser window."""
+    if os.name != "nt":
+        return 0
+    user32 = ctypes.windll.user32
+    user32.SetWindowPos.argtypes = [
+        ctypes.c_void_p, ctypes.c_void_p,
+        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint
+    ]
+    user32.SetWindowPos.restype = ctypes.c_bool
+    matches = []
+    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def visit(hwnd, _):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        title = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, title, length + 1)
+        if "Freddy Triangle Snake" in title.value:
+            matches.append(hwnd)
+        return True
+
+    user32.EnumWindows(callback_type(visit), 0)
+    insert_after = ctypes.c_void_p(-1 if enabled else -2)  # HWND_TOPMOST / HWND_NOTOPMOST
+    flags = 0x0001 | 0x0002 | 0x0010  # NOSIZE | NOMOVE | NOACTIVATE
+    for hwnd in matches:
+        user32.SetWindowPos(hwnd, insert_after, 0, 0, 0, 0, flags)
+    return len(matches)
 
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     _session_lock = threading.Lock()
@@ -101,8 +134,20 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_sync_()
         elif self.path == FETCH_PATH:
             self.handle_fetch_()
+        elif self.path == FREDDY_TOPMOST_PATH:
+            self.handle_freddy_topmost_()
         else:
             self.send_error(404)
+
+    def handle_freddy_topmost_(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            payload = json.loads(self.rfile.read(length) or b"{}")
+            enabled = bool(payload.get("enabled", True))
+            matched = set_freddy_topmost(enabled)
+            self.send_json(200, {"ok": True, "enabled": enabled, "matchedWindows": matched})
+        except Exception as e:
+            self.send_json(500, {"ok": False, "error": str(e)})
 
     def handle_sync_(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -122,7 +167,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         forward_body = json.dumps(payload).encode("utf-8")
 
         try:
-            # Build opener that properly follows Apps Script POST→GET redirects
+            # Build opener that properly follows Apps Script POSTâ†’GET redirects
             opener = urllib.request.build_opener(
                 urllib.request.HTTPRedirectHandler()
             )
@@ -174,7 +219,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(400, {"ok": False, "error": "Missing 'url' in payload"})
             return
 
-        # Sanity check — only http/https
+        # Sanity check â€” only http/https
         if not _re.match(r"^https?://", target_url):
             self.send_json(400, {"ok": False, "error": "Only http/https URLs supported"})
             return

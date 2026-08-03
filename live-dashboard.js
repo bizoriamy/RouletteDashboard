@@ -3,10 +3,12 @@
   const { RouletteEngine, SIDES, TWELVE_SIDES } = window.RouletteCore;
   const storage = new window.DashboardStorage.DashboardStorage();
   const engine = storage.load(RouletteEngine);
+  const freddy = window.RouletteFreddy.FreddyManager.load(window.localStorage);
   let tableSession = storage.sessionInfo();
   const googleSync = new window.RouletteGoogleSync.GoogleSheetsSync();
   const title = (value) => value[0].toUpperCase() + value.slice(1);
   const money = (value) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
+  const signed = (value) => `${Number(value || 0) >= 0 ? "+" : ""}${money(value)}`;
   const grid = document.querySelector("#tracker-grid");
   const twelveGrid = document.querySelector("#twelve-grid");
   const sessions = document.querySelector("#active-sessions");
@@ -41,6 +43,150 @@
     <div class="card-actions"><button class="start primary" type="button">Start</button><button class="ignore" type="button">Ignore</button><button class="resume" type="button">Resume</button></div>
   </article>`).join("");
 
+  const freddyRibbon = document.querySelector("#freddy-ribbon");
+  const freddyLabels = window.RouletteFreddy.LABELS;
+  freddyRibbon.innerHTML = window.RouletteFreddy.SIDES.map(side => `
+    <button class="freddy-button" data-freddy-side="${side}" type="button">
+      <strong>${freddyLabels[side]}</strong>
+      <span>Hits 0 · Miss 0</span>
+      <small>Press to start</small>
+    </button>`).join("");
+
+  function freddySettingsFromForm() {
+    return {
+      tableRule: document.querySelector("#freddy-table-rule").value,
+      maxLevel: document.querySelector("#freddy-max-level").value,
+      startingBankroll: document.querySelector("#freddy-bankroll").value,
+      baseUnit: document.querySelector("#freddy-base-unit").value,
+      cycleTarget: document.querySelector("#freddy-cycle-target").value,
+      lossLimit: document.querySelector("#freddy-loss-limit").value
+    };
+  }
+
+  function renderFreddy() {
+    const state = freddy.getState();
+    const activeBySide = Object.fromEntries(state.active.map(tracker => [tracker.side, tracker]));
+    document.querySelector("#freddy-summary").textContent = `${state.active.length}/4 active`;
+    document.querySelector("#freddy-active-count").textContent = `${state.active.length}/4`;
+    document.querySelector("#freddy-exposure").textContent = `${money(state.totalExposure)} U`;
+    document.querySelector("#freddy-money-exposure").textContent = money(state.totalMoneyExposure);
+    for (const side of window.RouletteFreddy.SIDES) {
+      const button = freddyRibbon.querySelector(`[data-freddy-side="${side}"]`);
+      const tracker = activeBySide[side];
+      const frequency = state.frequencies[side];
+      const opposite = window.RouletteFreddy.OPPOSITES[side];
+      button.classList.toggle("active", Boolean(tracker));
+      button.classList.toggle("paused", Boolean(tracker?.paused));
+      button.classList.toggle("blocked", !tracker && Boolean(opposite && activeBySide[opposite]));
+      button.querySelector("span").textContent = `Hits ${frequency.hits} · Miss ${frequency.misses}`;
+      button.querySelector("small").textContent = tracker
+        ? `Bet ${money(tracker.currentValue)} U · P/L ${tracker.sessionProfit >= 0 ? "+" : ""}${money(tracker.sessionProfit)} U`
+        : `Longest miss ${frequency.longestMiss}`;
+    }
+    const activePanel = document.querySelector("#freddy-active-trackers");
+    activePanel.innerHTML = state.active.map(tracker => `
+      <article class="freddy-tracker ${tracker.paused ? "safety-paused" : ""}">
+        <strong>${tracker.label}<span class="${tracker.sessionProfit < 0 ? "negative" : "positive"}"> · RM ${signed(tracker.sessionProfit * tracker.config.baseUnit)} / ${signed(tracker.sessionProfit)} U</span></strong>
+        ${tracker.paused ? `<div class="freddy-safety-alert"><strong>4-loss safety checkpoint</strong><button data-freddy-safety="reset" data-side="${tracker.side}">Reset Level 1</button><button data-freddy-safety="continue" data-side="${tracker.side}">Continue</button><button data-freddy-safety="stop" data-side="${tracker.side}">Stop</button></div>` : ""}
+        <span>Next <b>${money(tracker.currentValue)} U</b><br>${money(tracker.currentMoney)}</span>
+        <span>Level <b>${tracker.levelIndex + 1}</b> · Position ${tracker.positionIndex + 1}/${window.RouletteFreddy.TRIANGLE[tracker.levelIndex].length}<br>${tracker.direction === "ltr" ? "Left → right" : "Right → left"}</span>
+        <span>Cycle <b class="${tracker.cycleProfit < 0 ? "negative" : "positive"}">${tracker.cycleProfit >= 0 ? "+" : ""}${money(tracker.cycleProfit)} U</b><br>Resets ${tracker.completedCycles}</span>
+        <span>Session <b class="${tracker.sessionProfit < 0 ? "negative" : "positive"}">${tracker.sessionProfit >= 0 ? "+" : ""}${money(tracker.sessionProfit)} U</b><br>Bank ${money(tracker.balance)} U</span>
+      </article>`).join("");
+    const currentCompleted = state.completed.slice(-5).reverse();
+    const completed = currentCompleted.length ? currentCompleted : (state.previousSession || []).slice(-5).reverse();
+    document.querySelector("#freddy-results").innerHTML = completed.map(tracker => {
+      const pl = tracker.sessionProfitHalf / 2;
+      return `<article class="result-row ${pl >= 0 ? "won" : "stopped"}"><strong>${currentCompleted.length ? "" : "Previous session · "}${tracker.label}</strong><span>${tracker.stopReason}</span><span>RM ${signed(pl * tracker.config.baseUnit)} / ${signed(pl)} U</span></article>`;
+    }).join("");
+  }
+
+  const savedFreddy = freddy.getState().config;
+  document.querySelector("#freddy-table-rule").value = savedFreddy.tableRule;
+  document.querySelector("#freddy-max-level").value = savedFreddy.maxLevel;
+  document.querySelector("#freddy-bankroll").value = savedFreddy.startingBankroll;
+  document.querySelector("#freddy-base-unit").value = savedFreddy.baseUnit;
+  document.querySelector("#freddy-cycle-target").value = savedFreddy.cycleTarget;
+  document.querySelector("#freddy-loss-limit").value = savedFreddy.lossLimit;
+
+  freddyRibbon.addEventListener("click", event => {
+    const button = event.target.closest("[data-freddy-side]");
+    if (!button) return;
+    attempt(() => {
+      const side = button.dataset.freddySide;
+      const wasActive = freddy.getState().active.some(tracker => tracker.side === side);
+      freddy.toggle(side);
+      say(wasActive ? `${freddyLabels[side]} Freddy stopped and recorded.` : `${freddyLabels[side]} Freddy started at Level 1.`);
+    });
+  });
+  document.querySelector("#freddy-apply-settings").addEventListener("click", () => attempt(() => {
+    freddy.applySettings(freddySettingsFromForm());
+    say("Freddy settings saved. Active trackers keep the settings they started with.");
+  }));
+  ["#freddy-table-rule","#freddy-max-level","#freddy-bankroll","#freddy-base-unit","#freddy-cycle-target","#freddy-loss-limit"]
+    .forEach(selector => document.querySelector(selector).addEventListener("change", () => {
+      try { freddy.applySettings(freddySettingsFromForm()); } catch (error) { say(error.message, true); }
+    }));
+  document.querySelector("#freddy-backtest-btn").addEventListener("click", () => attempt(() => {
+    freddy.applySettings(freddySettingsFromForm());
+    const data = freddy.backtest(engine.getState().spins.map(spin => spin.number));
+    const panel = document.querySelector("#freddy-backtest");
+    panel.hidden = false;
+    panel.innerHTML = data.length ? `<table><thead><tr><th>Selection</th><th>Net U</th><th>Final Bank</th><th>Cycles</th><th>Drawdown</th><th>Level</th><th>Largest</th><th>Stop</th></tr></thead><tbody>${data.map(row => `<tr><td>${row.label}</td><td class="${row.netUnits >= 0 ? "bt-pos" : "bt-neg"}">${row.netUnits >= 0 ? "+" : ""}${money(row.netUnits)}</td><td>${money(row.finalBankroll)}</td><td>${row.cycles}</td><td>${money(row.maxDrawdown)}</td><td>${row.highestLevel}</td><td>${money(row.largestStake)} U</td><td>${row.stopReason}</td></tr>`).join("")}</tbody></table>` : `<div class="bt-empty">No current-session spins are available.</div>`;
+  }));
+  const freddyChannel = "BroadcastChannel" in window ? new BroadcastChannel("roulette-freddy-live-v1") : null;
+  function publishFreddy(extra = {}) {
+    freddyChannel?.postMessage({
+      type: "state",
+      state: freddy.getState(),
+      sessionNumber: tableSession.number,
+      ...extra
+    });
+  }
+  freddyChannel?.addEventListener("message", event => {
+    const message = event.data || {};
+    try {
+      if (message.type === "request-state") publishFreddy();
+      if (message.type === "toggle") freddy.toggle(message.side);
+      if (message.type === "safety-action") freddy.resolveSafetyPause(message.side, message.action);
+      if (message.type === "settings") freddy.applySettings(message.settings || {});
+      if (message.type === "backtest") {
+        const results = freddy.backtest(engine.getState().spins.map(spin => spin.number));
+        publishFreddy({ backtest: results });
+      }
+    } catch (error) {
+      freddyChannel.postMessage({ type: "error", message: error.message });
+    }
+  });
+  freddy.subscribe(() => {
+    renderFreddy();
+    publishFreddy();
+  });
+  document.querySelector("#freddy-active-trackers").addEventListener("click", event => {
+    const button = event.target.closest("[data-freddy-safety]");
+    if (!button) return;
+    attempt(() => freddy.resolveSafetyPause(button.dataset.side, button.dataset.freddySafety));
+  });
+  document.querySelector("#open-freddy-window").addEventListener("click", () => {
+    const build = document.querySelector(".build-version")?.textContent?.trim() || "current";
+    const popup = window.open(
+      `freddy-window.html?build=${encodeURIComponent(build)}`,
+      "rouletteFreddyFloating",
+      "popup=yes,width=620,height=780,resizable=yes,scrollbars=yes"
+    );
+    if (!popup) {
+      say("The browser blocked the Freddy floating window. Allow pop-ups for localhost.", true);
+      return;
+    }
+    window.setTimeout(() => {
+      fetch("/api/freddy/topmost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true })
+      }).catch(() => {});
+    }, 700);
+  });
+
   function say(message, isError = false) { notice.textContent = message; notice.classList.toggle("error", isError); }
   function attempt(action) { try { action(); say("Dashboard updated."); } catch (error) { say(error.message, true); } }
 
@@ -60,24 +206,32 @@
   document.querySelector("#spin-form").addEventListener("submit", (event) => {
     event.preventDefault();
     const input = document.querySelector("#spin-input");
-    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number, engine.getState().spinCount); renderHotStreets(); input.value = ""; say(`Spin ${number} recorded.`); });
+    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number, engine.getState().spinCount); freddy.addSpin(number); renderHotStreets(); renderFreddy(); input.value = ""; say(`Spin ${number} recorded.`); });
     requestAnimationFrame(() => input.focus());
   });
   document.querySelector("#undo-button").addEventListener("click", () => {
-    if (engine.undoLastSpin()) say("Last spin undone."); else say("There is no spin to undo.", true);
+    if (engine.undoLastSpin()) { freddy.undoLastSpin(); say("Last spin undone and all strategies recalculated."); } else say("There is no spin to undo.", true);
   });
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
     const confirmed = window.confirm(`End Session ${tableSession.number} and start a new session? Its synchronized Google Sheets records will remain saved.`);
     if (!confirmed) return;
-    googleSync.archiveCurrentSession(engine, tableSession.number, hotStreets);
-    await googleSync.sync(engine, hotStreets);
+    let syncWarning = "";
+    freddy.endActive("session-ended");
+    googleSync.archiveCurrentSession(engine, tableSession.number, hotStreets, freddy);
+    try { await googleSync.sync(engine, hotStreets, freddy); }
+    catch (error) { syncWarning = error?.message || "Google Sheets sync failed"; }
+    // Establish the new Google session before reset notifications enqueue sync work.
+    googleSync.startNewSession();
     engine.resetSession();
     hotStreets.reset();
-    googleSync.startNewSession();
+    freddy.resetSession();
     tableSession = storage.startNextSession();
     render(engine.getState());
     renderHotStreets();
-    say(`Session ${tableSession.number - 1} ended. Session ${tableSession.number} is ready.`);
+    renderFreddy();
+    say(syncWarning
+      ? `Session ${tableSession.number - 1} ended and Session ${tableSession.number} is ready. Sync warning: ${syncWarning}`
+      : `Session ${tableSession.number - 1} ended. Session ${tableSession.number} is ready with your previous settings retained.`, Boolean(syncWarning));
     document.querySelector("#spin-input").focus();
   });
   document.querySelector("#dealer-change-button").addEventListener("click", () => {
@@ -100,7 +254,7 @@
     document.querySelector("#download-archive").disabled = !archiveSummary;
     document.querySelector("#save-sync").addEventListener("click", () => attempt(() => {
       googleSync.configure(document.querySelector("#sync-url").value, document.querySelector("#sync-token").value, true);
-      googleSync.sync(engine, hotStreets);
+      googleSync.sync(engine, hotStreets, freddy);
       document.querySelector("#sync-status").textContent = "Connecting…";
     }));
     document.querySelector("#disable-sync").addEventListener("click", () => {
@@ -142,6 +296,24 @@
       ? recentSpins.map((spin, index) => `<button type="button" class="history-number ${numberColor(spin.number)}${index === 0 ? " latest" : ""}" title="Spin ${spin.index}">${spin.number}</button>`).join("")
       : `<span class="history-empty">No spins yet</span>`;
     document.querySelector("#undo-button").disabled = state.spinCount === 0;
+    const triggerCrossings = (sides, thresholds, classifySpin) => {
+      const misses = Object.fromEntries(sides.map((side) => [side, 0]));
+      let count = 0;
+      for (const spin of state.spins) {
+        const present = new Set(classifySpin(spin.number));
+        for (const side of sides) {
+          misses[side] = present.has(side) ? 0 : misses[side] + 1;
+          if (misses[side] === Number(thresholds[side])) count += 1;
+        }
+      }
+      return count;
+    };
+    document.querySelector("#even-trigger-frequency").textContent = triggerCrossings(
+      SIDES, state.config.thresholds, window.RouletteCore.classify
+    );
+    document.querySelector("#twelve-trigger-frequency").textContent = triggerCrossings(
+      TWELVE_SIDES, state.config.twelveThresholds, window.RouletteCore.classifyTwelve
+    );
     for (const side of SIDES) {
       const tracker = state.trackers[side]; const card = grid.querySelector(`[data-side="${side}"]`);
       card.dataset.state = tracker.status;
@@ -190,7 +362,7 @@
     twelveSessions.innerHTML = state.activeFibSessions.length ? state.activeFibSessions.map((session) => `<article class="session-row fib-row"><strong class="session-side">${label(session.side)} <small class="fib-tag">12</small><small class="session-config-tag">Unit ${money(session.baseUnit)} · ${(session.progression||[]).length} stages</small></strong><span class="session-stat stage">S-${session.stage + 1}/${(session.progression||[]).length}</span><span class="session-stat stake">Bet ${money(session.stake)}</span><span class="session-stat pl ${session.pl < 0 ? "loss" : session.pl > 0 ? "win" : ""}">P/L ${money(session.pl)}</span><button data-cancel-fib="${session.side}" type="button">Cancel</button></article>`).join("") : `<p class="empty-state">No active 12-number bets.</p>`;
     // ── Pending results (split by system) ──
     function renderResultRow(session) {
-      const burst = session.reason === "max-stage-loss", stopped = session.reason === "max-bets-stopped";
+      const burst = session.reason === "max-stage-loss", stopped = session.reason === "max-bets-stopped" || session.reason === "first-loss-stopped";
       const tag = session.system === "fibonacci" ? "FIB · " : session.system === "two-win" ? "TWO-WIN · " : session.system === "streak-rider" ? "RIDER · " : "";
       return `<article class="result-row ${burst ? "burst" : stopped ? "stopped" : "won"}">
         <strong>${label(session.side)} · ${tag}${burst ? "BURST" : stopped ? "STOPPED" : session.reason === "target-reached" ? "TARGET" : "WON"}</strong>
@@ -235,6 +407,8 @@
 
   function renderHotStreets() {
     const s = hotStreets.getState();
+    const completedObservations = hotStreets.getSyncData().cycles.filter(cycle => cycle.status !== "Observing").length;
+    document.querySelector("#hs-trigger-frequency").textContent = completedObservations;
 
     // Notify on win/burst
     if (s.lastResult && s.resultId && s.resultId !== hsLastResultId) {
@@ -522,7 +696,7 @@
         say(`BETTING â€” Stage 1: bet on ${hotStreets.state.finalStreets.map(si => window.RouletteHotStreets.STREET_STARTS[si]).join(", ")}`);
       }
       renderHotStreets();
-      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets);
+      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets, freddy);
     } catch (err) {
       say(err.message, true);
     }
@@ -534,7 +708,7 @@
       hotStreets.ignoreBet();
       say("Observation ignored â€” new candidates selected");
       renderHotStreets();
-      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets);
+      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets, freddy);
     } catch (err) {
       say(err.message, true);
     }
@@ -550,7 +724,7 @@
 
   // â”€â”€ End Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  googleSync.attach(engine, hotStreets, (message, type) => {
+  googleSync.attach(engine, hotStreets, freddy, (message, type) => {
     const status = document.querySelector("#sync-status"); if (status) { status.textContent = message; status.classList.toggle("error", type === "error"); }
     say(message, type === "error");
   });
@@ -564,6 +738,7 @@
   }, 1000);
   render(engine.getState());
   renderHotStreets();
+  renderFreddy();
   if (storage.lastError) say("Saved data could not be restored; a fresh dashboard was opened.", true);
   // â”€â”€ Auto Capture (In-Page Overlay + Direct OCR) â”€â”€
     // â”€â”€ Session Summary (Streak Report) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -815,13 +990,15 @@
     }
   }
 
-  // Strategy and step changes take effect immediately for the next bet.
-  // The Apply button remains available for unit, bankroll, trigger, table rule, and custom amounts.
+  // Every visible change is saved immediately, so the last settings shown remain
+  // active after reload and carry into the next session.
   evenPreset.addEventListener("change", () => attempt(() => {
     applyEvenFormSettings(false);
     say(`${evenPreset.options[evenPreset.selectedIndex].text} selected for the next Even-Money bet.`);
   }));
   evenSteps.addEventListener("change", () => attempt(() => applyEvenFormSettings(false)));
+  ["#table-rule", "#trigger-threshold", "#unit-input", "#bankroll-input", "#even-prog-amounts"]
+    .forEach(selector => document.querySelector(selector).addEventListener("change", () => attempt(() => applyEvenFormSettings(false))));
   document.querySelector("#even-apply-settings").addEventListener("click", () => attempt(() => applyEvenFormSettings(true)));
 
   // Twelve-number progression
@@ -833,7 +1010,7 @@
   twelveAmounts.disabled = twelvePreset.value !== "custom";
   setStepCount(twelveSteps, engine.config.twelveProgression);
   wireProgressionControls(twelvePreset, twelveSteps, twelveAmounts);
-  document.querySelector("#twelve-apply-settings").addEventListener("click", () => attempt(() => {
+  function applyTwelveFormSettings(announce = true) {
     const progression = readProgression(twelveAmounts);
     const threshold = Number(document.querySelector("#twelve-trigger-threshold").value);
     engine.applyTwelveSettings({
@@ -842,8 +1019,14 @@
       threshold,
       progression
     });
-    say(engine.getState().activeFibSessions.length ? "Dozens & Columns settings saved for the next bet. Active bets keep their original unit and progression." : "Dozens & Columns settings applied.");
-  }));
+    if (announce) say(engine.getState().activeFibSessions.length ? "Dozens & Columns settings saved for the next bet. Active bets keep their original unit and progression." : "Dozens & Columns settings applied.");
+  }
+  [twelvePreset, twelveSteps, twelveAmounts,
+    document.querySelector("#twelve-trigger-threshold"),
+    document.querySelector("#twelve-unit-input"),
+    document.querySelector("#twelve-bankroll-input")]
+    .forEach(control => control.addEventListener("change", () => attempt(() => applyTwelveFormSettings(false))));
+  document.querySelector("#twelve-apply-settings").addEventListener("click", () => attempt(() => applyTwelveFormSettings(true)));
 
   // ── 4-Streets progression config ──
   const hsPreset = document.querySelector("#hs-prog-preset");
@@ -856,13 +1039,16 @@
   setStepCount(hsSteps, hotStreets.progression);
   hsUnit.value = hotStreets.baseUnit;
   wireProgressionControls(hsPreset, hsSteps, hsAmounts);
-  document.querySelector("#hs-apply-settings").addEventListener("click", () => attempt(() => {
+  function applyHotStreetsFormSettings(announce = true) {
     const progression = readProgression(hsAmounts);
     const wasActive = hotStreets.getState().phase === "betting";
     hotStreets.setBaseUnit(hsUnit.value);
     hotStreets.setProgression(progression);
-    say(wasActive ? "4-Streets settings saved for the next bet. The active bet keeps its original unit and progression." : "4-Streets settings applied.");
-  }));
+    if (announce) say(wasActive ? "4-Streets settings saved for the next bet. The active bet keeps its original unit and progression." : "4-Streets settings applied.");
+  }
+  [hsPreset, hsSteps, hsAmounts, hsUnit]
+    .forEach(control => control.addEventListener("change", () => attempt(() => applyHotStreetsFormSettings(false))));
+  document.querySelector("#hs-apply-settings").addEventListener("click", () => attempt(() => applyHotStreetsFormSettings(true)));
 
   // ── 4-Streets backtest ──
   function backtestStreets(progression) {
@@ -1030,7 +1216,7 @@
   });
 
 
-window.liveDashboard = { engine, storage, googleSync, hotStreets, exportSnapshot: () => engine.exportSnapshot() };
+window.liveDashboard = { engine, storage, googleSync, hotStreets, freddy, exportSnapshot: () => engine.exportSnapshot() };
 
 // Keep one local control connection open for this dashboard window. The local
 // server exits after the final dashboard window closes.
