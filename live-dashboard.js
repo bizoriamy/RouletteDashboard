@@ -21,6 +21,50 @@
   const twelveNumbers = { dozen1: "1â€“12", dozen2: "13â€“24", dozen3: "25â€“36", column1: "1,4,7â€¦34", column2: "2,5,8â€¦35", column3: "3,6,9â€¦36" };
   const label = (value) => twelveLabels[value] || title(value);
   let previousFibStakes = {};
+  const MAIN_WINDOW_KEY = "roulette-main-window-v1";
+  const mainTopmostCheckbox = document.querySelector("#main-always-on-top");
+  let lastMainWindowSettings = "";
+
+  function currentMainWindowSettings() {
+    return {
+      x: window.screenX,
+      y: window.screenY,
+      width: window.outerWidth,
+      height: window.outerHeight,
+      alwaysOnTop: Boolean(mainTopmostCheckbox?.checked)
+    };
+  }
+
+  function saveMainWindowSettings() {
+    const serialized = JSON.stringify(currentMainWindowSettings());
+    if (serialized === lastMainWindowSettings) return;
+    lastMainWindowSettings = serialized;
+    try { window.localStorage.setItem(MAIN_WINDOW_KEY, serialized); } catch {}
+  }
+
+  async function applyMainTopmost(enabled, announce = true) {
+    const response = await fetch("/api/window/topmost", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: "main", enabled: Boolean(enabled) })
+    });
+    const result = await response.json();
+    if (!result.ok) throw new Error(result.error || "Always-on-top failed.");
+    if (announce) say(enabled ? "Main window always-on-top enabled." : "Main window always-on-top disabled.");
+  }
+
+  function restoreMainWindowSettings() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(MAIN_WINDOW_KEY) || "null");
+      if (!saved) return;
+      if ([saved.x, saved.y, saved.width, saved.height].every(Number.isFinite)) {
+        window.moveTo(saved.x, saved.y);
+        window.resizeTo(Math.max(520, saved.width), Math.max(650, saved.height));
+      }
+      mainTopmostCheckbox.checked = Boolean(saved.alwaysOnTop);
+      window.setTimeout(() => applyMainTopmost(saved.alwaysOnTop, false).catch(() => {}), 350);
+    } catch {}
+  }
 
   function numberColor(number) {
     if (number === 0) return "green";
@@ -66,8 +110,8 @@
   function renderFreddy() {
     const state = freddy.getState();
     const activeBySide = Object.fromEntries(state.active.map(tracker => [tracker.side, tracker]));
-    document.querySelector("#freddy-summary").textContent = `${state.active.length}/4 active`;
-    document.querySelector("#freddy-active-count").textContent = `${state.active.length}/4`;
+    document.querySelector("#freddy-summary").textContent = `${state.active.length}/7 active`;
+    document.querySelector("#freddy-active-count").textContent = `${state.active.length}/7`;
     document.querySelector("#freddy-exposure").textContent = `${money(state.totalExposure)} U`;
     document.querySelector("#freddy-money-exposure").textContent = money(state.totalMoneyExposure);
     for (const side of window.RouletteFreddy.SIDES) {
@@ -93,12 +137,19 @@
         <span>Cycle <b class="${tracker.cycleProfit < 0 ? "negative" : "positive"}">${tracker.cycleProfit >= 0 ? "+" : ""}${money(tracker.cycleProfit)} U</b><br>Resets ${tracker.completedCycles}</span>
         <span>Session <b class="${tracker.sessionProfit < 0 ? "negative" : "positive"}">${tracker.sessionProfit >= 0 ? "+" : ""}${money(tracker.sessionProfit)} U</b><br>Bank ${money(tracker.balance)} U</span>
       </article>`).join("");
-    const currentCompleted = state.completed.slice(-5).reverse();
-    const completed = currentCompleted.length ? currentCompleted : (state.previousSession || []).slice(-5).reverse();
-    document.querySelector("#freddy-results").innerHTML = completed.map(tracker => {
+    const currentCompleted = state.completed.slice(-7).reverse();
+    const previousCompleted = (state.previousSession || []).slice(-7).reverse();
+    const resultRows = completed => completed.map(tracker => {
       const pl = tracker.sessionProfitHalf / 2;
-      return `<article class="result-row ${pl >= 0 ? "won" : "stopped"}"><strong>${currentCompleted.length ? "" : "Previous session · "}${tracker.label}</strong><span>${tracker.stopReason}</span><span>RM ${signed(pl * tracker.config.baseUnit)} / ${signed(pl)} U</span></article>`;
+      return `<article class="result-row ${pl >= 0 ? "won" : "stopped"}"><strong>${tracker.label}</strong><span>${tracker.stopReason}</span><span>RM ${signed(pl * tracker.config.baseUnit)} / ${signed(pl)} U</span></article>`;
     }).join("");
+    const freddyResults = document.querySelector("#freddy-results");
+    const recentWasOpen = freddyResults.querySelector('[data-result-section="recent"]')?.open ?? true;
+    const previousWasOpen = freddyResults.querySelector('[data-result-section="previous"]')?.open ?? false;
+    freddyResults.innerHTML = [
+      currentCompleted.length ? `<details class="previous-results" data-result-section="recent" ${recentWasOpen ? "open" : ""}><summary>Recently stopped (${currentCompleted.length})</summary>${resultRows(currentCompleted)}</details>` : "",
+      previousCompleted.length ? `<details class="previous-results" data-result-section="previous" ${previousWasOpen ? "open" : ""}><summary>Previous session results (${previousCompleted.length})</summary>${resultRows(previousCompleted)}</details>` : ""
+    ].join("");
   }
 
   const savedFreddy = freddy.getState().config;
@@ -189,6 +240,18 @@
 
   function say(message, isError = false) { notice.textContent = message; notice.classList.toggle("error", isError); }
   function attempt(action) { try { action(); say("Dashboard updated."); } catch (error) { say(error.message, true); } }
+  mainTopmostCheckbox.addEventListener("change", event => {
+    saveMainWindowSettings();
+    applyMainTopmost(event.target.checked).catch(error => {
+      event.target.checked = false;
+      saveMainWindowSettings();
+      say(error.message, true);
+    });
+  });
+  window.addEventListener("beforeunload", saveMainWindowSettings);
+  window.addEventListener("resize", saveMainWindowSettings);
+  window.setInterval(saveMainWindowSettings, 1500);
+  restoreMainWindowSettings();
 
   grid.addEventListener("click", (event) => {
     const card = event.target.closest(".tracker-card"); if (!card) return;

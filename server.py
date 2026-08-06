@@ -32,6 +32,7 @@ if not BUILD:
 PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
 FREDDY_TOPMOST_PATH = "/api/freddy/topmost"
+WINDOW_TOPMOST_PATH = "/api/window/topmost"
 HEALTH_PATH = "/__roulette_health__"
 SESSION_PATH = "/__roulette_session__"
 INSTANCE_KEY = os.environ.get("ROULETTE_INSTANCE_KEY", ROOT)
@@ -39,10 +40,17 @@ MUTEX_NAME = "Local\\RouletteDashboard-" + hashlib.sha256(
     INSTANCE_KEY.encode("utf-8")
 ).hexdigest()[:20]
 
-def set_freddy_topmost(enabled):
-    """Toggle topmost for the detached Freddy browser window."""
+def set_window_topmost(target, enabled):
+    """Toggle topmost for one of the dashboard browser windows."""
     if os.name != "nt":
         return 0
+    title_fragments = {
+        "main": "Roulette Live Dashboard",
+        "freddy": "Freddy Triangle Snake",
+    }
+    title_fragment = title_fragments.get(target)
+    if not title_fragment:
+        raise ValueError("Unknown dashboard window target.")
     user32 = ctypes.windll.user32
     user32.SetWindowPos.argtypes = [
         ctypes.c_void_p, ctypes.c_void_p,
@@ -60,7 +68,7 @@ def set_freddy_topmost(enabled):
             return True
         title = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, title, length + 1)
-        if "Freddy Triangle Snake" in title.value:
+        if title_fragment in title.value:
             matches.append(hwnd)
         return True
 
@@ -142,17 +150,20 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         elif self.path == FETCH_PATH:
             self.handle_fetch_()
         elif self.path == FREDDY_TOPMOST_PATH:
-            self.handle_freddy_topmost_()
+            self.handle_window_topmost_("freddy")
+        elif self.path == WINDOW_TOPMOST_PATH:
+            self.handle_window_topmost_()
         else:
             self.send_error(404)
 
-    def handle_freddy_topmost_(self):
+    def handle_window_topmost_(self, forced_target=None):
         length = int(self.headers.get("Content-Length", 0))
         try:
             payload = json.loads(self.rfile.read(length) or b"{}")
             enabled = bool(payload.get("enabled", True))
-            matched = set_freddy_topmost(enabled)
-            self.send_json(200, {"ok": True, "enabled": enabled, "matchedWindows": matched})
+            target = forced_target or str(payload.get("target", "")).lower()
+            matched = set_window_topmost(target, enabled)
+            self.send_json(200, {"ok": True, "target": target, "enabled": enabled, "matchedWindows": matched})
         except Exception as e:
             self.send_json(500, {"ok": False, "error": str(e)})
 

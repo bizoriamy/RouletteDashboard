@@ -19,7 +19,7 @@
     document.querySelector("#connection").textContent="Connected to main dashboard";
     document.querySelector("#session-number").textContent=message.sessionNumber??"—";
     document.querySelector("#spin-count").textContent=latest.spinCount;
-    document.querySelector("#active-count").textContent=`${latest.active.length}/4`;
+    document.querySelector("#active-count").textContent=`${latest.active.length}/7`;
     document.querySelector("#exposure").textContent=`${money(latest.totalExposure)} U`;
     const activeSides=new Set(latest.active.map(item=>item.side));
     for(const side of SIDES){
@@ -42,12 +42,19 @@
           <span>Max drawdown<b>${money(t.maxDrawdown)} U</b></span>
         </div>
       </article>`).join(""):'<p class="hint">No active Freddy trackers.</p>';
-    const currentCompleted=[...latest.completed].slice(-6).reverse();
-    const completed=currentCompleted.length?currentCompleted:[...(latest.previousSession||[])].slice(-6).reverse();
-    document.querySelector("#completed").innerHTML=completed.length?`<strong>${currentCompleted.length?"Recently stopped":"Previous session"}</strong>${completed.map(t=>{
+    const currentCompleted=[...latest.completed].slice(-7).reverse();
+    const previousCompleted=[...(latest.previousSession||[])].slice(-7).reverse();
+    const resultRows=items=>items.map(t=>{
       const pl=Number(t.sessionProfitHalf||0)/2;
       return `<div class="result"><span>${LABELS[t.side]} · ${t.stopReason}</span><b class="${pl>=0?"positive":"negative"}">RM ${signed(pl*t.config.baseUnit)} / ${signed(pl)} U</b></div>`;
-    }).join("")}`:"";
+    }).join("");
+    const completedPanel=document.querySelector("#completed");
+    const recentWasOpen=completedPanel.querySelector('[data-result-section="recent"]')?.open??true;
+    const previousWasOpen=completedPanel.querySelector('[data-result-section="previous"]')?.open??false;
+    completedPanel.innerHTML=[
+      currentCompleted.length ? `<details class="previous-results" data-result-section="recent" ${recentWasOpen?"open":""}><summary>Recently stopped (${currentCompleted.length})</summary>${resultRows(currentCompleted)}</details>` : "",
+      previousCompleted.length ? `<details class="previous-results" data-result-section="previous" ${previousWasOpen?"open":""}><summary>Previous session results (${previousCompleted.length})</summary>${resultRows(previousCompleted)}</details>` : ""
+    ].join("");
     if(!settingsLoaded){
       const c=latest.config;
       document.querySelector("#table-rule").value=c.tableRule;

@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.08.03.2</title>
+    <title>Roulette Live Dashboard · v2026.08.06.3</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
-    <link rel="stylesheet" href="live-dashboard.css?v=2026.08.03.2" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.08.06.3" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.03.2</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.06.3</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -26,6 +26,7 @@
         <span id="idle-timer">Waiting for first spin</span>
         <div class="toolbar-spacer"></div>
         <button id="open-freddy-window" class="freddy-launch-button" type="button">Open Freddy Floating</button>
+        <label class="main-topmost-control"><input id="main-always-on-top" type="checkbox" /> Always on top</label>
         <button id="history-button">History</button>
         <button id="session-summary-button">Session Summary</button>
       </div>
@@ -178,9 +179,9 @@
 
       <!-- Freddy's Triangle Snake -->
       <details class="system-panel freddy-panel" hidden>
-        <summary><strong>Freddy's Triangle Snake</strong><span id="freddy-summary">0/4 active</span></summary>
+        <summary><strong>Freddy's Triangle Snake</strong><span id="freddy-summary">0/7 active</span></summary>
         <div class="freddy-exposure">
-          <span>Active <strong id="freddy-active-count">0/4</strong></span>
+          <span>Active <strong id="freddy-active-count">0/7</strong></span>
           <span>Next exposure <strong id="freddy-exposure">0 U</strong></span>
           <span>Amount <strong id="freddy-money-exposure">0</strong></span>
         </div>
@@ -271,11 +272,11 @@
       </div>
     </div>
 
-    <script src="roulette-core.js?v=2026.08.03.2"></script>
-    <script src="dashboard-storage.js?v=2026.08.03.2"></script>
-    <script src="google-sheets-sync.js?v=2026.08.03.2"></script>
-    <script src="hot-streets.js?v=2026.08.03.2"></script>
-    <script src="freddy-engine.js?v=2026.08.03.2"></script>
-    <script src="ocr-grid-order.js?v=2026.08.03.2"></script>
-    <script src="live-dashboard.js?v=2026.08.03.2"></script>
+    <script src="roulette-core.js?v=2026.08.06.3"></script>
+    <script src="dashboard-storage.js?v=2026.08.06.3"></script>
+    <script src="google-sheets-sync.js?v=2026.08.06.3"></script>
+    <script src="hot-streets.js?v=2026.08.06.3"></script>
+    <script src="freddy-engine.js?v=2026.08.06.3"></script>
+    <script src="ocr-grid-order.js?v=2026.08.06.3"></script>
+    <script src="live-dashboard.js?v=2026.08.06.3"></script>
   </body>

@@ -26,7 +26,8 @@
     lossLimit: 100,
     maxLevel: 12,
     tableRule: "la-partage",
-    maxActive: 4,
+    maxActive: 7,
+    maxEven: 3,
     maxDozens: 2,
     maxColumns: 2
   });
@@ -68,6 +69,12 @@
     config.lossLimit = Math.max(0.5, units(half(config.lossLimit)));
     config.maxLevel = Math.max(1, Math.min(TRIANGLE.length, Math.trunc(Number(config.maxLevel) || 12)));
     config.tableRule = config.tableRule === "standard" ? "standard" : "la-partage";
+    // Slot limits are part of the application layout, not user settings.
+    // Force the current limits so older saved snapshots upgrade automatically.
+    config.maxActive = 7;
+    config.maxEven = 3;
+    config.maxDozens = 2;
+    config.maxColumns = 2;
     return config;
   }
 
@@ -247,10 +254,10 @@
       if (!SIDES.includes(side)) throw new Error("Unknown Freddy selection.");
       if (this.active[side]) throw new Error(`${LABELS[side]} is already active.`);
       const active = Object.values(this.active);
-      if (active.length >= this.config.maxActive) throw new Error("All four Freddy slots are in use.");
+      if (active.length >= this.config.maxActive) throw new Error("All seven Freddy slots are in use.");
       if (OPPOSITES[side] && this.active[OPPOSITES[side]]) throw new Error(`Stop ${LABELS[OPPOSITES[side]]} before starting ${LABELS[side]}.`);
       const group = groupOf(side);
-      const groupLimit = group === "dozen" ? this.config.maxDozens : group === "column" ? this.config.maxColumns : Infinity;
+      const groupLimit = group === "dozen" ? this.config.maxDozens : group === "column" ? this.config.maxColumns : this.config.maxEven;
       if (active.filter(t => t.group === group).length >= groupLimit) throw new Error(`Only ${groupLimit} ${group} trackers may run together.`);
       this.active[side] = newTracker(side, this.config, this.inputs.length);
       this.notify_();

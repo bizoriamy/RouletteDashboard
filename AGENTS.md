@@ -49,6 +49,15 @@
   a new triangle cycle.
 - A win or La Partage half-loss breaks the consecutive-full-loss count.
 
+## Current window and FTS limits
+
+- The main dashboard remembers its last window position, size, and always-on-top
+  choice.
+- FTS permits up to seven simultaneous cards: three even-money selections, two
+  dozens, and two columns. Opposite even-money selections remain mutually
+  exclusive.
+- Previous-session FTS results are collapsed until the user opens them.
+
 ## Verification
 
 Run the relevant checks before preparing an update:

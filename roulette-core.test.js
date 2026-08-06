@@ -165,6 +165,37 @@ assert.equal(twoWinFrench.getState().activeSessions[0].winStreak, 0);
 assert.equal(twoWinFrench.getState().activeSessions[0].stake, 1);
 assert.equal(twoWinFrench.getState().activeSessions[0].outcomes.at(-1), "half-loss");
 
+const streakRider = new RouletteEngine({
+  evenSystem: "streak-rider",
+  evenProgression: [1, 2, 1, 2, 1, 2]
+});
+[2, 4, 6, 8].forEach((n) => streakRider.addSpin(n));
+streakRider.startBet("odd");
+[17, 19, 21].forEach((n) => streakRider.addSpin(n));
+assert.equal(streakRider.getState().activeSessions[0].pl, 4);
+assert.equal(streakRider.getState().activeSessions[0].stake, 2);
+streakRider.addSpin(2);
+assert.equal(streakRider.getState().activeSessions.length, 0);
+assert.equal(streakRider.getState().completedSessions[0].reason, "first-loss-stopped");
+assert.deepEqual(streakRider.getState().completedSessions[0].stakes, [1, 2, 1, 2]);
+assert.equal(streakRider.getState().completedSessions[0].pl, 2);
+assert.equal(streakRider.getState().pendingResults.length, 1);
+streakRider.acknowledgeResult(streakRider.getState().pendingResults[0].id);
+assert.equal(streakRider.getState().pendingResults.length, 0);
+
+const streakRiderFrench = new RouletteEngine({
+  tableRule: "la-partage",
+  evenSystem: "streak-rider",
+  evenProgression: [1, 2, 1]
+});
+[2, 4, 6, 8].forEach((n) => streakRiderFrench.addSpin(n));
+streakRiderFrench.startBet("odd");
+streakRiderFrench.addSpin(17);
+streakRiderFrench.addSpin(0);
+assert.equal(streakRiderFrench.getState().activeSessions.length, 0);
+assert.equal(streakRiderFrench.getState().completedSessions[0].pl, 0);
+assert.equal(streakRiderFrench.getState().completedSessions[0].outcomes.at(-1), "half-loss");
+
 const dealer = new RouletteEngine();
 dealer.addSpin(1);
 dealer.markDealerChange();

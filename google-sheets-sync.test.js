@@ -6,6 +6,7 @@ const vm = require("node:vm");
 
 function loadSync(saved = {}) {
   const values = new Map(Object.entries(saved));
+  const posts = [];
   const context = {
     console,
     crypto: { randomUUID: () => "test-uuid" },
@@ -14,19 +15,83 @@ function loadSync(saved = {}) {
       setItem: (key, value) => values.set(key, value),
     },
     navigator: { onLine: true },
-    fetch: async (url, opts) => opts?.method === "GET" ? { url } : { json: async () => ({ ok: true }) },
+    fetch: async (url, opts) => {
+      if (opts?.method === "GET") return { url };
+      posts.push(JSON.parse(opts.body));
+      return { json: async () => ({ ok: true }) };
+    },
     setTimeout,
     Blob,
     URL,
   };
   context.globalThis = context;
+  context.RouletteCore = require("./roulette-core.js");
   vm.runInNewContext(fs.readFileSync(require.resolve("./google-sheets-sync.js"), "utf8"), context);
-  return { context, Sync: context.RouletteGoogleSync.GoogleSheetsSync };
+  return { context, Sync: context.RouletteGoogleSync.GoogleSheetsSync, posts, values };
 }
 
 (async () => {
   const empty = loadSync();
   const emptySync = new empty.Sync();
+  const engine = new empty.context.RouletteCore.RouletteEngine();
+  engine.addSpin(17);
+  const tables = emptySync.buildTables_(engine.exportSnapshot(), engine.getState(), {
+    getSyncData: () => ({
+      cycles: [{ id:"C1", mode:"hot", historyCount:24, candidates:[1,4,7,10,13,16], observationStartSpin:1, observationEndSpin:12, finalStreets:[1,4,7,10], status:"Won", resultSpin:13, resultNumber:1, cyclePL:8 }],
+      steps: [{ id:"C1:S1", cycleId:"C1", stage:1, streets:[1,4,7,10], perStreet:1, totalWager:4, spinIndex:13, number:1, numberStreet:1, outcome:"Win", handPL:8, runningPL:8 }],
+    }),
+  });
+  assert.equal(tables["4-Street Cycles"].length, 1);
+  assert.equal(tables["4-Street Steps"].length, 1);
+  assert.equal(tables["4-Street Cycles"][0][4], "1,4,7,10,13,16");
+
+  const freddyTables = emptySync.buildTables_(
+    engine.exportSnapshot(),
+    engine.getState(),
+    null,
+    {
+      getSyncData: () => ({
+        sessions: [{
+          id: "F1", side: "red", startedAfterSpin: 2, endedAfterSpin: 5,
+          startingBankroll: 300, finalBankroll: 307, result: 7,
+          cycles: 1, highestLevel: 4, largestStake: 5, maxDrawdown: 3,
+          stopReason: "manual", baseUnit: 1, cycleTarget: 5,
+          maxLevel: 12, tableRule: "la-partage",
+        }],
+        steps: [{
+          id: "F1:S1", trackerId: "F1", side: "red", spinIndex: 3,
+          number: 3, result: "win", levelBefore: 1, positionBefore: 1,
+          directionBefore: "ltr", stakeUnits: 1, deltaUnits: 1,
+          cycleProfitAfter: 1, balanceAfter: 301, movement: "right",
+          levelAfter: 2, positionAfter: 1, directionAfter: "ltr",
+          cycleReset: false, stopReason: "",
+          baseUnit: 1, tableRule: "la-partage",
+        }],
+      }),
+    }
+  );
+  assert.equal(freddyTables["Freddy Sessions"].length, 1);
+  assert.equal(freddyTables["Freddy Steps"].length, 1);
+  assert.equal(freddyTables["Freddy Sessions"][0][2], "Red");
+  assert.equal(freddyTables["Freddy Sessions"][0][7], 7);
+  assert.equal(freddyTables["Freddy Steps"][0][2], "Red");
+
+  const streakEngine = new empty.context.RouletteCore.RouletteEngine({
+    evenSystem: "streak-rider",
+    evenProgression: [1, 2, 1, 2],
+  });
+  [2, 4, 6, 8].forEach((number) => streakEngine.addSpin(number));
+  streakEngine.startBet("odd");
+  streakEngine.addSpin(17);
+  streakEngine.addSpin(2);
+  const streakTables = emptySync.buildTables_(
+    streakEngine.exportSnapshot(),
+    streakEngine.getState()
+  );
+  assert.equal(streakTables["Bet Sessions"][0][2], "Streak Rider");
+  assert.equal(streakTables["Bet Sessions"][0][6], "Stopped");
+  assert.equal(streakTables["Bet Sessions"][0][8], "first-loss-stopped");
+
   let reported = null;
   emptySync.listener = (message, type) => { reported = { message, type }; };
   assert.equal(emptySync.lastArchiveSummary(), null);
@@ -41,6 +106,40 @@ function loadSync(saved = {}) {
   const sync = new loaded.Sync();
   assert.deepEqual(JSON.parse(JSON.stringify(sync.lastArchiveSummary())), { sessionNumber: 7, archivedAt: archive.archivedAt, spins: 3, sessionId: "session-id" });
   await sync.resyncLastArchive();
+
+  const boundary = loadSync({
+    "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
+    "roulette-google-sync-meta-v1": JSON.stringify({
+      sessionId: "old-session",
+      sessionFirstSpinAt: "2026-07-31T01:00:00.000Z",
+      lastEventCount: 40,
+      counts: { Spins: 38, Triggers: 0, "Bet Sessions": 0, "Bet Steps": 0, "4-Street Cycles": 0, "4-Street Steps": 0, "Freddy Sessions": 0, "Freddy Steps": 0 },
+      bankrollSignature: "",
+    }),
+  });
+  const boundarySync = new boundary.Sync();
+  const newSessionEngine = new boundary.context.RouletteCore.RouletteEngine();
+  [10, 15, 27, 19, 4].forEach((number) => newSessionEngine.addSpin(number));
+  await boundarySync.sync(newSessionEngine);
+  assert.equal(boundary.posts.at(-1).Spins, undefined);
+  assert.equal(boundary.posts.at(-1).tables.Spins.length, 5);
+  assert.notEqual(boundary.posts.at(-1).sessionId, "old-session");
+
+  const legacy = loadSync({
+    "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
+    "roulette-google-sync-meta-v1": JSON.stringify({
+      sessionId: "partial-40-spin-session",
+      lastEventCount: 40,
+      counts: { Spins: 38, Triggers: 0, "Bet Sessions": 0, "Bet Steps": 0, "4-Street Cycles": 0, "4-Street Steps": 0, "Freddy Sessions": 0, "Freddy Steps": 36 },
+      bankrollSignature: "",
+    }),
+  });
+  const legacySync = new legacy.Sync();
+  const recoveredEngine = new legacy.context.RouletteCore.RouletteEngine();
+  Array.from({ length: 40 }, (_, index) => (index * 7) % 37).forEach((number) => recoveredEngine.addSpin(number));
+  await legacySync.sync(recoveredEngine);
+  assert.equal(legacy.posts.at(-1).tables.Spins.length, 40);
+  assert.notEqual(legacy.posts.at(-1).sessionId, "partial-40-spin-session");
 
   console.log("google-sheets-sync tests passed");
 })().catch((error) => { console.error(error); process.exitCode = 1; });
