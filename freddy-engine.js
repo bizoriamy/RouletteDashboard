@@ -330,7 +330,7 @@
 
     resetSession() {
       this.endActive("session-ended");
-      this.previousSession = clone(this.completed);
+      if (this.completed.length) this.previousSession = clone(this.completed);
       this.inputs = []; this.active = {}; this.completed = []; this.notify_();
     }
 

@@ -73,10 +73,14 @@ function manager(config = {}) {
 }
 {
   const m = manager(); m.start("odd"); m.addSpin(1); m.resetSession();
-  const state = m.getState();
+  let state = m.getState();
   assert.equal(state.spinCount, 0);
   assert.equal(state.completed.length, 0);
   assert.equal(state.previousSession.length, 1);
+  assert.equal(state.previousSession[0].side, "odd");
+  m.resetSession();
+  state = m.getState();
+  assert.equal(state.previousSession.length, 1, "empty reset preserves last non-empty previous session");
   assert.equal(state.previousSession[0].side, "odd");
   assert.equal(m.getSyncData().sessions.length, 0);
 }

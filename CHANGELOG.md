@@ -5,7 +5,7 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
-## v2026.08.06.3 — 2026-08-06
+## v2026.08.06.4 — 2026-08-06
 
 ### Added
 
@@ -17,6 +17,8 @@ number.
 
 ### Changed
 
+- Replaced the obsolete Milestone 4 README with current launch, strategy,
+  storage, synchronization, documentation, and recovery guidance.
 - FTS **Recently stopped** and **Previous session results** are independently
   collapsible.
 - The chosen expanded/collapsed state is retained while live updates refresh
@@ -28,6 +30,10 @@ number.
 
 ### Fixed
 
+- Kept the **Recently stopped** and **Previous session results** sections
+  visible even when their counts are zero.
+- Preserved the last non-empty FTS previous-session result list when an empty
+  session is reset.
 - Fixed previous-session results disappearing when current-session results
   existed.
 - Fixed previous-session results collapsing immediately during live refreshes.

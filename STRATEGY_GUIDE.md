@@ -1,7 +1,7 @@
 # European Roulette Strategy Guide
 
 **Last reviewed:** 6 August 2026  
-**Current dashboard version:** `v2026.08.06.3`
+**Current dashboard version:** `v2026.08.06.4`
 
 The complete operating rules, progression tables, stop conditions, table-rule
 handling, and risk notes are maintained in the read-only Google Doc:
@@ -42,4 +42,3 @@ changes:
 1. Update the Google Doc and its **Last update** date.
 2. Update the summary in this file if the headline rules changed.
 3. Record the application change in [`CHANGELOG.md`](CHANGELOG.md).
-

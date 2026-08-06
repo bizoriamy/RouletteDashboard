@@ -147,8 +147,8 @@
     const recentWasOpen = freddyResults.querySelector('[data-result-section="recent"]')?.open ?? true;
     const previousWasOpen = freddyResults.querySelector('[data-result-section="previous"]')?.open ?? false;
     freddyResults.innerHTML = [
-      currentCompleted.length ? `<details class="previous-results" data-result-section="recent" ${recentWasOpen ? "open" : ""}><summary>Recently stopped (${currentCompleted.length})</summary>${resultRows(currentCompleted)}</details>` : "",
-      previousCompleted.length ? `<details class="previous-results" data-result-section="previous" ${previousWasOpen ? "open" : ""}><summary>Previous session results (${previousCompleted.length})</summary>${resultRows(previousCompleted)}</details>` : ""
+      `<details class="previous-results" data-result-section="recent" ${recentWasOpen ? "open" : ""}><summary>Recently stopped (${currentCompleted.length})</summary>${currentCompleted.length ? resultRows(currentCompleted) : '<p class="hint result-empty">No stopped cards in this session.</p>'}</details>`,
+      `<details class="previous-results" data-result-section="previous" ${previousWasOpen ? "open" : ""}><summary>Previous session results (${previousCompleted.length})</summary>${previousCompleted.length ? resultRows(previousCompleted) : '<p class="hint result-empty">No previous session results saved.</p>'}</details>`
     ].join("");
   }
 

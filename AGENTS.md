@@ -62,6 +62,9 @@
   dozens, and two columns. Opposite even-money selections remain mutually
   exclusive.
 - Previous-session FTS results are collapsed until the user opens them.
+- Recently stopped and previous-session sections remain visible even when
+  empty. Resetting an empty session must not erase the last non-empty previous
+  session result list.
 
 ## Verification
 
