@@ -15,6 +15,8 @@
 - The visible main-dashboard and Freddy floating-window labels must match
   `VERSION`. A mismatch is a defect or stale browser window and must be
   investigated before reporting the running version.
+- Record every user-facing release in `CHANGELOG.md`. Add the newest release at
+  the top and describe additions, changes, and fixes in plain language.
 
 ## Git safety
 
