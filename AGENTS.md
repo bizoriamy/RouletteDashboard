@@ -17,6 +17,9 @@
   investigated before reporting the running version.
 - Record every user-facing release in `CHANGELOG.md`. Add the newest release at
   the top and describe additions, changes, and fixes in plain language.
+- `STRATEGY_GUIDE.md` links to the authoritative read-only Google strategy
+  document. Keep its summary and last-reviewed date aligned with material rule
+  changes in that document.
 
 ## Git safety
 
