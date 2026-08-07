@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BetPilot - Roulette Table Selector</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f5f0e6;
+      --muted: #aaa79f;
+      --gold: #e7bc62;
+      --green: #087d55;
+      --red: #b93438;
+      --black: #222326;
+      --line: rgba(255, 255, 255, 0.14);
+      --gold-glow: rgba(231, 188, 98, 0.35);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 50% -10%, rgba(231, 188, 98, 0.14), transparent 36rem),
+        #101311;
+      font-family: inherit;
+    }
+
+    button { font: inherit; }
+
+    /* ===== 浮动容器（可拖动、置顶） ===== */
+    .floating-table {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      width: 720px;
+      max-height: 92vh;
+      overflow-y: auto;
+      background: rgba(16, 19, 17, 0.97);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      font-size: 14px;
+      user-select: none;
+    }
+
+    /* 拖拽标题栏 */
+    .table-titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      cursor: grab;
+      background: rgba(0, 0, 0, 0.35);
+      border-bottom: 1px solid var(--line);
+      border-radius: 17px 17px 0 0;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .table-titlebar:active { cursor: grabbing; }
+
+    .table-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: var(--ink);
+    }
+    .table-title .dot { color: var(--gold); }
+
+    .titlebar-actions { display: flex; align-items: center; gap: 8px; }
+
+    #selection-summary {
+      font-size: 12px;
+      color: var(--gold);
+      font-weight: 750;
+      background: rgba(231, 188, 98, 0.08);
+      border: 1px solid rgba(231, 188, 98, 0.25);
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+
+    .titlebar-btn {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .titlebar-btn:hover { background: rgba(255, 255, 255, 0.18); }
+
+    .table-body { padding: 12px 14px 14px; }
+
+    /* ===== 布局切换 ===== */
+    .layout-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .layout-tab {
+      flex: 1;
+      padding: 7px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.035);
+      font-size: 12px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .layout-tab:hover { background: rgba(255, 255, 255, 0.1); }
+    .layout-tab.active { color: #17130b; border-color: var(--gold); background: var(--gold); }
+
+    .layout-panel { display: none; }
+    .layout-panel.active { display: block; }
+
+    /* ===== 标准赌桌 ===== */
+    .roulette-table {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(54px, 1fr));
+      grid-template-rows: 46px repeat(12, 38px);
+      gap: 3px;
+    }
+    .number-cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+    }
+    .number-cell.red { background: var(--red); }
+    .number-cell.black { background: var(--black); }
+    .number-cell.green { background: var(--green); }
+    .number-cell.zero { grid-column: 1 / 4; grid-row: 1; font-size: 1.15rem; }
+    .number-cell:hover, .number-cell:focus-visible, .number-cell.is-active {
+      z-index: 2;
+      transform: scale(1.055);
+      outline: none;
+      box-shadow: 0 0 0 3px var(--gold), 0 10px 24px rgba(0, 0, 0, 0.35);
+      filter: brightness(1.12);
+    }
+    .number-cell.is-locked::after {
+      content: "LOCKED";
+      position: absolute;
+      bottom: 3px;
+      font-size: 0.4rem;
+      letter-spacing: 0.08em;
+      color: #fff3c9;
+    }
+
+    .column-key {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.66rem;
+      text-align: center;
+    }
+    .column-key span { padding: 7px 3px; border-top: 1px solid var(--line); }
+    .column-key b { display: block; margin-bottom: 2px; color: var(--ink); }
+
+    /* ===== 实际轮盘 ===== */
+    .roulette-wheel {
+      position: relative;
+      width: min(100%, 340px);
+      aspect-ratio: 1;
+      margin: 6px auto 0;
+      border: 9px solid #9b7639;
+      border-radius: 50%;
+      background: radial-gradient(circle, #173e2e 0 31%, #d0a457 31.5% 34%, #121612 34.5% 64%, #715326 64.5% 67%, #171a17 67.5%);
+      box-shadow: inset 0 0 0 3px #e3bd70, 0 20px 45px rgba(0, 0, 0, 0.35);
+    }
+    .wheel-pocket {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 42px;
+      margin: -21px 0 0 -14px;
+      padding: 0;
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 5px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      cursor: pointer;
+      transform: rotate(var(--angle)) translateY(-140px) rotate(var(--counter-angle));
+      transition: filter 120ms ease, box-shadow 120ms ease;
+    }
+    .wheel-pocket.red { background: var(--red); }
+    .wheel-pocket.black { background: var(--black); }
+    .wheel-pocket.green { background: var(--green); }
+    .wheel-pocket:hover, .wheel-pocket:focus-visible, .wheel-pocket.is-active {
+      z-index: 3;
+      outline: none;
+      filter: brightness(1.35);
+      box-shadow: 0 0 0 3px var(--gold), 0 5px 14px rgba(0, 0, 0, 0.45);
+    }
+    .wheel-pocket.is-locked { box-shadow: 0 0 0 3px #fff, 0 0 18px var(--gold); }
+    .wheel-centre {
+      position: absolute;
+      inset: 37%;
+      display: grid;
+      place-content: center;
+      text-align: center;
+      border: 1px solid rgba(231, 188, 98, 0.5);
+      border-radius: 50%;
+      background: #102b20;
+    }
+    .wheel-centre span { color: var(--gold); font-family: Georgia, serif; font-size: 0.9rem; }
+    .wheel-centre strong { margin-top: 3px; font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .wheel-caption { margin: 14px 0 0; color: var(--muted); font-size: 0.72rem; text-align: center; }
+
+    /* ===== 赛道 ===== */
+    .racetrack {
+      position: relative;
+      width: min(100%, 340px);
+      height: 460px;
+      margin: 0 auto;
+      border: 8px solid #9b7639;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, #173e2e 0 52%, #d0a457 52.5% 55%, #121612 55.5% 67%, #715326 67.5% 70%, #171a17 70.5%);
+      box-shadow: inset 0 0 0 3px #e3bd70, 0 20px 45px rgba(0, 0, 0, 0.35);
+    }
+    .track-pocket {
+      position: absolute;
+      top: var(--y);
+      left: var(--x);
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      font-size: 0.66rem;
+      font-weight: 800;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+    }
+    .track-pocket.red { background: var(--red); }
+    .track-pocket.black { background: var(--black); }
+    .track-pocket.green { background: var(--green); }
+    .track-pocket:hover, .track-pocket:focus-visible, .track-pocket.is-active {
+      z-index: 3;
+      outline: none;
+      filter: brightness(1.35);
+      box-shadow: 0 0 0 3px var(--gold);
+    }
+    .track-pocket.is-locked { box-shadow: 0 0 0 3px #fff, 0 0 18px var(--gold); }
+    .track-centre {
+      position: absolute;
+      inset: 38% 28%;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      border: 1px solid rgba(231, 188, 98, 0.45);
+      border-radius: 50%;
+      font-size: 0.6rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .zone-controls {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .zone-button {
+      padding: 8px 6px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.035);
+      font-size: 0.7rem;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .zone-button:hover, .zone-button:focus-visible, .zone-button.is-selected {
+      color: #17130b;
+      border-color: var(--gold);
+      outline: none;
+      background: var(--gold);
+    }
+
+    /* ===== 投注探索器 ===== */
+    .bet-explorer {
+      margin-top: 14px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .bet-explorer-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .bet-explorer-heading h3 { font-size: 0.9rem; }
+    .bet-explorer-heading .panel-kicker { margin: 0; color: var(--gold); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+    #bet-type {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px 24px 8px 10px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #1c211e;
+      font: inherit;
+      font-size: 0.72rem;
+    }
+    .bet-selection-summary { margin: 8px 0 0; color: var(--gold); font-size: 0.7rem; font-weight: 750; }
+    .bet-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-height: 150px;
+      margin-top: 8px;
+      padding: 3px;
+      overflow-y: auto;
+    }
+    .bet-button {
+      min-height: 30px;
+      padding: 4px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.035);
+      font-size: 0.62rem;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .bet-button:hover, .bet-button:focus-visible, .bet-button.is-selected {
+      color: #17130b;
+      border-color: var(--gold);
+      outline: none;
+      background: var(--gold);
+    }
+    .bet-help { margin: 6px 0 0; color: var(--muted); font-size: 0.62rem; }
+
+    /* ===== 底部摘要 ===== */
+    .detail-summary {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 44px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .detail-summary .chip-text {
+      display: inline-block;
+      background: var(--green);
+      color: #fff;
+      border-radius: 4px;
+      padding: 1px 7px;
+      margin: 1px 3px 1px 0;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .detail-summary .bet-text {
+      display: inline-block;
+      background: var(--gold);
+      color: #17130b;
+      border-radius: 4px;
+      padding: 1px 7px;
+      margin: 1px 3px 1px 0;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .detail-summary.empty::after { content: 'Click numbers, wheel pockets, racetrack sectors, or table bets to build your selection.'; }
+
+    .hint-bar {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 浮动轮盘桌选择器 -->
+  <div class="floating-table" id="floatingTable">
+    <!-- 拖拽标题栏 -->
+    <div class="table-titlebar" id="titlebar">
+      <span class="table-title">🎰 <span class="dot">◆</span> ROULETTE SELECTOR</span>
+      <div class="titlebar-actions">
+        <span id="selection-summary">0 selected</span>
+        <button class="titlebar-btn" id="clear-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="table-body">
+      <!-- 布局切换 -->
+      <div class="layout-tabs">
+        <button class="layout-tab active" data-layout="table">Standard Table</button>
+        <button class="layout-tab" data-layout="wheel">Actual Wheel</button>
+        <button class="layout-tab" data-layout="racetrack">Racetrack</button>
+      </div>
+
+      <!-- 标准赌桌 -->
+      <div class="layout-panel active" id="panel-table">
+        <div id="roulette-table" class="roulette-table"></div>
+        <div class="column-key">
+          <span><b>Column 1</b> contains 1</span>
+          <span><b>Column 2</b> contains 2</span>
+          <span><b>Column 3</b> contains 3</span>
+        </div>
+      </div>
+
+      <!-- 实际轮盘 -->
+      <div class="layout-panel" id="panel-wheel">
+        <div id="roulette-wheel" class="roulette-wheel">
+          <div class="wheel-centre" aria-hidden="true">
+            <span>European</span>
+            <strong>Single zero</strong>
+          </div>
+        </div>
+        <p class="wheel-caption">Correct clockwise pocket order · 0 fixed at the top</p>
+      </div>
+
+      <!-- 赛道 -->
+      <div class="layout-panel" id="panel-racetrack">
+        <div id="racetrack" class="racetrack">
+          <div class="track-centre" aria-hidden="true">0 at top</div>
+        </div>
+        <div id="zone-controls" class="zone-controls"></div>
+      </div>
+
+      <!-- 投注探索器 -->
+      <div class="bet-explorer">
+        <div class="bet-explorer-heading">
+          <div>
+            <p class="panel-kicker">Bet explorer</p>
+            <h3>Table bets</h3>
+          </div>
+        </div>
+        <select id="bet-type" aria-label="Choose a table bet type"></select>
+        <p id="bet-selection-summary" class="bet-selection-summary">No bets selected</p>
+        <div id="bet-options" class="bet-options" aria-label="Available table bets"></div>
+        <p class="bet-help">Click several bets to combine their coverage. Click again to remove.</p>
+      </div>
+
+      <!-- 底部摘要 -->
+      <div class="detail-summary empty" id="detailSummary"></div>
+
+      <div class="hint-bar">Drag the title bar to move · Always on top · Hover to preview, click to lock</div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 数据定义（参考真实轮盘） =====
+    const WHEEL_SEQUENCE = [
+      0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
+      5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
+    ];
+
+    const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+
+    const RACETRACK_ZONES = [
+      { name: "Zero / Jeu Zéro", numbers: [12, 35, 3, 26, 0, 32, 15] },
+      { name: "Voisins du Zéro", numbers: [22, 18, 29, 7, 28, 12, 35, 3, 26, 0, 32, 15, 19, 4, 21, 2, 25] },
+      { name: "Orphelins", numbers: [1, 20, 14, 31, 9, 17, 34, 6] },
+      { name: "Tiers du Cylindre", numbers: [27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33] },
+    ];
+
+    function range(start, end, step = 1) {
+      const values = [];
+      for (let value = start; value <= end; value += step) values.push(value);
+      return values;
+    }
+
+    const TABLE_BETS = {
+      splits: [
+        { name: "Split 0 / 1", numbers: [0, 1] },
+        { name: "Split 0 / 2", numbers: [0, 2] },
+        { name: "Split 0 / 3", numbers: [0, 3] },
+        ...range(1, 36).flatMap((number) => {
+          const bets = [];
+          if ((number - 1) % 3 !== 2) bets.push({ name: `Split ${number} / ${number + 1}`, numbers: [number, number + 1] });
+          if (number <= 33) bets.push({ name: `Split ${number} / ${number + 3}`, numbers: [number, number + 3] });
+          return bets;
+        }),
+      ],
+      streets: [
+        { name: "Street 0 / 1 / 2", numbers: [0, 1, 2] },
+        { name: "Street 0 / 2 / 3", numbers: [0, 2, 3] },
+        ...range(1, 34, 3).map((start) => ({ name: `Street ${start}–${start + 2}`, numbers: range(start, start + 2) })),
+      ],
+      corners: [
+        { name: "Corner 0 / 1 / 2 / 3", numbers: [0, 1, 2, 3] },
+        ...range(1, 31, 3).flatMap((row) => [0, 1].map((offset) => ({
+          name: `Corner ${row + offset}-${row + offset + 1}-${row + offset + 3}-${row + offset + 4}`,
+          numbers: [row + offset, row + offset + 1, row + offset + 3, row + offset + 4],
+        }))),
+      ],
+      sixLines: range(1, 31, 3).map((start) => ({ name: `Six-line ${start}–${start + 5}`, numbers: range(start, start + 5) })),
+      dozens: [1, 2, 3].map((dozen) => ({ name: `Dozen ${dozen}`, numbers: range((dozen - 1) * 12 + 1, dozen * 12) })),
+      columns: [1, 2, 3].map((column) => ({ name: `Column ${column}`, numbers: range(column, 36, 3) })),
+      evenMoney: [
+        { name: "Red", numbers: [...RED_NUMBERS] },
+        { name: "Black", numbers: range(1, 36).filter((number) => !RED_NUMBERS.has(number)) },
+        { name: "Odd", numbers: range(1, 36).filter((number) => number % 2) },
+        { name: "Even", numbers: range(1, 36).filter((number) => number % 2 === 0) },
+        { name: "Low 1–18", numbers: range(1, 18) },
+        { name: "High 19–36", numbers: range(19, 36) },
+      ],
+    };
+
+    const BET_TYPE_LABELS = {
+      splits: "Splits", streets: "Streets", corners: "Corners", sixLines: "Six-lines",
+      dozens: "Dozens", columns: "Columns", evenMoney: "Even-money",
+    };
+
+    // 共享数据模型
+    const rouletteNumbers = Array.from({ length: 37 }, (_, number) => ({
+      number,
+      color: number === 0 ? "green" : RED_NUMBERS.has(number) ? "red" : "black",
+      column: number === 0 ? null : ((number - 1) % 3) + 1,
+      dozen: number === 0 ? null : Math.ceil(number / 12),
+      parity: number === 0 ? null : number % 2 === 0 ? "even" : "odd",
+      range: number === 0 ? null : number <= 18 ? "low (1–18)" : "high (19–36)",
+      wheelIndex: WHEEL_SEQUENCE.indexOf(number),
+    }));
+
+    // ===== DOM 引用 =====
+    const table = document.querySelector("#roulette-table");
+    const wheel = document.querySelector("#roulette-wheel");
+    const racetrack = document.querySelector("#racetrack");
+    const zoneControls = document.querySelector("#zone-controls");
+    const betType = document.querySelector("#bet-type");
+    const betOptions = document.querySelector("#bet-options");
+    const betSelectionSummary = document.querySelector("#bet-selection-summary");
+    const clearButton = document.querySelector("#clear-btn");
+    const detailSummary = document.querySelector("#detailSummary");
+    const selectionSummary = document.querySelector("#selection-summary");
+
+    let lockedNumber = null;
+    let lockedGroups = [];
+
+    // ===== 显示逻辑 =====
+    function showNumber(number) {
+      const item = rouletteNumbers[number];
+      document.querySelectorAll("[data-number]").forEach((cell) => {
+        cell.classList.toggle("is-active", Number(cell.dataset.number) === number);
+        cell.classList.toggle("is-locked", Number(cell.dataset.number) === lockedNumber);
+      });
+    }
+
+    function showGroup(group, locked = false) {
+      const covered = new Set(group.numbers);
+      document.querySelectorAll("[data-number]").forEach((cell) => {
+        cell.classList.toggle("is-active", covered.has(Number(cell.dataset.number)));
+        cell.classList.toggle("is-locked", locked && covered.has(Number(cell.dataset.number)));
+      });
+    }
+
+    function showGroupUnion(groups, locked = true) {
+      const covered = new Set(groups.flatMap((group) => group.numbers));
+      document.querySelectorAll("[data-number]").forEach((cell) => {
+        const included = covered.has(Number(cell.dataset.number));
+        cell.classList.toggle("is-active", included);
+        cell.classList.toggle("is-locked", locked && included);
+      });
+    }
+
+    function restoreSelection() {
+      if (lockedGroups.length) showGroupUnion(lockedGroups);
+      else if (lockedNumber !== null) showNumber(lockedNumber);
+      else clearDisplay();
+    }
+
+    function clearDisplay() {
+      document.querySelectorAll("[data-number]").forEach((cell) => cell.classList.remove("is-active", "is-locked"));
+    }
+
+    // ===== 创建单元格 =====
+    function createCell(item) {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = `number-cell ${item.color}${item.number === 0 ? " zero" : ""}`;
+      cell.dataset.number = item.number;
+      cell.textContent = item.number;
+      if (item.number !== 0) {
+        cell.style.gridColumn = item.column;
+        cell.style.gridRow = Math.ceil(item.number / 3) + 1;
+      }
+      connectNumberInteraction(cell, item);
+      return cell;
+    }
+
+    function connectNumberInteraction(element, item) {
+      element.addEventListener("mouseenter", () => showNumber(item.number));
+      element.addEventListener("focus", () => showNumber(item.number));
+      element.addEventListener("mouseleave", restoreSelection);
+      element.addEventListener("blur", restoreSelection);
+      element.addEventListener("click", () => {
+        lockedGroups = [];
+        lockedNumber = lockedNumber === item.number ? null : item.number;
+        restoreSelection();
+        updateSummary();
+      });
+    }
+
+    function createWheelPocket(number, index) {
+      const item = rouletteNumbers[number];
+      const pocket = document.createElement("button");
+      pocket.type = "button";
+      pocket.className = `wheel-pocket ${item.color}`;
+      pocket.dataset.number = number;
+      pocket.textContent = number;
+      const angle = index * (360 / WHEEL_SEQUENCE.length);
+      pocket.style.setProperty("--angle", `${angle}deg`);
+      pocket.style.setProperty("--counter-angle", `${-angle}deg`);
+      connectNumberInteraction(pocket, item);
+      return pocket;
+    }
+
+    function createTrackPocket(number, index) {
+      const item = rouletteNumbers[number];
+      const pocket = document.createElement("button");
+      const angle = index * (Math.PI * 2 / WHEEL_SEQUENCE.length);
+      pocket.type = "button";
+      pocket.className = `track-pocket ${item.color}`;
+      pocket.dataset.number = number;
+      pocket.textContent = number;
+      pocket.style.setProperty("--x", `${50 + 44 * Math.sin(angle)}%`);
+      pocket.style.setProperty("--y", `${50 - 45 * Math.cos(angle)}%`);
+      connectNumberInteraction(pocket, item);
+      return pocket;
+    }
+
+    function createZoneButton(zone) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "zone-button";
+      button.textContent = zone.name;
+      connectGroupInteraction(button, zone);
+      return button;
+    }
+
+    function connectGroupInteraction(button, group) {
+      button.dataset.groupId = group.id;
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("mouseenter", () => showGroup(group));
+      button.addEventListener("focus", () => showGroup(group));
+      button.addEventListener("mouseleave", restoreSelection);
+      button.addEventListener("blur", restoreSelection);
+      button.addEventListener("click", () => {
+        lockedNumber = null;
+        const existingIndex = lockedGroups.findIndex((item) => item.id === group.id);
+        if (existingIndex >= 0) lockedGroups.splice(existingIndex, 1);
+        else lockedGroups.push(group);
+        restoreSelection();
+        updateSummary();
+      });
+    }
+
+    // ===== 摘要更新 =====
+    function updateSummary() {
+      document.querySelectorAll("[data-group-id]").forEach((button) => {
+        const selected = lockedGroups.some((group) => group.id === button.dataset.groupId);
+        button.classList.toggle("is-selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      });
+
+      const covered = new Set(lockedGroups.flatMap((group) => group.numbers));
+      betSelectionSummary.textContent = lockedGroups.length
+        ? `${lockedGroups.length} bet${lockedGroups.length === 1 ? "" : "s"} selected · ${covered.size} unique numbers covered`
+        : "No bets selected";
+
+      // 底部详细摘要
+      const numChips = lockedNumber !== null ? `<span class="chip-text">${lockedNumber}</span>` : '';
+      const betChips = lockedGroups.map((g) => `<span class="bet-text">${g.name}</span>`).join('');
+      detailSummary.innerHTML = numChips + betChips;
+      detailSummary.classList.toggle('empty', detailSummary.innerHTML === '');
+
+      const total = (lockedNumber !== null ? 1 : 0) + lockedGroups.length;
+      selectionSummary.textContent = total + ' selected';
+    }
+
+    // ===== 投注探索器 =====
+    function renderBetOptions(type) {
+      betOptions.replaceChildren();
+      TABLE_BETS[type].forEach((bet, index) => {
+        const group = { ...bet, id: `${type}-${index}` };
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "bet-button";
+        button.textContent = group.name.replace(/^(Split|Street|Corner|Six-line) /, "");
+        button.setAttribute("aria-label", group.name);
+        connectGroupInteraction(button, group);
+        betOptions.append(button);
+      });
+      updateSummary();
+    }
+
+    // ===== 布局切换 =====
+    document.querySelectorAll('.layout-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.layout-tab').forEach((t) => t.classList.remove('active'));
+        document.querySelectorAll('.layout-panel').forEach((p) => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.layout).classList.add('active');
+      });
+    });
+
+    // ===== 初始化 =====
+    rouletteNumbers.forEach((item) => table.append(createCell(item)));
+    WHEEL_SEQUENCE.forEach((number, index) => wheel.append(createWheelPocket(number, index)));
+    WHEEL_SEQUENCE.forEach((number, index) => racetrack.append(createTrackPocket(number, index)));
+    RACETRACK_ZONES.forEach((zone, index) => zoneControls.append(createZoneButton({ ...zone, id: `zone-${index}` })));
+    Object.entries(BET_TYPE_LABELS).forEach(([value, label]) => betType.append(new Option(label, value)));
+    betType.addEventListener("change", () => renderBetOptions(betType.value));
+    renderBetOptions(betType.value);
+
+    // ===== 清除 =====
+    clearButton.addEventListener("click", () => {
+      lockedNumber = null;
+      lockedGroups = [];
+      clearDisplay();
+      updateSummary();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        lockedNumber = null;
+        lockedGroups = [];
+        clearDisplay();
+        updateSummary();
+      }
+    });
+
+    // ===== 拖拽功能（浮动置顶） =====
+    const floatingTable = document.getElementById('floatingTable');
+    const titlebar = document.getElementById('titlebar');
+    let isDragging = false, startX, startY, origX, origY;
+
+    titlebar.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = floatingTable.getBoundingClientRect();
+      origX = rect.left;
+      origY = rect.top;
+      floatingTable.style.left = origX + 'px';
+      floatingTable.style.top = origY + 'px';
+      floatingTable.style.transform = 'none';
+      titlebar.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      floatingTable.style.left = (origX + (e.clientX - startX)) + 'px';
+      floatingTable.style.top = (origY + (e.clientY - startY)) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      titlebar.style.cursor = 'grab';
+    });
+
+    updateSummary();
+  </script>
+</body>
+</html>

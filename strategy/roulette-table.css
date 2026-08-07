@@ -1,0 +1,215 @@
+/* BetPilot - Roulette Table Selector Styles */
+
+:root {
+  --table-bg: #0d1f0d;
+  --table-texture: rgba(255, 255, 255, 0.02);
+  --red: #d32f2f;
+  --black: #1a1a1a;
+  --green: #2e7d32;
+  --gold: #ffd700;
+  --gold-glow: rgba(255, 215, 0, 0.3);
+  --text-primary: #eaeaea;
+  --text-muted: #9aa0a6;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background-color: #0a0a0a;
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.table-container {
+  width: 100%;
+  max-width: 900px;
+}
+
+/* Header */
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.table-header h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selection-count {
+  font-size: 0.9rem;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.clear-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clear-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Roulette table */
+.roulette-table {
+  background-color: var(--table-bg);
+  background-image:
+    radial-gradient(circle at 20% 30%, var(--table-texture), transparent 50%),
+    radial-gradient(circle at 80% 70%, var(--table-texture), transparent 50%);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  gap: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Zero cell */
+.zero-cell {
+  flex: 0 0 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--green);
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.zero-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Number grid */
+.number-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.number-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 42px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.number-cell.red {
+  background-color: var(--red);
+  color: #ffffff;
+}
+
+.number-cell.black {
+  background-color: var(--black);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.number-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Selected state - gold border + glow */
+.number-cell.selected,
+.zero-cell.selected,
+.betting-cell.selected {
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 12px var(--gold-glow), 0 0 24px var(--gold-glow);
+  transform: translateY(-2px);
+}
+
+/* Betting area */
+.betting-area {
+  margin-top: 16px;
+}
+
+.betting-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.betting-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 48px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.betting-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .roulette-table {
+    flex-direction: column;
+  }
+
+  .zero-cell {
+    flex: 0 0 48px;
+    width: 100%;
+  }
+
+  .number-cell {
+    height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .betting-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
