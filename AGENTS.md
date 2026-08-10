@@ -66,6 +66,21 @@
   empty. Resetting an empty session must not erase the last non-empty previous
   session result list.
 
+## Automatic local-server recovery
+
+- dashboard-keeper.ps1 is launched from the current user's Windows Startup
+  folder and checks the exact dashboard health endpoint every 15 seconds.
+- If the server is unavailable, it runs dashboard-launcher.ps1 -SkipBrowser;
+  it must not stop unrelated processes or open duplicate browser windows.
+- The keeper log is %TEMP%\roulette-dashboard-keeper.log.
+## Quick Roulette Entry
+
+- quick-entry-helper.ps1 owns the global Ctrl+Q hotkey and submits only validated
+  numbers 0–36 to the local /api/quick-entry endpoint.
+- live-dashboard.js must consume Quick Entry events through the same 
+ecordSpin
+  routine used by the main input form so every strategy and sync path stays aligned.
+- The helper is launched from the current user's Windows Startup folder.
 ## Verification
 
 Run the relevant checks before preparing an update:
@@ -79,3 +94,4 @@ node hot-streets-sync.test.js
 
 Also verify that the launcher health check, main dashboard label, and Freddy
 floating-window label agree with `VERSION`.
+

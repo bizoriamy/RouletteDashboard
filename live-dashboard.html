@@ -1,19 +1,19 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.08.06.4</title>
+    <title>Roulette Live Dashboard · v2026.08.10.5</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
-    <link rel="stylesheet" href="live-dashboard.css?v=2026.08.06.4" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.08.10.5" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.06.4</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.10.5</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -22,7 +22,7 @@
 
       <!-- Session tools + entry -->
       <div class="toolbar">
-        <button id="dealer-change-button">Dealer 1 Â· Mark change</button>
+        <button id="dealer-change-button">Dealer 1 · Mark change</button>
         <span id="idle-timer">Waiting for first spin</span>
         <div class="toolbar-spacer"></div>
         <button id="open-freddy-window" class="freddy-launch-button" type="button">Open Freddy Floating</button>
@@ -32,12 +32,12 @@
       </div>
 
       <form id="spin-form" autocomplete="off" class="entry-row">
-        <input id="spin-input" inputmode="numeric" pattern="[0-9]*" min="0" max="36" placeholder="0â€“36" autofocus />
+        <input id="spin-input" inputmode="numeric" pattern="[0-9]*" min="0" max="36" placeholder="0–36" autofocus />
         <button class="primary" type="submit">Enter</button>
         <button id="undo-button" type="button">Undo</button>
         <button id="reset-session-button" class="danger-quiet" type="button">Reset</button>
-        <span id="notice" class="notice" role="status" aria-live="polite">Type 0â€“36, then press Enter.</span>
-        <div class="last-spin" id="last-spin"><span>Last</span><strong>â€”</strong></div>
+        <span id="notice" class="notice" role="status" aria-live="polite">Type 0–36, then press Enter.</span>
+        <div class="last-spin" id="last-spin"><span>Last</span><strong>—</strong></div>
       </form>
 
       <section id="next-bets-panel" class="focus-control" hidden>
@@ -47,11 +47,11 @@
 
       <!-- Even-money system -->
       <details class="system-panel" open>
-        <summary><strong>Even-Money</strong><span id="even-summary">Martingale Â· trigger 4</span></summary>
+        <summary><strong>Even-Money</strong><span id="even-summary">Martingale · trigger 4</span></summary>
         <div class="trigger-frequency">Session Trigger Frequency <strong id="even-trigger-frequency">0</strong></div>
         <section id="tracker-grid" class="tracker-grid" aria-label="Six absence trackers"></section>
         <details class="sys-config-collapse">
-          <summary class="cfg-summary">Settings â–¸</summary>
+          <summary class="cfg-summary">Settings ▸</summary>
           <section class="system-config">
             <div class="config-row config-row-standard">
               <label>Table Rule <select id="table-rule"><option value="standard">Standard European</option><option value="la-partage">La Partage</option></select></label>
@@ -83,11 +83,11 @@
 
       <!-- Twelve-number system -->
       <details class="system-panel" open>
-        <summary><strong>Dozens &amp; Columns</strong><span id="twelve-summary">Fibonacci Â· trigger 6</span></summary>
+        <summary><strong>Dozens &amp; Columns</strong><span id="twelve-summary">Fibonacci · trigger 6</span></summary>
         <div class="trigger-frequency">Session Trigger Frequency <strong id="twelve-trigger-frequency">0</strong></div>
         <section id="twelve-grid" class="twelve-grid" aria-label="Dozen and column absence trackers"></section>
         <details class="sys-config-collapse">
-          <summary class="cfg-summary">Settings â–¸</summary>
+          <summary class="cfg-summary">Settings ▸</summary>
           <section class="system-config">
             <div class="config-row config-row-standard">
               <label>Table Rule <select id="twelve-table-rule" disabled title="Dozens and columns pay 2:1; zero always loses."><option>Standard European</option></select></label>
@@ -105,7 +105,7 @@
               <label>Bankroll <input id="twelve-bankroll-input" type="number" min="0" value="1000" class="cfg-bankroll" /></label>
             </div>
             <div class="config-row config-actions-row">
-              <span class="cfg-rule-note">12-number payout 2:1 Â· zero loses</span>
+              <span class="cfg-rule-note">12-number payout 2:1 · zero loses</span>
               <span class="cfg-live">Live <strong id="twelve-live-bankroll">1,000</strong> / Exp <strong id="twelve-exposure">0</strong></span>
               <button id="twelve-backtest-btn" class="btn-small" type="button">Backtest</button>
               <button id="twelve-apply-settings" class="btn-small primary" type="button">Apply Settings</button>
@@ -154,7 +154,7 @@
           <span>P/L <strong id="hs-total-pl">0</strong></span>
         </div>
         <details class="sys-config-collapse" style="margin-top:6px;">
-          <summary class="cfg-summary">Settings â–¸</summary>
+          <summary class="cfg-summary">Settings ▸</summary>
           <section class="system-config">
             <div class="config-row config-row-standard">
               <label>Progression <select id="hs-prog-preset" class="cfg-prog-preset">
@@ -188,7 +188,7 @@
         <section id="freddy-ribbon" class="freddy-ribbon" aria-label="Freddy continuously tracked selections"></section>
         <p class="freddy-help">All 12 selections track every spin. Press a button to start Freddy; press the lit button again to stop and record its P/L.</p>
         <details class="sys-config-collapse">
-          <summary class="cfg-summary">Settings â–¸</summary>
+          <summary class="cfg-summary">Settings ▸</summary>
           <section class="system-config">
             <div class="config-row config-row-standard freddy-settings">
               <label>Table Rule <select id="freddy-table-rule"><option value="la-partage">La Partage</option><option value="standard">Standard European</option></select></label>
@@ -216,7 +216,7 @@
         <summary>Google Sheets <span id="sync-status">Not connected</span></summary>
         <label>Web app URL<input id="sync-url" type="url" autocomplete="off" /></label>
         <label>Private token<input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
-        <p id="archive-summary" class="sync-help">Checking local recovery archiveâ€¦</p>
+        <p id="archive-summary" class="sync-help">Checking local recovery archive…</p>
         <div class="sync-actions"><button id="save-sync" class="primary" type="button">Connect & sync</button><button id="resync-archive" type="button">Resync last archive</button><button id="download-archive" type="button">Download last archive</button><button id="disable-sync" type="button">Disconnect</button></div>
       </details>
     </main>
@@ -243,7 +243,7 @@
           <div class="hs-image-preview-scroll">
             <img id="hs-image-preview" alt="Uploaded roulette history preview" />
           </div>
-          <small>The number reader uses an automatically enlarged 2Ã— copy. Check the extracted numbers below before adding them.</small>
+          <small>The number reader uses an automatically enlarged 2× copy. Check the extracted numbers below before adding them.</small>
         </div>
         <textarea id="hs-history-input" rows="10" placeholder="Paste older numbers here (oldest to newest)..."></textarea>
         <div class="modal-actions" style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
@@ -259,10 +259,10 @@
     <div id="session-summary-modal" class="modal-overlay" hidden>
       <div class="modal-box ss-modal">
         <h3>Session Summary <span id="ss-spin-count"></span></h3>
-        <p class="ss-hint"><strong>Absence streaks</strong> â€” consecutive misses before a hit.</p>
+        <p class="ss-hint"><strong>Absence streaks</strong> — consecutive misses before a hit.</p>
         <div class="ss-table-wrap">
           <table class="ss-table">
-            <thead><tr><th>Category</th><th>1â€“3</th><th>4â€“5</th><th>6â€“7</th><th>8â€“9</th><th>10â€“12</th><th>13+</th><th>Total</th><th>Max</th><th title="90th percentile">P90</th><th>Avg</th></tr></thead>
+            <thead><tr><th>Category</th><th>1–3</th><th>4–5</th><th>6–7</th><th>8–9</th><th>10–12</th><th>13+</th><th>Total</th><th>Max</th><th title="90th percentile">P90</th><th>Avg</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -272,11 +272,11 @@
       </div>
     </div>
 
-    <script src="roulette-core.js?v=2026.08.06.4"></script>
-    <script src="dashboard-storage.js?v=2026.08.06.4"></script>
-    <script src="google-sheets-sync.js?v=2026.08.06.4"></script>
-    <script src="hot-streets.js?v=2026.08.06.4"></script>
-    <script src="freddy-engine.js?v=2026.08.06.4"></script>
-    <script src="ocr-grid-order.js?v=2026.08.06.4"></script>
-    <script src="live-dashboard.js?v=2026.08.06.4"></script>
+    <script src="roulette-core.js?v=2026.08.10.5"></script>
+    <script src="dashboard-storage.js?v=2026.08.10.5"></script>
+    <script src="google-sheets-sync.js?v=2026.08.10.5"></script>
+    <script src="hot-streets.js?v=2026.08.10.5"></script>
+    <script src="freddy-engine.js?v=2026.08.10.5"></script>
+    <script src="ocr-grid-order.js?v=2026.08.10.5"></script>
+    <script src="live-dashboard.js?v=2026.08.10.5"></script>
   </body>

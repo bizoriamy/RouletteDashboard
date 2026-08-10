@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   "use strict";
   const { RouletteEngine, SIDES, TWELVE_SIDES } = window.RouletteCore;
   const storage = new window.DashboardStorage.DashboardStorage();
@@ -18,7 +18,7 @@
   const notice = document.querySelector("#notice");
   const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
   const twelveLabels = { dozen1: "1st Dozen", dozen2: "2nd Dozen", dozen3: "3rd Dozen", column1: "Column 1", column2: "Column 2", column3: "Column 3" };
-  const twelveNumbers = { dozen1: "1â€“12", dozen2: "13â€“24", dozen3: "25â€“36", column1: "1,4,7â€¦34", column2: "2,5,8â€¦35", column3: "3,6,9â€¦36" };
+  const twelveNumbers = { dozen1: "1–12", dozen2: "13–24", dozen3: "25–36", column1: "1,4,7…34", column2: "2,5,8…35", column3: "3,6,9…36" };
   const label = (value) => twelveLabels[value] || title(value);
   let previousFibStakes = {};
   const MAIN_WINDOW_KEY = "roulette-main-window-v1";
@@ -266,15 +266,80 @@
     if (event.target.matches(".ignore")) attempt(() => engine.ignoreTwelve(side));
     if (event.target.matches(".resume")) attempt(() => engine.resumeTwelve(side));
   });
+  function quickHistoryNumbers() {
+    return engine.getState().spins.slice(-10).map((spin) => Number(spin.number));
+  }
+
+  function publishQuickHistory() {
+    fetch("/api/quick-entry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "history", history: quickHistoryNumbers() })
+    }).catch(() => {});
+  }
+
+  function recordSpin(number, source = "manual") {
+    const input = document.querySelector("#spin-input");
+    attempt(() => {
+      engine.addSpin(number);
+      hotStreets.appendSpin(number, engine.getState().spinCount);
+      freddy.addSpin(number);
+      renderHotStreets();
+      renderFreddy();
+      input.value = "";
+      say(`Spin ${number} recorded${source === "quick" ? " from Quick Entry" : ""}.`);
+      publishQuickHistory();
+    });
+    requestAnimationFrame(() => input.focus());
+  }
+
+  function undoSpin(source = "manual") {
+    if (engine.undoLastSpin()) {
+      freddy.undoLastSpin();
+      say(`Last spin undone${source === "quick" ? " from Quick Entry" : ""} and all strategies recalculated.`);
+      publishQuickHistory();
+    } else {
+      say("There is no spin to undo.", true);
+      publishQuickHistory();
+    }
+  }
+
   document.querySelector("#spin-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    const input = document.querySelector("#spin-input");
-    attempt(() => { const number = Number(input.value); engine.addSpin(number); hotStreets.appendSpin(number, engine.getState().spinCount); freddy.addSpin(number); renderHotStreets(); renderFreddy(); input.value = ""; say(`Spin ${number} recorded.`); });
-    requestAnimationFrame(() => input.focus());
+    recordSpin(Number(document.querySelector("#spin-input").value));
   });
-  document.querySelector("#undo-button").addEventListener("click", () => {
-    if (engine.undoLastSpin()) { freddy.undoLastSpin(); say("Last spin undone and all strategies recalculated."); } else say("There is no spin to undo.", true);
-  });
+
+  let quickEntryCursor = 0;
+  let quickEntryReady = false;
+  let quickEntryPolling = false;
+  async function pollQuickEntry() {
+    if (quickEntryPolling) return;
+    quickEntryPolling = true;
+    try {
+      const response = await fetch(`/api/quick-entry?after=${quickEntryCursor}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!quickEntryReady) {
+        quickEntryCursor = Number(data.latestId || 0);
+        quickEntryReady = true;
+        publishQuickHistory();
+        return;
+      }
+      for (const event of (data.events || [])) {
+        if (Number(event.id) <= quickEntryCursor) continue;
+        quickEntryCursor = Number(event.id);
+        if (event.action === "undo") undoSpin("quick");
+        else recordSpin(Number(event.number), "quick");
+      }
+    } catch (_) {
+      // Automatic server recovery handles temporary local-server interruptions.
+    } finally {
+      quickEntryPolling = false;
+    }
+  }
+  pollQuickEntry();
+  window.setInterval(pollQuickEntry, 350);
+  document.querySelector("#undo-button").addEventListener("click", () => undoSpin());
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
     const confirmed = window.confirm(`End Session ${tableSession.number} and start a new session? Its synchronized Google Sheets records will remain saved.`);
     if (!confirmed) return;
@@ -288,6 +353,7 @@
     engine.resetSession();
     hotStreets.reset();
     freddy.resetSession();
+    publishQuickHistory();
     tableSession = storage.startNextSession();
     render(engine.getState());
     renderHotStreets();
@@ -353,7 +419,7 @@
     document.querySelector("#session-number").textContent = `Session ${tableSession.number}`;
     document.querySelector("#spin-count").textContent = state.spinCount;
     const last = state.spins.at(-1)?.number;
-    document.querySelector("#last-spin strong").textContent = last ?? "â€”";
+    document.querySelector("#last-spin strong").textContent = last ?? "—";
     const recentSpins = state.spins.slice(-8).reverse();
     document.querySelector("#spin-history").innerHTML = recentSpins.length
       ? recentSpins.map((spin, index) => `<button type="button" class="history-number ${numberColor(spin.number)}${index === 0 ? " latest" : ""}" title="Spin ${spin.index}">${spin.number}</button>`).join("")
@@ -452,7 +518,7 @@
     if (thresholds.length === 1 && thresholds[0] >= 3 && thresholds[0] <= 8) document.querySelector("#trigger-threshold").value = String(thresholds[0]);
     const twelveThresholds = [...new Set(TWELVE_SIDES.map((side) => state.twelveTrackers[side].threshold))];
     if (twelveThresholds.length === 1) document.querySelector("#twelve-trigger-threshold").value = String(twelveThresholds[0]);
-    document.querySelector("#dealer-change-button").textContent = `Dealer ${state.dealerChanges.length + 1} Â· Mark change`;
+    document.querySelector("#dealer-change-button").textContent = `Dealer ${state.dealerChanges.length + 1} · Mark change`;
   }
 
   engine.subscribe((state) => {
@@ -461,7 +527,7 @@
     if (!storage.save(engine)) say("Dashboard updated, but automatic saving failed.", true);
   });
 
-  // â”€â”€ Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Hot Streets ──────────────────────────────────────────────
   const hotStreets = new window.RouletteHotStreets.HotStreets();
   let hsLastResultId = 0;
   const hsModal = document.querySelector("#hs-history-modal");
@@ -535,7 +601,7 @@
     } else if (s.finalStreets.length > 0 && s.phase === "deciding") {
       finalPanel.hidden = false;
       betBanner.hidden = true;
-      document.querySelector("#hs-bet-info").textContent = "Observation complete â€” your choice";
+      document.querySelector("#hs-bet-info").textContent = "Observation complete — your choice";
       document.querySelector("#hs-final-streets").innerHTML = s.finalStreets.map(f =>
         `<div class="hs-street-chip"><span>${f.start}</span><small>${f.label}</small></div>`
       ).join("");
@@ -543,7 +609,7 @@
       startBtn.textContent = "Start Bet";
       startBtn.className = "primary";
       document.querySelector("#hs-ignore-bet").hidden = false;
-      if (wasHidden) say(`Observation done â€” ${s.finalStreets.map(f => f.start).join(", ")} selected. Place bet?`);
+      if (wasHidden) say(`Observation done — ${s.finalStreets.map(f => f.start).join(", ")} selected. Place bet?`);
     } else if (s.candidates.length > 0 && s.phase === "ready" && s.observationSpin === 0) {
       finalPanel.hidden = false;
       betBanner.hidden = true;
@@ -594,7 +660,7 @@
       hsParseStatus.textContent = "";
       hsParseStatus.className = "hs-parse-status";
     } else {
-      hsParseStatus.textContent = `âœ“ ${nums.length} numbers parsed`;
+      hsParseStatus.textContent = `✓ ${nums.length} numbers parsed`;
       hsParseStatus.className = "hs-parse-status ok";
     }
   });
@@ -612,7 +678,7 @@
     }
   });
 
-  // â”€â”€   // -> Image OCR <-
+  // ──   // -> Image OCR <-
   const ocrStatusEl = document.querySelector("#hs-ocr-status");
   const imageInput = document.querySelector("#hs-image-input");
   const imagePreviewPanel = document.querySelector("#hs-image-preview-panel");
@@ -753,10 +819,10 @@
     try {
       if (hotStreets.state.phase === "ready" && hotStreets.state.observationSpin === 0) {
         hotStreets.startObservation(engine.getState().spinCount);
-        say("Observation started â€” watching candidate streets");
+        say("Observation started — watching candidate streets");
       } else if (hotStreets.state.phase === "deciding") {
         hotStreets.acceptBet();
-        say(`BETTING â€” Stage 1: bet on ${hotStreets.state.finalStreets.map(si => window.RouletteHotStreets.STREET_STARTS[si]).join(", ")}`);
+        say(`BETTING — Stage 1: bet on ${hotStreets.state.finalStreets.map(si => window.RouletteHotStreets.STREET_STARTS[si]).join(", ")}`);
       }
       renderHotStreets();
       if (googleSync.config.enabled) googleSync.sync(engine, hotStreets, freddy);
@@ -769,7 +835,7 @@
   document.querySelector("#hs-ignore-bet").addEventListener("click", () => {
     try {
       hotStreets.ignoreBet();
-      say("Observation ignored â€” new candidates selected");
+      say("Observation ignored — new candidates selected");
       renderHotStreets();
       if (googleSync.config.enabled) googleSync.sync(engine, hotStreets, freddy);
     } catch (err) {
@@ -785,7 +851,7 @@
     say("4-Streets strategy reset");
   });
 
-  // â”€â”€ End Hot Streets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── End Hot Streets ──────────────────────────────────────────
 
   googleSync.attach(engine, hotStreets, freddy, (message, type) => {
     const status = document.querySelector("#sync-status"); if (status) { status.textContent = message; status.classList.toggle("error", type === "error"); }
@@ -796,16 +862,16 @@
     const timer = document.querySelector("#idle-timer");
     if (!lastAt) { timer.textContent = "Waiting for first spin"; timer.classList.remove("warning"); return; }
     const seconds = Math.max(0, Math.floor((Date.now() - new Date(lastAt).getTime()) / 1000));
-    timer.textContent = `Idle ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}${seconds >= 75 ? " Â· Check table" : ""}`;
+    timer.textContent = `Idle ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}${seconds >= 75 ? " · Check table" : ""}`;
     timer.classList.toggle("warning", seconds >= 75);
   }, 1000);
   render(engine.getState());
   renderHotStreets();
   renderFreddy();
   if (storage.lastError) say("Saved data could not be restored; a fresh dashboard was opened.", true);
-  // â”€â”€ Auto Capture (In-Page Overlay + Direct OCR) â”€â”€
-    // â”€â”€ Session Summary (Streak Report) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  /** Absence streak buckets â€” non-overlapping */
+  // ── Auto Capture (In-Page Overlay + Direct OCR) ──
+    // ── Session Summary (Streak Report) ──────────────────────
+  /** Absence streak buckets — non-overlapping */
   const STREAK_BUCKETS = [
     { label: "1\u20133", min: 1, max: 3 },
     { label: "4\u20135", min: 4, max: 5 },
@@ -863,13 +929,13 @@
       const present = new Set([...classify(n), ...classifyTwelve(n)]);
       for (const c of cats) {
         if (present.has(c.key)) {
-          flush(c.key);   // hit â†’ record the absence that just ended
+          flush(c.key);   // hit → record the absence that just ended
         } else {
-          current[c.key]++; // miss â†’ absence continues
+          current[c.key]++; // miss → absence continues
         }
       }
     }
-    // Do NOT flush at the end â€” ongoing absence is unresolved
+    // Do NOT flush at the end — ongoing absence is unresolved
 
     // Bucket counts & stats per category
     const buckets = STREAK_BUCKETS.map(b => b.label);
@@ -882,7 +948,7 @@
       const max = total > 0 ? Math.max(...lengths) : 0;
       const avg = total > 0 ? lengths.reduce((a, b) => a + b, 0) / total : 0;
 
-      // 90th percentile: 90 % of absence events are â‰¤ this length
+      // 90th percentile: 90 % of absence events are ≤ this length
       let p90 = 0;
       if (total > 0) {
         const sorted = [...lengths].sort((a, b) => a - b);

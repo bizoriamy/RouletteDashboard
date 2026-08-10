@@ -1,4 +1,4 @@
-﻿"""
+"""
 Local development server with Google Apps Script proxy.
 Run: python server.py
 Then open: http://localhost:8080/live-dashboard.html
@@ -33,6 +33,7 @@ PROXY_PATH = "/api/sync"
 FETCH_PATH = "/api/fetch"
 FREDDY_TOPMOST_PATH = "/api/freddy/topmost"
 WINDOW_TOPMOST_PATH = "/api/window/topmost"
+QUICK_ENTRY_PATH = "/api/quick-entry"
 HEALTH_PATH = "/__roulette_health__"
 SESSION_PATH = "/__roulette_session__"
 INSTANCE_KEY = os.environ.get("ROULETTE_INSTANCE_KEY", ROOT)
@@ -83,6 +84,11 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     _session_lock = threading.Lock()
     _session_clients = 0
     _shutdown_generation = 0
+    _quick_entry_lock = threading.Lock()
+    _quick_entry_id = 0
+    _quick_entry_event = None
+    _quick_entry_events = []
+    _quick_entry_history = []
 
     def do_GET(self):
         request_path = urllib.parse.urlsplit(self.path).path
@@ -95,6 +101,9 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 "server": os.path.normcase(os.path.realpath(__file__)),
                 "pid": os.getpid(),
             })
+            return
+        if request_path == QUICK_ENTRY_PATH:
+            self.handle_quick_entry_get_()
             return
         if request_path == SESSION_PATH:
             self.handle_dashboard_session_()
@@ -145,7 +154,9 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.server.shutdown()
 
     def do_POST(self):
-        if self.path == PROXY_PATH:
+        if self.path == QUICK_ENTRY_PATH:
+            self.handle_quick_entry_post_()
+        elif self.path == PROXY_PATH:
             self.handle_sync_()
         elif self.path == FETCH_PATH:
             self.handle_fetch_()
@@ -156,6 +167,64 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def handle_quick_entry_get_(self):
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        try:
+            after = int(query.get("after", ["0"])[0])
+        except (TypeError, ValueError):
+            after = 0
+        with self._quick_entry_lock:
+            latest_id = type(self)._quick_entry_id
+            events = [event for event in type(self)._quick_entry_events if event["id"] > after]
+            history = list(type(self)._quick_entry_history)
+        self.send_json(200, {"ok": True, "latestId": latest_id, "events": events, "history": history})
+
+    def handle_quick_entry_post_(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            payload = json.loads(self.rfile.read(length) or b"{}")
+            action = str(payload.get("action", "spin")).lower()
+            if action == "history":
+                history = payload.get("history", [])
+                if not isinstance(history, list) or len(history) > 12:
+                    raise ValueError("History must contain no more than 12 numbers.")
+                clean = []
+                for value in history:
+                    if isinstance(value, bool) or not isinstance(value, (int, float)) or int(value) != value or int(value) < 0 or int(value) > 36:
+                        raise ValueError("History contains an invalid roulette number.")
+                    clean.append(int(value))
+                with self._quick_entry_lock:
+                    type(self)._quick_entry_history = clean[-10:]
+                self.send_json(200, {"ok": True, "history": clean[-10:]})
+                return
+            if action == "undo":
+                with self._quick_entry_lock:
+                    type(self)._quick_entry_id += 1
+                    event = {"id": type(self)._quick_entry_id, "action": "undo", "at": time.time()}
+                    type(self)._quick_entry_events.append(event)
+                    type(self)._quick_entry_events = type(self)._quick_entry_events[-100:]
+                    if type(self)._quick_entry_history:
+                        type(self)._quick_entry_history.pop()
+                    history = list(type(self)._quick_entry_history)
+                self.send_json(200, {"ok": True, "event": event, "history": history})
+                return
+            number = payload.get("number")
+            if isinstance(number, bool) or not isinstance(number, (int, float)) or int(number) != number:
+                raise ValueError("Winning number must be a whole number.")
+            number = int(number)
+            if number < 0 or number > 36:
+                raise ValueError("Winning number must be between 0 and 36.")
+            with self._quick_entry_lock:
+                type(self)._quick_entry_id += 1
+                event = {"id": type(self)._quick_entry_id, "action": "spin", "number": number, "at": time.time()}
+                type(self)._quick_entry_events.append(event)
+                type(self)._quick_entry_events = type(self)._quick_entry_events[-100:]
+                type(self)._quick_entry_history.append(number)
+                type(self)._quick_entry_history = type(self)._quick_entry_history[-10:]
+                history = list(type(self)._quick_entry_history)
+            self.send_json(200, {"ok": True, "event": event, "history": history})
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
+            self.send_json(400, {"ok": False, "error": str(error)})
     def handle_window_topmost_(self, forced_target=None):
         length = int(self.headers.get("Content-Length", 0))
         try:
@@ -185,7 +254,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         forward_body = json.dumps(payload).encode("utf-8")
 
         try:
-            # Build opener that properly follows Apps Script POSTâ†’GET redirects
+            # Build opener that properly follows Apps Script POST→GET redirects
             opener = urllib.request.build_opener(
                 urllib.request.HTTPRedirectHandler()
             )
@@ -237,7 +306,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(400, {"ok": False, "error": "Missing 'url' in payload"})
             return
 
-        # Sanity check â€” only http/https
+        # Sanity check — only http/https
         if not _re.match(r"^https?://", target_url):
             self.send_json(400, {"ok": False, "error": "Only http/https URLs supported"})
             return

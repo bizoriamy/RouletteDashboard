@@ -5,6 +5,62 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.10.5 - 2026-08-10
+
+### Fixed
+
+- Repaired accumulated UTF-8 mojibake in the main dashboard, FTS window,
+  JavaScript labels, documentation, and server comments.
+- Changed the release updater to use explicit UTF-8 reads and writes so symbols
+  such as arrows, dashes, ellipses, bullets, and the settings chevron remain intact.
+## v2026.08.10.4 - 2026-08-10
+
+### Added
+
+- Added Quick Entry **Undo** using the dashboard's normal recalculation path.
+- Added a colour-coded strip mirroring the main dashboard's latest ten numbers.
+
+### Changed
+
+- Quick Entry remains open after a successful number or Undo instruction.
+- Quick Entry uses an ordered local event queue so rapid clicks cannot be skipped.
+## v2026.08.10.3 - 2026-08-10
+
+### Fixed
+
+- Forced creation of the hidden Quick Entry native window handle before starting
+  its message loop, allowing Windows to deliver the global Ctrl+Q hotkey.
+- Added %TEMP%\roulette-quick-entry.log readiness diagnostics.
+## v2026.08.10.2 - 2026-08-10
+
+### Added
+
+- Added global **Ctrl+Q** Quick Roulette Entry while the casino or another app is active.
+- Added a compact always-on-top European roulette table with coloured 0–36 buttons.
+- Added typed 0–36 entry, Enter-to-submit, Escape-to-close, and input validation.
+- Quick Entry numbers use the dashboard's normal spin path for all strategies, FTS,
+  persistence, and Google Sheets synchronization.
+## v2026.08.10.1 - 2026-08-10
+
+### Fixed
+
+- Corrected the dashboard and Freddy window build labels so they match VERSION.
+- Removed the UTF-8 byte-order marker from the Windows launcher batch file.
+- Changed automatic-recovery installation order to verify the server before
+  starting the persistent keeper, preventing port 8765 startup races.
+## v2026.08.09.1 - 2026-08-09
+
+### Added
+
+- Added a hidden Dashboard Keeper that starts with Windows and checks the local
+  synchronization server every 15 seconds.
+- The keeper automatically restarts the exact Roulette Dashboard server when it
+  is unavailable, without opening duplicate browser windows.
+
+### Fixed
+
+- Prevented recurring **Sync failed: Failed to fetch** errors caused by the
+  local server not running after a Windows restart or unexpected server exit.
 ## v2026.08.06.4 — 2026-08-06
 
 ### Added
@@ -143,3 +199,4 @@ number.
 - Restored the Google Sheets panel after merge conflicts.
 - Added guards for missing interface elements.
 - Corrected character-encoding and compact-layout problems.
+

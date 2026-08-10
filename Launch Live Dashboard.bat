@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal
 set "DASHBOARD_DIR=%~dp0"
 set "VERSION_FILE=%DASHBOARD_DIR%VERSION"
