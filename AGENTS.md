@@ -75,12 +75,11 @@
 - The keeper log is %TEMP%\roulette-dashboard-keeper.log.
 ## Quick Roulette Entry
 
-- quick-entry-helper.ps1 owns the global Ctrl+Q hotkey and submits only validated
-  numbers 0–36 to the local /api/quick-entry endpoint.
-- live-dashboard.js must consume Quick Entry events through the same 
-ecordSpin
-  routine used by the main input form so every strategy and sync path stays aligned.
-- The helper is launched from the current user's Windows Startup folder.
+- The main-dashboard **Quick Entry** button opens `quick-entry-window.html` as a
+  separate floating companion. It communicates through BroadcastChannel while
+  all spin and Undo processing remains in `live-dashboard.js`.
+- The companion may request always-on-top through the local server target `quick`.
+- Do not restore the removed global PowerShell hotkey helper.
 ## Verification
 
 Run the relevant checks before preparing an update:

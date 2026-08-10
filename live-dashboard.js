@@ -266,18 +266,13 @@
     if (event.target.matches(".ignore")) attempt(() => engine.ignoreTwelve(side));
     if (event.target.matches(".resume")) attempt(() => engine.resumeTwelve(side));
   });
-  function quickHistoryNumbers() {
-    return engine.getState().spins.slice(-10).map((spin) => Number(spin.number));
+  const quickEntryChannel = new BroadcastChannel("roulette-quick-entry-v1");
+  function quickEntryNumbers() {
+    return engine.getState().spins.slice(-10).reverse().map((spin) => Number(spin.number));
   }
-
-  function publishQuickHistory() {
-    fetch("/api/quick-entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "history", history: quickHistoryNumbers() })
-    }).catch(() => {});
+  function sendQuickEntryState() {
+    quickEntryChannel.postMessage({ type: "state", numbers: quickEntryNumbers() });
   }
-
   function recordSpin(number, source = "manual") {
     const input = document.querySelector("#spin-input");
     attempt(() => {
@@ -288,58 +283,38 @@
       renderFreddy();
       input.value = "";
       say(`Spin ${number} recorded${source === "quick" ? " from Quick Entry" : ""}.`);
-      publishQuickHistory();
+      sendQuickEntryState();
     });
     requestAnimationFrame(() => input.focus());
   }
-
   function undoSpin(source = "manual") {
     if (engine.undoLastSpin()) {
       freddy.undoLastSpin();
       say(`Last spin undone${source === "quick" ? " from Quick Entry" : ""} and all strategies recalculated.`);
-      publishQuickHistory();
-    } else {
-      say("There is no spin to undo.", true);
-      publishQuickHistory();
-    }
+    } else say("There is no spin to undo.", true);
+    sendQuickEntryState();
   }
-
-  document.querySelector("#spin-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    recordSpin(Number(document.querySelector("#spin-input").value));
-  });
-
-  let quickEntryCursor = 0;
-  let quickEntryReady = false;
-  let quickEntryPolling = false;
-  async function pollQuickEntry() {
-    if (quickEntryPolling) return;
-    quickEntryPolling = true;
+  function openFloatingQuickEntry() {
+    let features = "width=720,height=285,resizable=yes,scrollbars=no";
     try {
-      const response = await fetch(`/api/quick-entry?after=${quickEntryCursor}`, { cache: "no-store" });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (!quickEntryReady) {
-        quickEntryCursor = Number(data.latestId || 0);
-        quickEntryReady = true;
-        publishQuickHistory();
-        return;
-      }
-      for (const event of (data.events || [])) {
-        if (Number(event.id) <= quickEntryCursor) continue;
-        quickEntryCursor = Number(event.id);
-        if (event.action === "undo") undoSpin("quick");
-        else recordSpin(Number(event.number), "quick");
-      }
-    } catch (_) {
-      // Automatic server recovery handles temporary local-server interruptions.
-    } finally {
-      quickEntryPolling = false;
-    }
+      const saved = JSON.parse(localStorage.getItem("roulette-quick-window-v1") || "null");
+      if (saved) features += `,left=${saved.x},top=${saved.y},width=${saved.width},height=${saved.height}`;
+    } catch (_) {}
+    const popup = window.open("quick-entry-window.html", "roulette-quick-entry", features);
+    if (!popup) say("Allow popups for localhost to open Quick Entry.", true);
+    else { popup.focus(); window.setTimeout(sendQuickEntryState, 250); }
   }
-  pollQuickEntry();
-  window.setInterval(pollQuickEntry, 350);
+  document.querySelector("#spin-form").addEventListener("submit", (event) => { event.preventDefault(); recordSpin(Number(document.querySelector("#spin-input").value)); });
   document.querySelector("#undo-button").addEventListener("click", () => undoSpin());
+  document.querySelector("#quick-entry-button").addEventListener("click", openFloatingQuickEntry);
+  quickEntryChannel.addEventListener("message", (event) => {
+    if (event.data?.type === "request-state") sendQuickEntryState();
+    if (event.data?.type === "action") {
+      if (event.data.action === "undo") undoSpin("quick");
+      else recordSpin(Number(event.data.number), "quick");
+    }
+  });
+  document.addEventListener("keydown", (event) => { if (event.ctrlKey && event.key.toLowerCase() === "q") { event.preventDefault(); openFloatingQuickEntry(); } });
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
     const confirmed = window.confirm(`End Session ${tableSession.number} and start a new session? Its synchronized Google Sheets records will remain saved.`);
     if (!confirmed) return;
@@ -353,7 +328,7 @@
     engine.resetSession();
     hotStreets.reset();
     freddy.resetSession();
-    publishQuickHistory();
+    sendQuickEntryState();
     tableSession = storage.startNextSession();
     render(engine.getState());
     renderHotStreets();

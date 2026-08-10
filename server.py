@@ -48,6 +48,7 @@ def set_window_topmost(target, enabled):
     title_fragments = {
         "main": "Roulette Live Dashboard",
         "freddy": "Freddy Triangle Snake",
+        "quick": "Quick Roulette Entry",
     }
     title_fragment = title_fragments.get(target)
     if not title_fragment:

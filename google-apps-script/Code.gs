@@ -18,16 +18,28 @@ const TABLES = Object.freeze({
 
 /** Run once from the Apps Script editor. The generated token is shown in the execution log. */
 function setup() {
-  const token = Utilities.getUuid() + Utilities.getUuid().replace(/-/g, '');
-  PropertiesService.getScriptProperties().setProperty(TOKEN_PROPERTY, token);
+  const properties = PropertiesService.getScriptProperties();
+  let token = properties.getProperty(TOKEN_PROPERTY);
+  const created = !token;
+  if (!token) {
+    token = Utilities.getUuid() + Utilities.getUuid().replace(/-/g, '');
+    properties.setProperty(TOKEN_PROPERTY, token);
+  }
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   Object.entries(TABLES).forEach(([name, headers]) => ensureSheet_(spreadsheet, name, headers));
   const log = ensureSheet_(spreadsheet, LOG_SHEET, ['Request ID', 'Received At', 'Session ID']);
   log.hideSheet();
-  console.log('ROULETTE_SYNC_TOKEN=' + token);
+  console.log((created ? 'NEW' : 'EXISTING') + '_ROULETTE_SYNC_TOKEN=' + token);
   return token;
 }
 
+/** Deliberately invalidate the dashboard token and generate a replacement. */
+function rotateSyncToken() {
+  const token = Utilities.getUuid() + Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty(TOKEN_PROPERTY, token);
+  console.log('NEW_ROULETTE_SYNC_TOKEN=' + token);
+  return token;
+}
 /** Run after adding new dashboard modules. Updates headers without changing the private token. */
 function upgradeSchema() {
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);

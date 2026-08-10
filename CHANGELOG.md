@@ -5,6 +5,38 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.10.9 - 2026-08-10
+
+### Changed
+
+- The dashboard Quick Entry button now opens a separate floating companion window.
+- Added companion Always on top, Undo, typed entry, roulette keypad, and recent history.
+- Kept all spin processing in the main dashboard without a global hotkey process.
+## v2026.08.10.8 - 2026-08-10
+
+### Changed
+
+- Replaced the unreliable global Ctrl+Q background helper with a stable
+  in-dashboard **Quick Entry** button and modal roulette keypad.
+- Quick Entry retains typed entry, Undo, latest-ten history, persistent open
+  behavior, and an optional Ctrl+Q shortcut while the dashboard has focus.
+- Removed the Quick Entry Windows Startup shortcut and background helper file.
+## v2026.08.10.7 - 2026-08-10
+
+### Fixed
+
+- Kept Quick Entry alive with an explicit Windows ApplicationContext that owns
+  the hidden form for the full background-process lifetime.
+- Changed Apps Script setup() to reuse the existing private token instead of
+  silently rotating it and causing Unauthorized request errors.
+- Added rotateSyncToken() for deliberate credential replacement only.
+## v2026.08.10.6 - 2026-08-10
+
+### Fixed
+
+- Kept the hidden Quick Entry form as the owner of its Windows message loop so
+  the native handle remains alive and continues receiving Ctrl+Q.
+- Added explicit hotkey-registration and live-window verification during install.
 ## v2026.08.10.5 - 2026-08-10
 
 ### Fixed
