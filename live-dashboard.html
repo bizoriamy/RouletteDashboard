@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.08.10.9</title>
+    <title>Roulette Live Dashboard · v2026.08.11.3</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
-    <link rel="stylesheet" href="live-dashboard.css?v=2026.08.10.9" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.08.11.3" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.10.9</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.11.3</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -217,8 +217,9 @@
         <summary>Google Sheets <span id="sync-status">Not connected</span></summary>
         <label>Web app URL<input id="sync-url" type="url" autocomplete="off" /></label>
         <label>Private token<input id="sync-token" type="password" autocomplete="new-password" placeholder="Stored only in this browser" /></label>
+        <p class="sync-help">Local-first mode: live spins are stored in this browser and are not sent during play. Completed sessions can be synchronized in one batch.</p>
         <p id="archive-summary" class="sync-help">Checking local recovery archive…</p>
-        <div class="sync-actions"><button id="save-sync" class="primary" type="button">Connect & sync</button><button id="resync-archive" type="button">Resync last archive</button><button id="download-archive" type="button">Download last archive</button><button id="disable-sync" type="button">Disconnect</button></div>
+        <div class="sync-actions"><button id="save-sync" class="primary" type="button">Save connection</button><button id="sync-pending" class="primary" type="button">Sync pending sessions</button><button id="resync-archive" type="button">Resync last archive</button><button id="download-archive" type="button">Download last archive</button><button id="disable-sync" type="button">Disconnect</button></div>
       </details>
     </main>
 
@@ -273,11 +274,11 @@
       </div>
     </div>
 
-    <script src="roulette-core.js?v=2026.08.10.9"></script>
-    <script src="dashboard-storage.js?v=2026.08.10.9"></script>
-    <script src="google-sheets-sync.js?v=2026.08.10.9"></script>
-    <script src="hot-streets.js?v=2026.08.10.9"></script>
-    <script src="freddy-engine.js?v=2026.08.10.9"></script>
-    <script src="ocr-grid-order.js?v=2026.08.10.9"></script>
-    <script src="live-dashboard.js?v=2026.08.10.9"></script>
+    <script src="roulette-core.js?v=2026.08.11.3"></script>
+    <script src="dashboard-storage.js?v=2026.08.11.3"></script>
+    <script src="google-sheets-sync.js?v=2026.08.11.3"></script>
+    <script src="hot-streets.js?v=2026.08.11.3"></script>
+    <script src="freddy-engine.js?v=2026.08.11.3"></script>
+    <script src="ocr-grid-order.js?v=2026.08.11.3"></script>
+    <script src="live-dashboard.js?v=2026.08.11.3"></script>
   </body>

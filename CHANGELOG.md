@@ -5,6 +5,39 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.11.3 - 2026-08-11
+
+### Changed
+
+- Replaced automatic live Google Sheets uploads with local-first recording and
+  one-batch synchronization of completed sessions.
+- Ending a session now saves its complete local archive before asking whether
+  to sync immediately or retain it as **Pending Sync**.
+- Added **Sync pending sessions** and changed **Connect & sync** to the safer
+  **Save connection** action.
+
+### Safety and recovery
+
+- Failed, offline, or unauthorized uploads remain stored locally for retry.
+- Historical archives from earlier releases are not automatically re-uploaded.
+- Added automated coverage proving that live spin entry makes no network request
+  and completed sessions synchronize in a single batch.
+- Kept all strategy engines, calculations, settings, FTS, 4-Streets, and Quick
+  Entry behavior unchanged from v2026.08.11.2.
+
+## v2026.08.11.2 - 2026-08-11
+
+### Fixed
+
+- Corrected **0 Top** to a vertical keypad: 0 above rows 1-2-3, 4-5-6, through 34-35-36.
+- Kept **0 Left** as the current wide roulette-table layout.
+- Kept the floating window, Always on top, Undo, recent history, and all existing entry behavior unchanged.
+## v2026.08.11.1 - 2026-08-11
+
+### Added
+
+- Added two remembered Quick Entry roulette layouts: **0 Left** and **0 Top**.
+- Kept the floating window, Always on top, Undo, recent history, and all existing entry behavior unchanged.
 ## v2026.08.10.9 - 2026-08-10
 
 ### Changed
@@ -231,4 +264,3 @@ number.
 - Restored the Google Sheets panel after merge conflicts.
 - Added guards for missing interface elements.
 - Corrected character-encoding and compact-layout problems.
-

@@ -42,7 +42,24 @@
   implement the floating FTS companion.
 - `server.py`, `dashboard-launcher.ps1`, and
   `Launch Live Dashboard.bat` implement the local server and launcher.
-- `google-sheets-sync.js` implements Google Sheets synchronization.
+- `google-sheets-sync.js` implements local completed-session archives and
+  explicit Google Sheets batch synchronization.
+
+## Local-first synchronization boundary
+
+- Never send Google Sheets requests from live spin, Undo, FTS, betting-engine,
+  or 4-Streets change notifications.
+- Ending a non-empty session must create its complete local archive before any
+  optional Google Sheets request begins.
+- A completed archive remains marked **Pending Sync** until the complete batch
+  succeeds. Failure must retain the archive and its retry state locally.
+- The user may sync at session end or later with **Sync pending sessions**.
+- Do not use browser close or unload as the primary sync trigger; browsers do
+  not guarantee that such requests finish.
+- Existing archives created before this model are not automatically classified
+  as pending, preventing accidental re-upload of historical sessions.
+- Synchronization changes must not alter strategy engines, calculations,
+  settings, tracking, Quick Entry, or FTS behavior.
 
 ## Current FTS safety behavior
 
@@ -79,6 +96,7 @@
   separate floating companion. It communicates through BroadcastChannel while
   all spin and Undo processing remains in `live-dashboard.js`.
 - The companion may request always-on-top through the local server target `quick`.
+- The companion offers remembered `0 Left` and vertical `0 Top` roulette-table layouts.
 - Do not restore the removed global PowerShell hotkey helper.
 ## Verification
 
@@ -91,6 +109,9 @@ node google-sheets-sync.test.js
 node hot-streets-sync.test.js
 ```
 
+The Google Sheets test must confirm that live spin entry causes zero network
+requests and that a completed pending archive is sent as one batch and marked
+synchronized only after success.
+
 Also verify that the launcher health check, main dashboard label, and Freddy
 floating-window label agree with `VERSION`.
-

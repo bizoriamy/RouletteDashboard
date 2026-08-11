@@ -6,6 +6,7 @@
   const input = document.querySelector("#quick-input");
   const status = document.querySelector("#quick-status");
   const topmost = document.querySelector("#quick-topmost");
+  const layout = document.querySelector("#quick-layout");
   const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const color = (number) => number === 0 ? "green" : red.has(number) ? "red" : "black";
 
@@ -32,6 +33,25 @@
       : '<span class="empty">No spins yet</span>');
   }
 
+  function applyLayout(value) {
+    const selected = value === "top" ? "top" : "left";
+    layout.value = selected;
+    grid.classList.toggle("layout-left", selected === "left");
+    grid.classList.toggle("layout-top", selected === "top");
+    localStorage.setItem("roulette-quick-layout-v1", selected);
+    grid.querySelectorAll(".number:not(.zero)").forEach((button) => {
+      const number = Number(button.textContent);
+      if (selected === "top") {
+        button.style.gridColumn = String(((number - 1) % 3) + 1);
+        button.style.gridRow = String(Math.floor((number - 1) / 3) + 2);
+      } else {
+        button.style.gridColumn = String(Math.floor((number - 1) / 3) + 2);
+        button.style.gridRow = String(3 - ((number - 1) % 3));
+      }
+    });
+  }
+
+  grid.classList.add("layout-left");
   const zero = document.createElement("button");
   zero.type = "button"; zero.className = "number green zero"; zero.textContent = "0";
   zero.addEventListener("click", () => send("spin", 0));
@@ -61,7 +81,8 @@
     } catch (_) {}
   }
   topmost.addEventListener("change", applyTopmost);
-  window.addEventListener("load", () => { requestState(); applyTopmost(); input.focus(); });
+  layout.addEventListener("change", () => applyLayout(layout.value));
+  window.addEventListener("load", () => { applyLayout(localStorage.getItem("roulette-quick-layout-v1")); requestState(); applyTopmost(); input.focus(); });
   window.addEventListener("beforeunload", () => channel.close());
   window.setInterval(requestState, 1500);
 })();

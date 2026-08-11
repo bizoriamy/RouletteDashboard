@@ -1,9 +1,9 @@
 # European Roulette Live Dashboard
 
-Local European roulette tracking, betting-session management, backtesting, and
-Google Sheets synchronization.
+Local-first European roulette tracking, betting-session management, backtesting,
+floating quick entry, and completed-session Google Sheets archiving.
 
-**Current version:** `v2026.08.06.4`  
+**Current version:** `v2026.08.11.3`  
 **Active branch:** `local-sync`  
 **Local source of truth:** `C:\Users\HP\PawWork\roulette-analyzer`
 
@@ -15,6 +15,8 @@ Google Sheets synchronization.
 - [Strategy Guide](STRATEGY_GUIDE.md) - overview and verified read-only link to
   the complete Google strategy document.
 - [Changelog](CHANGELOG.md) - version and development history.
+- [Project Description](PROJECT_DESCRIPTION.md) - concise scope, architecture,
+  and suggested GitHub About text.
 - [Project Guidance](AGENTS.md) - repository, version, safety, architecture, and
   verification rules for Codex and PawWork.
 - [Google Apps Script Setup](google-apps-script/SETUP.md) - Google Sheets bridge
@@ -30,9 +32,11 @@ Google Sheets synchronization.
 - Unit and real-currency displays.
 - Session trigger-frequency counters.
 - Backtesting for supported strategy categories.
-- Google Sheets synchronization for spins, triggers, bets, 4-Streets, FTS, and
-  bankroll records.
+- Local-first session recording with optional completed-session batch
+  synchronization to Google Sheets.
 - A detachable Freddy's Triangle Snake window that can remain always on top.
+- A detachable Quick Entry roulette keypad with remembered **0 Left** and
+  vertical **0 Top** layouts.
 - Main-window position, size, and always-on-top preference memory.
 
 ## Strategies
@@ -111,10 +115,20 @@ Do not open `live-dashboard.html` with a `file:///` address. Server features,
 Google Sheets synchronization, OCR support, and window controls require the
 local launcher.
 
-## Google Sheets synchronization
+## Local-first Google Sheets synchronization
 
-The dashboard synchronizes historical records to the **European Roulette
-Analyzer History** Google Sheet through a deployed Apps Script web application.
+The live dashboard does **not** contact Google Sheets while spins are being
+entered. Every current-session change continues to be stored immediately in the
+browser. When **Reset** ends a non-empty session, the dashboard first creates a
+complete local archive and then asks whether to synchronize that completed
+session to the **European Roulette Analyzer History** Google Sheet.
+
+- **OK - Sync now:** sends the complete session in one replace-safe batch.
+- **Cancel - Keep locally:** retains the completed session as **Pending Sync**.
+- **Sync pending sessions:** retries every locally pending completed session.
+- A failed upload remains pending locally and can be retried later.
+- Closing the browser is not used as a sync trigger because browsers cannot
+  guarantee completion of a network request while closing.
 
 Synchronized tables include:
 
@@ -128,8 +142,10 @@ Synchronized tables include:
 - Freddy Steps
 - Bankroll
 
-The Apps Script deployment URL and private synchronization token are stored in
-the browser profile's local storage. They are not committed to GitHub.
+The Google Sheets panel's **Save connection** button stores the Apps Script
+deployment URL and private synchronization token without uploading the active
+session. These credentials remain in the browser profile's local storage and
+are not committed to GitHub.
 
 If synchronization reports `Unauthorized request`, `404`, or `Failed to fetch`,
 verify the Apps Script deployment, access setting, web-app URL, and token using
@@ -141,14 +157,16 @@ verify the Apps Script deployment, access setting, web-app URL, and token using
 | --- | --- |
 | Active application and documentation | `C:\Users\HP\PawWork\roulette-analyzer` |
 | Committed code backup | GitHub branch `local-sync` |
-| Completed roulette history | Google Sheets |
+| Current session and up to 30 completed local archives | Browser local storage |
+| Synchronized completed history | Google Sheets |
 | Full strategy specification | Read-only Google Doc linked from `STRATEGY_GUIDE.md` |
 | Current unfinished session and preferences | Browser local storage for `http://localhost:8765` |
 
-Browser-local information includes the current unfinished session, FTS card
-states, last-used settings, window position and size, always-on-top preference,
-and pending synchronization metadata. Clearing site data or switching browser
-profiles can remove or isolate this live state.
+Browser-local information includes the current unfinished session, up to 30
+completed recovery archives, pending-sync state, FTS card states, last-used
+settings, window position and size, and always-on-top preference. Clearing site
+data or switching browser profiles can remove or isolate this live state. Use
+**Download last archive** when a separate recovery file is required.
 
 ## One-way GitHub backup
 
@@ -189,7 +207,7 @@ The GitHub repository uses `local-sync` as its default display branch. The old
 | `freddy-window.css` | Floating FTS window styling |
 | `freddy-window.js` | Floating FTS window behavior |
 | `dashboard-storage.js` | Browser persistence for dashboard sessions |
-| `google-sheets-sync.js` | Google Sheets synchronization client |
+| `google-sheets-sync.js` | Local archive and completed-session Google Sheets batch client |
 | `ocr-grid-order.js` | Roulette-history image reading-order support |
 | `server.py` | Local server, sync proxy, OCR, and window-control endpoints |
 | `dashboard-launcher.ps1` | Server startup and health verification |
@@ -215,7 +233,11 @@ Also verify:
 - the launcher reports a healthy server on port `8765`;
 - the main dashboard and floating FTS window match `VERSION`;
 - manual spin entry, undo, reset, and active strategy controls work;
-- Google Sheets status corresponds with the rows received by the Sheet.
+- a live spin creates no Google Sheets network request;
+- ending a session creates a local pending archive before any upload;
+- successful batch sync clears Pending Sync, while failure retains it;
+- Google Sheets status corresponds with the completed-session rows received by
+  the Sheet.
 
 ## Backup and recovery
 
@@ -223,7 +245,8 @@ Also verify:
   application files.
 - Backup folders are excluded from Git synchronization.
 - GitHub `local-sync` stores committed project files.
-- Google Sheets stores completed historical records.
+- Browser local storage keeps the active session and recent completed archives.
+- Google Sheets stores only completed sessions that the user chooses to sync.
 - The strategy Google Doc stores the detailed operating specification.
 
 For recovery, restore the project from `local-sync`, then reconnect the local

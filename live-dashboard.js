@@ -6,6 +6,7 @@
   const freddy = window.RouletteFreddy.FreddyManager.load(window.localStorage);
   let tableSession = storage.sessionInfo();
   const googleSync = new window.RouletteGoogleSync.GoogleSheetsSync();
+  let refreshSyncPanel = () => {};
   const title = (value) => value[0].toUpperCase() + value.slice(1);
   const money = (value) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
   const signed = (value) => `${Number(value || 0) >= 0 ? "+" : ""}${money(value)}`;
@@ -316,14 +317,17 @@
   });
   document.addEventListener("keydown", (event) => { if (event.ctrlKey && event.key.toLowerCase() === "q") { event.preventDefault(); openFloatingQuickEntry(); } });
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
-    const confirmed = window.confirm(`End Session ${tableSession.number} and start a new session? Its synchronized Google Sheets records will remain saved.`);
+    const endingSessionNumber = tableSession.number;
+    const confirmed = window.confirm(`End Session ${endingSessionNumber} and start a new session? The complete session will be saved locally first.`);
     if (!confirmed) return;
     let syncWarning = "";
     freddy.endActive("session-ended");
-    googleSync.archiveCurrentSession(engine, tableSession.number, hotStreets, freddy);
-    try { await googleSync.sync(engine, hotStreets, freddy); }
-    catch (error) { syncWarning = error?.message || "Google Sheets sync failed"; }
-    // Establish the new Google session before reset notifications enqueue sync work.
+    const archive = googleSync.archiveCurrentSession(engine, endingSessionNumber, hotStreets, freddy);
+    const syncNow = archive && googleSync.config.enabled && window.confirm(`Session ${endingSessionNumber} is safely stored locally.\n\nSync this completed session to Google Sheets now?\n\nOK = Sync now\nCancel = Keep locally as Pending Sync`);
+    if (syncNow) {
+      try { await googleSync.syncArchive(archive); }
+      catch (error) { syncWarning = error?.message || "Google Sheets sync failed"; }
+    }
     googleSync.startNewSession();
     engine.resetSession();
     hotStreets.reset();
@@ -333,9 +337,14 @@
     render(engine.getState());
     renderHotStreets();
     renderFreddy();
+    refreshSyncPanel();
     say(syncWarning
-      ? `Session ${tableSession.number - 1} ended and Session ${tableSession.number} is ready. Sync warning: ${syncWarning}`
-      : `Session ${tableSession.number - 1} ended. Session ${tableSession.number} is ready with your previous settings retained.`, Boolean(syncWarning));
+      ? `Session ${endingSessionNumber} is saved locally and remains pending sync. Session ${tableSession.number} is ready. Sync warning: ${syncWarning}`
+      : !archive
+        ? `Session ${endingSessionNumber} ended with no spins to archive. Session ${tableSession.number} is ready.`
+        : archive.pending
+        ? `Session ${endingSessionNumber} ended and is saved locally as Pending Sync. Session ${tableSession.number} is ready.`
+        : `Session ${endingSessionNumber} ended and synchronized. Session ${tableSession.number} is ready with your previous settings retained.`, Boolean(syncWarning));
     document.querySelector("#spin-input").focus();
   });
   document.querySelector("#dealer-change-button").addEventListener("click", () => {
@@ -350,24 +359,37 @@
   if (syncUrlEl) {
     syncUrlEl.value = googleSync.config.url;
     document.querySelector("#sync-token").value = googleSync.config.token;
-    const archiveSummary = googleSync.lastArchiveSummary();
-    document.querySelector("#archive-summary").textContent = archiveSummary
-      ? `Latest local archive: Session ${archiveSummary.sessionNumber || "unknown"} · ${archiveSummary.spins} spins · ${new Date(archiveSummary.archivedAt).toLocaleString()}`
-      : "No local recovery archive exists in this dashboard file.";
-    document.querySelector("#resync-archive").disabled = !archiveSummary;
-    document.querySelector("#download-archive").disabled = !archiveSummary;
+    refreshSyncPanel = () => {
+      const archiveSummary = googleSync.lastArchiveSummary();
+      const pending = googleSync.pendingArchiveCount();
+      document.querySelector("#archive-summary").textContent = archiveSummary
+        ? `Latest local archive: Session ${archiveSummary.sessionNumber || "unknown"} · ${archiveSummary.spins} spins · ${archiveSummary.pending ? "Pending Sync" : "Synchronized"}. Total pending: ${pending}.`
+        : "No completed local session archive exists yet.";
+      document.querySelector("#sync-pending").disabled = pending === 0 || !googleSync.config.enabled;
+      document.querySelector("#resync-archive").disabled = !archiveSummary || !googleSync.config.enabled;
+      document.querySelector("#download-archive").disabled = !archiveSummary;
+    };
+    refreshSyncPanel();
     document.querySelector("#save-sync").addEventListener("click", () => attempt(() => {
       googleSync.configure(document.querySelector("#sync-url").value, document.querySelector("#sync-token").value, true);
-      googleSync.sync(engine, hotStreets, freddy);
-      document.querySelector("#sync-status").textContent = "Connecting…";
+      document.querySelector("#sync-status").textContent = "Connection saved · local-first mode";
+      refreshSyncPanel();
     }));
     document.querySelector("#disable-sync").addEventListener("click", () => {
-      googleSync.disable(); document.querySelector("#sync-status").textContent = "Disconnected"; say("Google Sheets synchronization disabled.");
+      googleSync.disable(); document.querySelector("#sync-status").textContent = "Disconnected · sessions remain local"; refreshSyncPanel(); say("Google Sheets disconnected. Completed sessions remain stored locally.");
+    });
+    document.querySelector("#sync-pending").addEventListener("click", async () => {
+      const pending = googleSync.pendingArchiveCount();
+      if (!pending || !window.confirm(`Sync ${pending} completed pending session${pending === 1 ? "" : "s"} to Google Sheets now?`)) return;
+      try { await googleSync.syncPendingArchives(); say("All pending sessions synchronized to Google Sheets."); }
+      catch (error) { say(error.message, true); }
+      refreshSyncPanel();
     });
     document.querySelector("#resync-archive").addEventListener("click", async () => {
       const confirmed = window.confirm("Replace the Google Sheets rows for the most recently archived session? Use this only when a session is missing or incomplete.");
       if (!confirmed) return;
       try { await googleSync.resyncLastArchive(); } catch (error) { say(error.message, true); }
+      refreshSyncPanel();
     });
     document.querySelector("#download-archive").addEventListener("click", () => attempt(() => googleSync.downloadLastArchive()));
   }
@@ -800,7 +822,6 @@
         say(`BETTING — Stage 1: bet on ${hotStreets.state.finalStreets.map(si => window.RouletteHotStreets.STREET_STARTS[si]).join(", ")}`);
       }
       renderHotStreets();
-      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets, freddy);
     } catch (err) {
       say(err.message, true);
     }
@@ -812,7 +833,6 @@
       hotStreets.ignoreBet();
       say("Observation ignored — new candidates selected");
       renderHotStreets();
-      if (googleSync.config.enabled) googleSync.sync(engine, hotStreets, freddy);
     } catch (err) {
       say(err.message, true);
     }

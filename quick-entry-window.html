@@ -3,15 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Quick Roulette Entry · v2026.08.10.9</title>
+    <title>Quick Roulette Entry - v2026.08.11.3</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
-    <link rel="stylesheet" href="quick-entry-window.css?v=2026.08.10.9" />
+    <link rel="stylesheet" href="quick-entry-window.css?v=2026.08.11.3" />
   </head>
   <body>
     <main>
       <header>
         <div><small>LIVE COMPANION</small><h1>Quick Roulette Entry</h1></div>
-        <label><input id="quick-topmost" type="checkbox" /> Always on top</label>
+        <div class="header-options">
+          <label class="layout-choice">Layout
+            <select id="quick-layout" aria-label="Roulette zero position">
+              <option value="left">0 Left</option>
+              <option value="top">0 Top (vertical)</option>
+            </select>
+          </label>
+          <label><input id="quick-topmost" type="checkbox" /> Always on top</label>
+        </div>
       </header>
       <section id="quick-history" class="history" aria-label="Latest ten winning numbers"></section>
       <div class="controls">
@@ -20,9 +28,9 @@
         <button id="quick-undo" type="button">Undo</button>
         <span id="quick-status">Connected to main dashboard</span>
       </div>
-      <section id="quick-grid" class="grid" aria-label="European roulette number layout"></section>
-      <footer><span>Spin processing remains in the main dashboard.</span><strong>v2026.08.10.9</strong></footer>
+      <section id="quick-grid" class="grid layout-left" aria-label="European roulette number layout"></section>
+      <footer><span>Spin processing remains in the main dashboard.</span><strong>v2026.08.11.3</strong></footer>
     </main>
-    <script src="quick-entry-window.js?v=2026.08.10.9"></script>
+    <script src="quick-entry-window.js?v=2026.08.11.3"></script>
   </body>
 </html>

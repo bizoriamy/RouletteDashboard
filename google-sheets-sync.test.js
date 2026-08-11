@@ -104,8 +104,41 @@ function loadSync(saved = {}) {
     "roulette-google-sync-archives-v1": JSON.stringify([archive]),
   });
   const sync = new loaded.Sync();
-  assert.deepEqual(JSON.parse(JSON.stringify(sync.lastArchiveSummary())), { sessionNumber: 7, archivedAt: archive.archivedAt, spins: 3, sessionId: "session-id" });
+  assert.deepEqual(JSON.parse(JSON.stringify(sync.lastArchiveSummary())), { sessionNumber: 7, archivedAt: archive.archivedAt, spins: 3, sessionId: "session-id", pending: false, syncedAt: "", lastSyncError: "" });
   await sync.resyncLastArchive();
+  assert.equal(sync.lastArchiveSummary().pending, false);
+
+  const localFirst = loadSync({
+    "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
+  });
+  const localFirstSync = new localFirst.Sync();
+  const localEngine = new localFirst.context.RouletteCore.RouletteEngine();
+  localFirstSync.attach(localEngine, null, null, () => {});
+  localEngine.addSpin(11);
+  assert.equal(localFirst.posts.length, 0, "live spin entry must not trigger a network request");
+  const pendingArchive = localFirstSync.archiveCurrentSession(localEngine, 12);
+  assert.equal(localFirstSync.pendingArchiveCount(), 1);
+  assert.equal(localFirstSync.lastArchiveSummary().pending, true);
+  assert.equal(localFirst.posts.length, 0, "local archive creation must not trigger a network request");
+  await localFirstSync.syncPendingArchives();
+  assert.equal(localFirst.posts.length, 1, "completed session must sync in one batch request");
+  assert.equal(localFirst.posts[0].replaceSession, true);
+  assert.equal(localFirst.posts[0].tables.Spins.length, 1);
+  assert.equal(pendingArchive.pending, false);
+  assert.equal(localFirstSync.pendingArchiveCount(), 0);
+
+  const failed = loadSync({
+    "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
+  });
+  failed.context.fetch = async () => ({ json: async () => ({ ok: false, error: "Unauthorized request" }) });
+  const failedSync = new failed.Sync();
+  failedSync.listener = () => {};
+  const failedEngine = new failed.context.RouletteCore.RouletteEngine();
+  failedEngine.addSpin(22);
+  const retainedArchive = failedSync.archiveCurrentSession(failedEngine, 13);
+  await assert.rejects(failedSync.syncArchive(retainedArchive), /Unauthorized request/);
+  assert.equal(retainedArchive.pending, true, "failed session must remain pending locally");
+  assert.equal(retainedArchive.lastSyncError, "Unauthorized request");
 
   const boundary = loadSync({
     "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
