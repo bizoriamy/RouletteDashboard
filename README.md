@@ -3,7 +3,7 @@
 Local-first European roulette tracking, betting-session management, backtesting,
 floating quick entry, and completed-session Google Sheets archiving.
 
-**Current version:** `v2026.08.11.3`  
+**Current version:** `v2026.08.14.1`  
 **Active branch:** `local-sync`  
 **Local source of truth:** `C:\Users\HP\PawWork\roulette-analyzer`
 
@@ -123,12 +123,30 @@ browser. When **Reset** ends a non-empty session, the dashboard first creates a
 complete local archive and then asks whether to synchronize that completed
 session to the **European Roulette Analyzer History** Google Sheet.
 
+Reset clears and persists the new session before the sync question or any
+network request. A slow or failed Google Sheets response therefore cannot leave
+the previous spin bar, FTS frequencies, or Quick Entry history in the new
+session.
+
+If an older reset failure already left a completed session visible, the
+dashboard recognizes that its spins exactly match a Pending Sync archive and
+offers to clear only the duplicated live copy. The pending archive itself is
+not deleted or uploaded by this recovery.
+
+Build v2026.08.11.6 also provides a direct, one-time, user-confirmed live-state
+clear for legacy snapshots that cannot be matched exactly. It clears only the
+current main, 4-Streets, FTS, and Quick Entry state; local archives and Pending
+Sync records are untouched.
+
 - **OK - Sync now:** sends the complete session in one replace-safe batch.
 - **Cancel - Keep locally:** retains the completed session as **Pending Sync**.
 - **Sync pending sessions:** retries every locally pending completed session.
 - A failed upload remains pending locally and can be retried later.
 - Closing the browser is not used as a sync trigger because browsers cannot
   guarantee completion of a network request while closing.
+- Completed-session uploads use the local server proxy and allow Apps Script up
+  to 90 seconds to respond. Browser-level network failures are reported as
+  proxy or web-app URL reachability problems instead of a plain `Failed to fetch`.
 
 Synchronized tables include:
 
@@ -147,9 +165,11 @@ deployment URL and private synchronization token without uploading the active
 session. These credentials remain in the browser profile's local storage and
 are not committed to GitHub.
 
-If synchronization reports `Unauthorized request`, `404`, or `Failed to fetch`,
-verify the Apps Script deployment, access setting, web-app URL, and token using
-[google-apps-script/SETUP.md](google-apps-script/SETUP.md).
+If synchronization reports `Unauthorized request`, verify the token. If it
+reports a web-app URL or local proxy reachability problem, confirm the dashboard
+was opened from `Launch Live Dashboard.bat`, confirm the Apps Script `/exec`
+URL, and retry **Sync pending sessions**. The pending sessions remain local
+while troubleshooting.
 
 ## Where information is stored
 

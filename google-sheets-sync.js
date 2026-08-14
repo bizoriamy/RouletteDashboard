@@ -16,6 +16,13 @@
     archiveCount() { return this.archives.length; }
     saveArchives_() { localStorage.setItem(ARCHIVE_KEY,JSON.stringify(this.archives)); }
     pendingArchiveCount() { return this.archives.filter(archive=>archive.pending===true).length; }
+    matchingPendingArchive(engine) {
+      const spins=engine?.getState?.().spins||[]; if(!spins.length)return null;
+      return [...this.archives].reverse().find(archive=>{
+        if(archive.pending!==true)return false; const rows=archive.tables?.Spins||[]; if(rows.length!==spins.length)return false;
+        return rows.every((row,index)=>String(row[1])===String(spins[index]?.at)&&Number(row[2])===Number(spins[index]?.number));
+      })||null;
+    }
     lastArchiveSummary() { const archive=this.archives.at(-1); if(!archive)return null; return {sessionNumber:archive.sessionNumber,archivedAt:archive.archivedAt,spins:archive.tables?.Spins?.length||0,sessionId:archive.sessionId,pending:archive.pending===true,syncedAt:archive.syncedAt||"",lastSyncError:archive.lastSyncError||""}; }
     downloadLastArchive() {
       const archive=this.archives.at(-1); if(!archive)throw new Error("There is no archived session to download.");
@@ -49,9 +56,17 @@
     async post_(body) {
       if(this.useProxy_){
         const payload=JSON.parse(body); payload._targetUrl=this.config.url; const proxyBody=JSON.stringify(payload);
-        return fetch(this.proxyUrl_,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:proxyBody});
+        try {
+          return await fetch(this.proxyUrl_,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:proxyBody});
+        } catch(error) {
+          throw new Error(`Cannot reach the local sync proxy at ${this.proxyUrl_}. Confirm the dashboard was launched with Launch Live Dashboard.bat, then retry Sync pending sessions. Original error: ${error.message||error}`);
+        }
       }
-      return fetch(this.config.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body});
+      try {
+        return await fetch(this.config.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body});
+      } catch(error) {
+        throw new Error(`Cannot reach the Google Apps Script web app URL. Confirm the /exec URL is current and accessible, then retry Sync pending sessions. Original error: ${error.message||error}`);
+      }
     }
     async syncNow_(engine,hotStreets=null,freddy=null) {
       if(!this.config.enabled)return; if(!navigator.onLine)throw new Error("You are offline.");

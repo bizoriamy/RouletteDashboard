@@ -272,7 +272,8 @@
     return engine.getState().spins.slice(-10).reverse().map((spin) => Number(spin.number));
   }
   function sendQuickEntryState() {
-    quickEntryChannel.postMessage({ type: "state", numbers: quickEntryNumbers() });
+    const build = document.querySelector(".build-version")?.textContent?.trim() || "";
+    quickEntryChannel.postMessage({ type: "state", numbers: quickEntryNumbers(), build });
   }
   function recordSpin(number, source = "manual") {
     const input = document.querySelector("#spin-input");
@@ -323,20 +324,23 @@
     let syncWarning = "";
     freddy.endActive("session-ended");
     const archive = googleSync.archiveCurrentSession(engine, endingSessionNumber, hotStreets, freddy);
-    const syncNow = archive && googleSync.config.enabled && window.confirm(`Session ${endingSessionNumber} is safely stored locally.\n\nSync this completed session to Google Sheets now?\n\nOK = Sync now\nCancel = Keep locally as Pending Sync`);
-    if (syncNow) {
-      try { await googleSync.syncArchive(archive); }
-      catch (error) { syncWarning = error?.message || "Google Sheets sync failed"; }
-    }
     googleSync.startNewSession();
     engine.resetSession();
+    storage.save(engine);
     hotStreets.reset();
     freddy.resetSession();
-    sendQuickEntryState();
     tableSession = storage.startNextSession();
     render(engine.getState());
     renderHotStreets();
     renderFreddy();
+    sendQuickEntryState();
+    refreshSyncPanel();
+    await new Promise(resolve => window.requestAnimationFrame(() => resolve()));
+    const syncNow = archive && googleSync.config.enabled && window.confirm(`Session ${endingSessionNumber} is safely stored locally and Session ${tableSession.number} is already clear.\n\nSync the completed session to Google Sheets now?\n\nOK = Sync now\nCancel = Keep locally as Pending Sync`);
+    if (syncNow) {
+      try { await googleSync.syncArchive(archive); }
+      catch (error) { syncWarning = error?.message || "Google Sheets sync failed"; }
+    }
     refreshSyncPanel();
     say(syncWarning
       ? `Session ${endingSessionNumber} is saved locally and remains pending sync. Session ${tableSession.number} is ready. Sync warning: ${syncWarning}`
@@ -863,6 +867,22 @@
   render(engine.getState());
   renderHotStreets();
   renderFreddy();
+  const STALE_LIVE_CLEAR_KEY = "roulette-stale-live-clear-v2026.08.11.6";
+  if (engine.getState().spinCount > 0 && localStorage.getItem(STALE_LIVE_CLEAR_KEY) !== "done") window.setTimeout(() => {
+    const clear = window.confirm(`One-time recovery: clear the ${engine.getState().spinCount} spins and strategy counters still visible in the current live session?\n\nOK = Clear main history, 4-Streets, FTS counters, and Quick Entry history\nCancel = Keep everything unchanged\n\nLocal archives and Pending Sync sessions will not be changed.`);
+    if (!clear) return;
+    engine.resetSession();
+    storage.save(engine);
+    hotStreets.reset();
+    freddy.resetSession();
+    render(engine.getState());
+    renderHotStreets();
+    renderFreddy();
+    sendQuickEntryState();
+    localStorage.setItem(STALE_LIVE_CLEAR_KEY, "done");
+    say("Current live session cleared. Local archives and Pending Sync sessions were not changed.");
+    document.querySelector("#spin-input").focus();
+  }, 250);
   if (storage.lastError) say("Saved data could not be restored; a fresh dashboard was opened.", true);
   // ── Auto Capture (In-Page Overlay + Direct OCR) ──
     // ── Session Summary (Streak Report) ──────────────────────

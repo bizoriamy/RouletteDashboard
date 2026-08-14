@@ -51,13 +51,24 @@
   or 4-Streets change notifications.
 - Ending a non-empty session must create its complete local archive before any
   optional Google Sheets request begins.
+- After archiving, Reset must clear and persist the main engine, 4-Streets, FTS,
+  and Quick Entry state and advance the local session before displaying the
+  sync choice. Network latency or failure must never block the local reset.
 - A completed archive remains marked **Pending Sync** until the complete batch
   succeeds. Failure must retain the archive and its retry state locally.
 - The user may sync at session end or later with **Sync pending sessions**.
+- The local `/api/sync` proxy allows Apps Script up to 90 seconds for
+  completed-session uploads. Browser-level fetch failures should be reported as
+  local proxy or web-app URL reachability problems while preserving Pending Sync.
 - Do not use browser close or unload as the primary sync trigger; browsers do
   not guarantee that such requests finish.
 - Existing archives created before this model are not automatically classified
   as pending, preventing accidental re-upload of historical sessions.
+- If current live spins exactly match a pending archive, offer a one-time stale
+  live-copy cleanup without creating, deleting, or uploading another archive.
+- The v2026.08.11.6 recovery prompt may directly clear an unmatched legacy live
+  snapshot only after explicit confirmation. It must never modify archives,
+  pending-sync flags, Google credentials, or Google Sheets.
 - Synchronization changes must not alter strategy engines, calculations,
   settings, tracking, Quick Entry, or FTS behavior.
 
@@ -97,6 +108,8 @@
   all spin and Undo processing remains in `live-dashboard.js`.
 - The companion may request always-on-top through the local server target `quick`.
 - The companion offers remembered `0 Left` and vertical `0 Top` roulette-table layouts.
+- Main and Quick Entry state messages include the visible build. Quick Entry
+  reloads itself when a future main-dashboard build mismatch is detected.
 - Do not restore the removed global PowerShell hotkey helper.
 ## Verification
 
@@ -112,6 +125,8 @@ node hot-streets-sync.test.js
 The Google Sheets test must confirm that live spin entry causes zero network
 requests and that a completed pending archive is sent as one batch and marked
 synchronized only after success.
+It must also confirm that a browser `Failed to fetch` leaves the archive pending
+and reports a useful local sync proxy message.
 
 Also verify that the launcher health check, main dashboard label, and Freddy
 floating-window label agree with `VERSION`.

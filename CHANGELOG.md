@@ -5,6 +5,56 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.14.1 - 2026-08-14
+
+### Fixed
+
+- Increased the local Google Sheets proxy timeout for completed-session uploads
+  from 20 seconds to 90 seconds.
+- Replaced plain browser `Failed to fetch` failures with clearer messages that
+  identify local proxy or Apps Script web-app URL reachability problems.
+- Pending sessions remain locally retained after network, timeout, or fetch
+  failures and can be retried with **Sync pending sessions**.
+- Added regression coverage for local-first pending sync when browser fetch
+  fails.
+
+## v2026.08.11.6 - 2026-08-11
+
+### Fixed
+
+- Added a direct one-time recovery prompt for a legacy live snapshot that did
+  not exactly match its pending archive and therefore bypassed v2026.08.11.5's
+  automatic duplicate detection.
+- With confirmation, recovery clears the current main history, 4-Streets, FTS
+  counters, and Quick Entry history without changing local archives, Pending
+  Sync records, credentials, or Google Sheets.
+- No strategy engine or calculation rules were changed.
+
+## v2026.08.11.5 - 2026-08-11
+
+### Fixed
+
+- Added safe recovery for a completed session left visible by a reset failure
+  that occurred before v2026.08.11.4.
+- When live spins exactly match a pending local archive, the dashboard offers to
+  clear only the duplicated main, 4-Streets, FTS, and Quick Entry live state.
+- Recovery does not create a duplicate archive, delete the pending archive, or
+  contact Google Sheets.
+- Added build-mismatch detection so future Quick Entry windows reload when the
+  main dashboard sends a different build version.
+
+## v2026.08.11.4 - 2026-08-11
+
+### Fixed
+
+- Made session reset atomic and independent from Google Sheets response time.
+- Reset now archives the completed session, immediately clears and persists the
+  main spin history, 4-Streets, FTS counters, and Quick Entry history, advances
+  the session number, and only then offers completed-session synchronization.
+- A timeout or failed sync can no longer leave the previous live session visible
+  in the newly started session.
+- Kept betting engines, calculations, settings, and strategy behavior unchanged.
+
 ## v2026.08.11.3 - 2026-08-11
 
 ### Changed

@@ -117,6 +117,7 @@ function loadSync(saved = {}) {
   localEngine.addSpin(11);
   assert.equal(localFirst.posts.length, 0, "live spin entry must not trigger a network request");
   const pendingArchive = localFirstSync.archiveCurrentSession(localEngine, 12);
+  assert.equal(localFirstSync.matchingPendingArchive(localEngine), pendingArchive);
   assert.equal(localFirstSync.pendingArchiveCount(), 1);
   assert.equal(localFirstSync.lastArchiveSummary().pending, true);
   assert.equal(localFirst.posts.length, 0, "local archive creation must not trigger a network request");
@@ -126,6 +127,7 @@ function loadSync(saved = {}) {
   assert.equal(localFirst.posts[0].tables.Spins.length, 1);
   assert.equal(pendingArchive.pending, false);
   assert.equal(localFirstSync.pendingArchiveCount(), 0);
+  assert.equal(localFirstSync.matchingPendingArchive(localEngine), null, "synchronized archives are not stale-live recovery candidates");
 
   const failed = loadSync({
     "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
@@ -139,6 +141,19 @@ function loadSync(saved = {}) {
   await assert.rejects(failedSync.syncArchive(retainedArchive), /Unauthorized request/);
   assert.equal(retainedArchive.pending, true, "failed session must remain pending locally");
   assert.equal(retainedArchive.lastSyncError, "Unauthorized request");
+
+  const proxyFailure = loadSync({
+    "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
+  });
+  proxyFailure.context.location = { protocol: "http:", host: "localhost:8765" };
+  proxyFailure.context.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  const proxyFailureSync = new proxyFailure.Sync();
+  const proxyFailureEngine = new proxyFailure.context.RouletteCore.RouletteEngine();
+  proxyFailureEngine.addSpin(23);
+  const proxyFailureArchive = proxyFailureSync.archiveCurrentSession(proxyFailureEngine, 14);
+  await assert.rejects(proxyFailureSync.syncArchive(proxyFailureArchive), /Cannot reach the local sync proxy/);
+  assert.equal(proxyFailureArchive.pending, true, "proxy failures must keep the archive pending");
+  assert.match(proxyFailureArchive.lastSyncError, /Launch Live Dashboard\.bat/);
 
   const boundary = loadSync({
     "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),

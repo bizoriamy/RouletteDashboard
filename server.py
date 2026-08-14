@@ -18,6 +18,7 @@ import ctypes
 import hashlib
 import threading
 import time
+import socket
 
 PORT = int(os.environ.get("ROULETTE_PORT", "8080"))
 ROOT = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
@@ -40,6 +41,8 @@ INSTANCE_KEY = os.environ.get("ROULETTE_INSTANCE_KEY", ROOT)
 MUTEX_NAME = "Local\\RouletteDashboard-" + hashlib.sha256(
     INSTANCE_KEY.encode("utf-8")
 ).hexdigest()[:20]
+SYNC_TIMEOUT_SECONDS = int(os.environ.get("ROULETTE_SYNC_TIMEOUT", "90"))
+FETCH_TIMEOUT_SECONDS = int(os.environ.get("ROULETTE_FETCH_TIMEOUT", "20"))
 
 def set_window_topmost(target, enabled):
     """Toggle topmost for one of the dashboard browser windows."""
@@ -268,7 +271,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 },
                 method="POST",
             )
-            resp = opener.open(req, timeout=20)
+            resp = opener.open(req, timeout=SYNC_TIMEOUT_SECONDS)
             resp_body = resp.read().decode("utf-8", errors="replace")
             try:
                 self.send_json(200, json.loads(resp_body))
@@ -288,6 +291,8 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(e.code, data)
         except urllib.error.URLError as e:
             self.send_json(502, {"ok": False, "error": f"Cannot reach Apps Script: {e.reason}"})
+        except (TimeoutError, socket.timeout):
+            self.send_json(504, {"ok": False, "error": f"Apps Script did not respond within {SYNC_TIMEOUT_SECONDS} seconds. The completed session remains pending; try Sync pending sessions again later."})
         except Exception as e:
             self.send_json(500, {"ok": False, "error": str(e)})
 
@@ -321,7 +326,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                     "Accept-Language": "en-US,en;q=0.5",
                 },
             )
-            resp = urllib.request.urlopen(req, timeout=20)
+            resp = urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_SECONDS)
             html = resp.read().decode("utf-8", errors="replace")
             self.send_json(200, {"ok": True, "html": html})
         except urllib.error.HTTPError as e:

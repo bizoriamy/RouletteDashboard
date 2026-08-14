@@ -11,7 +11,8 @@ private local server. Active play never depends on Google Sheets: spins,
 settings, strategy states, and recent completed-session archives are retained in
 the browser first. At session end, the user may synchronize the completed
 session to Google Sheets in one batch or keep it locally as **Pending Sync** for
-later retry.
+later retry. The local server proxy handles completed-session uploads and keeps
+failed uploads pending for later retry.
 
 The project is intended to organize observations and support faster operational
 decisions. Roulette outcomes remain random; no strategy in this application

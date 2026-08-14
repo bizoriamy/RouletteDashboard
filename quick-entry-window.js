@@ -67,6 +67,11 @@
 
   channel.addEventListener("message", (event) => {
     if (event.data?.type !== "state") return;
+    const localBuild = document.querySelector("footer strong")?.textContent?.trim() || "";
+    if (event.data.build && localBuild && event.data.build !== localBuild) {
+      window.location.reload();
+      return;
+    }
     renderHistory(Array.isArray(event.data.numbers) ? event.data.numbers : []);
     status.textContent = "Connected to main dashboard";
   });
