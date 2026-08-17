@@ -47,6 +47,14 @@ The manual-entry bar includes a confirmation-protected **Reset** button. It perm
 
 `google-apps-script/Code.gs` is the secure row-append bridge for the connected Google Sheet. Follow `google-apps-script/SETUP.md` to install and deploy it; the resulting `/exec` URL and generated token are required for the dashboard sync client.
 
+The Google Apps Script web app (google-apps-script/Code.gs) is the server-side endpoint that the dashboard posts archives to. A recent fix added support for the "Freddy Sessions" and "Freddy Steps" tables which the client now sends. Before pushing this change, ensure you:
+- Do not commit any secret tokens (the ROULETTE_SYNC_TOKEN remains a script property).
+- Save an Apps Script project version (pre-change) and create a local backup: google-apps-script/Code.gs.backup-<timestamp>.
+- Run upgradeSchema() once in the Apps Script editor to create/update the new sheets and headers (this preserves the sync token).
+- Deploy a new project version and update the existing Web App deployment.
+
+
+
 The dashboard's collapsed **Google Sheets** panel stores the web-app URL and private token only in browser storage. After **Connect & sync**, new rows are queued automatically and sent with unique session/request identifiers; the Apps Script `_Sync Log` prevents duplicate requests.
 
 The **Table rule** selector supports Standard European roulette and French **La Partage**. Under La Partage, zero produces a half-loss on active even-money bets and repeats the same Martingale stage; histories record the outcome explicitly as `Half-loss`.
@@ -62,3 +70,35 @@ The dashboard logic lives in `roulette-core.js`, separate from its interface. `e
 ## Next milestone
 
 Add a multi-number analysis mode with colour, parity, range, dozen, column, and wheel-clustering summaries.
+
+## GitHub Copilot — contributor setup & usage
+
+This repository includes recommended settings and a short checklist for contributors who want to use GitHub Copilot while working here.
+
+What is included
+
+- Per-repo VS Code settings: [.vscode/settings.json](C:/Users/HP/PawWork/roulette-analyzer.worktrees/github-copilot-integration/.vscode/settings.json) enables inline suggestions.
+- A repository onboarding file for cloud agents: [.github/copilot-setup-steps.yml](C:/Users/HP/PawWork/roulette-analyzer.worktrees/github-copilot-integration/.github/copilot-setup-steps.yml).
+
+Local VS Code setup
+
+1. Install the GitHub Copilot extension (Extensions view → search "GitHub Copilot" → Install).
+2. Sign in to GitHub through the extension when prompted (or via the Accounts menu).
+3. Open this repository in VS Code. The included .vscode/settings.json turns on inline suggestions by default for contributors using VS Code.
+4. To accept a Copilot inline suggestion press Tab (or your configured accept key). Use Ctrl+Enter to open alternative suggestions where supported.
+
+Best practices when using Copilot
+
+- Treat Copilot suggestions as starting points: read and understand generated code before committing.
+- Run the project's tests (if applicable) and validate behavior locally after accepting AI-generated code.
+- Avoid inserting secrets (API keys, tokens) suggested by Copilot — never commit secrets.
+- If unsure about licensing or provenance of suggested code, prefer hand-written alternatives or ask a maintainer.
+
+Repository and review notes
+
+- Reviewers: explicitly check PRs for AI-assisted code changes and ensure tests and style standards pass.
+- If a contributor prefers not to use Copilot, they can disable it in VS Code settings or at the extension level.
+
+Questions or issues
+
+Open an issue if any contributor wants different repository Copilot settings or if the onboarding file needs adjustments.
