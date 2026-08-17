@@ -13,8 +13,6 @@ const TABLES = Object.freeze({
   'Bet Steps': ['Session ID', 'Side', 'Stage', 'Stake', 'Spin ID', 'Number', 'Outcome', 'Running P/L'],
   '4-Street Cycles': ['Cycle ID', 'Table Session', 'Mode', 'History Count', 'Six Candidates', 'Observation Start Spin', 'Observation End Spin', 'Final Four Streets', 'Status', 'Result Spin', 'Result Number', 'Cycle P/L'],
   '4-Street Steps': ['Step ID', 'Cycle ID', 'Stage', 'Four Streets', 'Per-Street Stake', 'Total Wager', 'Spin ID', 'Winning Number', 'Winning Street', 'Outcome', 'Hand P/L', 'Running Cycle P/L'],
-  'Freddy Sessions': ['Session ID', 'Table Session', 'Side', 'Start Spin', 'End Spin', 'Starting Bankroll', 'Final Bankroll', 'Result', 'Cycles', 'Highest Level', 'Largest Stake', 'Max Drawdown', 'Stop Reason', 'Base Unit', 'Cycle Target', 'Max Level', 'Table Rule'],
-  'Freddy Steps': ['Step ID', 'Session ID', 'Side', 'Spin Index', 'Number', 'Level Before', 'Position Before', 'Direction Before', 'Stake Units', 'Result', 'Delta Units', 'Balance After', 'Cycle Profit After', 'Movement', 'Level After', 'Position After', 'Direction After', 'Cycle Reset', 'Stop Reason', 'Base Unit'],
   Bankroll: ['Date / Time', 'Starting Bankroll', 'Current Bankroll', 'Realized P/L', 'Active P/L', 'Exposure', 'Unit Value', 'Won', 'Burst', 'Bankroll Group', 'Table Session'],
 });
 
@@ -140,8 +138,8 @@ function cleanupDuplicateRows() {
     for (let index = values.length - 1; index >= 0; index--) {
       const row = values[index];
       const key = name === 'Bankroll'
-        ? `${row[9] || ''}\u001f${row[10] || ''}`
-        : row.join('\u001f');
+        ? `${row[9] || ''}${row[10] || ''}`
+        : row.join('');
       if (!seen.has(key)) {
         seen.add(key);
         kept.push(rawValues[index]);

@@ -140,8 +140,8 @@ function cleanupDuplicateRows() {
     for (let index = values.length - 1; index >= 0; index--) {
       const row = values[index];
       const key = name === 'Bankroll'
-        ? `${row[9] || ''}\u001f${row[10] || ''}`
-        : row.join('\u001f');
+        ? `${row[9] || ''}${row[10] || ''}`
+        : row.join('');
       if (!seen.has(key)) {
         seen.add(key);
         kept.push(rawValues[index]);
