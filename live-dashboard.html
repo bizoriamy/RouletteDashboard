@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.08.31.1</title>
+    <title>Roulette Live Dashboard · v2026.08.31.2</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
     <link rel="stylesheet" href="live-dashboard.css?v=2026.08.14.1" />
@@ -13,7 +13,7 @@
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.31.1</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.08.31.2</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -229,6 +229,7 @@
                 <option value="fixed" selected>Fixed</option>
                 <option value="follow">Follow Winner</option>
                 <option value="against">Against Winner</option>
+                <option value="random">Random</option>
               </select></label>
               <label>Unit ($) <input id="rls-unit" type="number" min="0.01" step="0.01" value="1" class="cfg-num" /></label>
               <label>Profit Target <select id="rls-multiplier">

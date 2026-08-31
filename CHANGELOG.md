@@ -5,6 +5,14 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.31.2 - 2026-08-31
+
+### Added
+
+- Added **Random** mode to RLS: each spin randomly picks one of all 6 even-money
+  sides (Low, Red, Odd, High, Black, Even). The chosen side is stored per-spin
+  and survives snapshot round-trips.
+
 ## v2026.08.31.1 - 2026-08-31
 
 ### Added

@@ -1410,7 +1410,7 @@
     document.querySelector("#rls-lapartage").value = config.laPartage ? "1" : "0";
     document.querySelector("#rls-bankroll").value = config.startingBankroll;
     const lossBudget = config.sequence.reduce((a, b) => a + b, 0) * config.baseUnit;
-    const modeLabel = config.mode === "follow" ? "Follow" : config.mode === "against" ? "Against" : "Fixed";
+    const modeLabel = config.mode === "follow" ? "Follow" : config.mode === "against" ? "Against" : config.mode === "random" ? "Random" : "Fixed";
     document.querySelector("#rls-budget-info").textContent = `Loss budget: ${money(lossBudget)} U · ${modeLabel} · ${config.side} · ${config.profitMultiplier === null ? "No profit limit" : config.profitMultiplier + "× target"}`;
 
     if (session && session.status === "active") {
@@ -1424,7 +1424,7 @@
       const profitTarget = session.profitMultiplier !== null ? session.lossBudget * session.profitMultiplier : null;
 
       document.querySelector("#rls-active-side").textContent = (session.resolvedSide || session.side).toUpperCase();
-      document.querySelector("#rls-active-label").textContent = `Spin ${session.spins.length + 1} · ${session.mode === "follow" ? "Follow" : session.mode === "against" ? "Against" : "Fixed"}`;
+      document.querySelector("#rls-active-label").textContent = `Spin ${session.spins.length + 1} · ${session.mode === "follow" ? "Follow" : session.mode === "against" ? "Against" : session.mode === "random" ? "Random" : "Fixed"}`;
       document.querySelector("#rls-next-bet").textContent = money(bet);
       const plEl = document.querySelector("#rls-pl");
       plEl.textContent = signed(session.pl);
@@ -1492,7 +1492,7 @@
       rlsResults.innerHTML = [...history].reverse().map((s) => {
         const reason = s.stopReason === "loss-limit" ? "burst" : s.stopReason === "profit-target" ? "won" : s.stopReason === "manual" ? "stopped" : "stopped";
         const label = s.stopReason === "loss-limit" ? "LOSS LIMIT" : s.stopReason === "profit-target" ? "TARGET HIT" : s.stopReason === "funds-exhausted" ? "FUNDS OUT" : "STOPPED";
-        const modeLabel = s.mode === "follow" ? "Follow" : s.mode === "against" ? "Against" : "Fixed";
+        const modeLabel = s.mode === "follow" ? "Follow" : s.mode === "against" ? "Against" : s.mode === "random" ? "Random" : "Fixed";
         return `<article class="result-row ${reason}">
           <strong>${modeLabel} <span class="rl-tag">RLS</span> · ${label}</strong>
           <span>${s.spins.length} spins</span>

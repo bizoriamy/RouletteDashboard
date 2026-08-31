@@ -6,7 +6,8 @@
   "use strict";
 
   const VALID_SIDES = ["red", "black", "odd", "even", "low", "high"];
-  const VALID_MODES = ["fixed", "follow", "against"];
+  const VALID_MODES = ["fixed", "follow", "against", "random"];
+  const ALL_SIDES = ["low", "red", "odd", "high", "black", "even"];
   const PAIRS = { red: "black", black: "red", odd: "even", even: "odd", low: "high", high: "low" };
   const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
@@ -68,7 +69,7 @@
         if (!VALID_SIDES.includes(value)) throw new RangeError("Invalid side.");
         this.config.side = value;
       } else if (key === "mode") {
-        if (!VALID_MODES.includes(value)) throw new RangeError("Invalid mode. Use fixed, follow, or against.");
+        if (!VALID_MODES.includes(value)) throw new RangeError("Invalid mode. Use fixed, follow, against, or random.");
         this.config.mode = value;
       } else if (key === "baseUnit") {
         if (!(Number(value) > 0)) throw new RangeError("Base unit must be positive.");
@@ -114,7 +115,11 @@
 
     applySpin(number) {
       if (!this.session || this.session.status !== "active") return;
-      this._commit({ type: "spin", number: Number(number), at: new Date().toISOString() });
+      const event = { type: "spin", number: Number(number), at: new Date().toISOString() };
+      if (this.session.mode === "random") {
+        event.resolvedSide = ALL_SIDES[Math.floor(Math.random() * ALL_SIDES.length)];
+      }
+      this._commit(event);
     }
 
     undoLastSpin() {
@@ -201,6 +206,8 @@
             }
           } else if (state.session.mode === "fixed") {
             state.session.resolvedSide = state.session.side;
+          } else if (state.session.mode === "random" && event.resolvedSide) {
+            state.session.resolvedSide = event.resolvedSide;
           }
           // For the first spin with follow/against, resolvedSide stays as configured side
 
@@ -328,5 +335,5 @@
     }
   }
 
-  return { RLSEngine, classify, VALID_SIDES, VALID_MODES, PAIRS, parseSequence };
+  return { RLSEngine, classify, VALID_SIDES, VALID_MODES, ALL_SIDES, PAIRS, parseSequence };
 });
