@@ -37,6 +37,8 @@ WINDOW_TOPMOST_PATH = "/api/window/topmost"
 QUICK_ENTRY_PATH = "/api/quick-entry"
 HEALTH_PATH = "/__roulette_health__"
 SESSION_PATH = "/__roulette_session__"
+NUMBERS_24_PREFIX = "/24/"
+NUMBERS_24_DIR = os.path.normcase(os.path.realpath(os.path.join(ROOT, "..", "24Numbers")))
 INSTANCE_KEY = os.environ.get("ROULETTE_INSTANCE_KEY", ROOT)
 MUTEX_NAME = "Local\\RouletteDashboard-" + hashlib.sha256(
     INSTANCE_KEY.encode("utf-8")
@@ -52,6 +54,7 @@ def set_window_topmost(target, enabled):
         "main": "Roulette Live Dashboard",
         "freddy": "Freddy Triangle Snake",
         "quick": "Quick Roulette Entry",
+        "numbers24": "24 Numbers Live Tracker",
     }
     title_fragment = title_fragments.get(target)
     if not title_fragment:
@@ -112,6 +115,10 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         if request_path == SESSION_PATH:
             self.handle_dashboard_session_()
             return
+        # Serve 24Numbers folder via /24/ prefix
+        if request_path.startswith(NUMBERS_24_PREFIX) or request_path == "/24":
+            self.handle_numbers_24_(request_path)
+            return
         super().do_GET()
 
     def handle_dashboard_session_(self):
@@ -156,6 +163,35 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         if should_stop:
             self.server._dashboard_stopping = True
             self.server.shutdown()
+
+    def handle_numbers_24_(self, request_path):
+        """Serve files from the 24Numbers directory via /24/ prefix."""
+        rel = request_path[len(NUMBERS_24_PREFIX):] if request_path.startswith(NUMBERS_24_PREFIX) else ""
+        if not rel or rel == "":
+            rel = "24numbers-Live-Trackers.html"
+        # Security: prevent directory traversal
+        rel = rel.lstrip("/")
+        if ".." in rel:
+            self.send_error(403)
+            return
+        file_path = os.path.normcase(os.path.join(NUMBERS_24_DIR, rel))
+        if not file_path.startswith(NUMBERS_24_DIR):
+            self.send_error(403)
+            return
+        if not os.path.isfile(file_path):
+            self.send_error(404)
+            return
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            ctype = self.guess_type(file_path)
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+        except Exception:
+            self.send_error(500)
 
     def do_POST(self):
         if self.path == QUICK_ENTRY_PATH:

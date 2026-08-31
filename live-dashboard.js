@@ -306,9 +306,20 @@
     if (!popup) say("Allow popups for localhost to open Quick Entry.", true);
     else { popup.focus(); window.setTimeout(sendQuickEntryState, 250); }
   }
+  function openFloating24Numbers() {
+    let features = "width=780,height=620,resizable=yes,scrollbars=yes";
+    try {
+      const saved = JSON.parse(localStorage.getItem("roulette-24numbers-window-v1") || "null");
+      if (saved) features += `,left=${saved.x},top=${saved.y},width=${saved.width},height=${saved.height}`;
+    } catch (_) {}
+    const popup = window.open("/24/", "roulette-24numbers", features);
+    if (!popup) say("Allow popups for localhost to open 24 Numbers tracker.", true);
+    else popup.focus();
+  }
   document.querySelector("#spin-form").addEventListener("submit", (event) => { event.preventDefault(); recordSpin(Number(document.querySelector("#spin-input").value)); });
   document.querySelector("#undo-button").addEventListener("click", () => undoSpin());
   document.querySelector("#quick-entry-button").addEventListener("click", openFloatingQuickEntry);
+  document.querySelector("#numbers24-button").addEventListener("click", openFloating24Numbers);
   quickEntryChannel.addEventListener("message", (event) => {
     if (event.data?.type === "request-state") sendQuickEntryState();
     if (event.data?.type === "action") {
@@ -520,6 +531,7 @@
     const twelveThresholds = [...new Set(TWELVE_SIDES.map((side) => state.twelveTrackers[side].threshold))];
     if (twelveThresholds.length === 1) document.querySelector("#twelve-trigger-threshold").value = String(twelveThresholds[0]);
     document.querySelector("#dealer-change-button").textContent = `Dealer ${state.dealerChanges.length + 1} · Mark change`;
+    if (window.__rlsReady) renderRLS(rls.getState());
   }
 
   engine.subscribe((state) => {
@@ -1360,7 +1372,235 @@
   });
 
 
-window.liveDashboard = { engine, storage, googleSync, hotStreets, freddy, exportSnapshot: () => engine.exportSnapshot() };
+  // ── RLS (Reverse Labouchère) ──────────────────────────────────────
+  const RLS_KEY = "roulette-rls-v1";
+  function loadRLS() {
+    try {
+      const raw = localStorage.getItem(RLS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.version === 2) return window.RLSEngine.RLSEngine.fromSnapshot(parsed);
+        // v1 → clear and start fresh
+        localStorage.removeItem(RLS_KEY);
+      }
+    } catch {}
+    return new window.RLSEngine.RLSEngine();
+  }
+  function saveRLS(engine) {
+    try { localStorage.setItem(RLS_KEY, JSON.stringify(engine.exportSnapshot())); } catch {}
+  }
+  const rls = loadRLS();
+  const rlsActive = document.querySelector("#rls-active");
+  const rlsIdle = document.querySelector("#rls-idle");
+  const rlsResultsHeading = document.querySelector("#rls-results-heading");
+  const rlsResults = document.querySelector("#rls-results");
+  const rlsSequenceDisplay = document.querySelector("#rls-sequence-display");
+  const rlsRecentSpins = document.querySelector("#rls-recent-spins");
+
+  function renderRLS(rlsState) {
+    const { session, history, config, totalPL, totalSessions } = rlsState;
+    const summaryEl = document.querySelector("#rls-summary");
+
+    // Config display
+    document.querySelector("#rls-side").value = config.side;
+    document.querySelector("#rls-mode").value = config.mode || "fixed";
+    document.querySelector("#rls-unit").value = config.baseUnit;
+    document.querySelector("#rls-sequence").value = config.sequence.join(",");
+    document.querySelector("#rls-multiplier").value = config.profitMultiplier === null ? "none" : String(config.profitMultiplier);
+    document.querySelector("#rls-lapartage").value = config.laPartage ? "1" : "0";
+    document.querySelector("#rls-bankroll").value = config.startingBankroll;
+    const lossBudget = config.sequence.reduce((a, b) => a + b, 0) * config.baseUnit;
+    const modeLabel = config.mode === "follow" ? "Follow" : config.mode === "against" ? "Against" : "Fixed";
+    document.querySelector("#rls-budget-info").textContent = `Loss budget: ${money(lossBudget)} U · ${modeLabel} · ${config.side} · ${config.profitMultiplier === null ? "No profit limit" : config.profitMultiplier + "× target"}`;
+
+    if (session && session.status === "active") {
+      // Active session
+      rlsActive.hidden = false;
+      rlsIdle.hidden = true;
+      // Auto-collapse settings when session is active
+      const cfgDetails = document.querySelector("#rls-active")?.closest(".system-panel")?.querySelector(".sys-config-collapse");
+      if (cfgDetails) cfgDetails.removeAttribute("open");
+      const bet = rls._currentBet(session);
+      const profitTarget = session.profitMultiplier !== null ? session.lossBudget * session.profitMultiplier : null;
+
+      document.querySelector("#rls-active-side").textContent = (session.resolvedSide || session.side).toUpperCase();
+      document.querySelector("#rls-active-label").textContent = `Spin ${session.spins.length + 1} · ${session.mode === "follow" ? "Follow" : session.mode === "against" ? "Against" : "Fixed"}`;
+      document.querySelector("#rls-next-bet").textContent = money(bet);
+      const plEl = document.querySelector("#rls-pl");
+      plEl.textContent = signed(session.pl);
+      plEl.className = "rls-stat-value" + (session.pl > 0 ? " rl-pos" : session.pl < 0 ? " rl-neg" : "");
+      document.querySelector("#rls-loss-budget").textContent = money(session.lossBudget);
+      document.querySelector("#rls-profit-target").textContent = profitTarget !== null ? money(profitTarget) : "—";
+
+      // Progress bar
+      const fill = document.querySelector("#rls-progress-fill");
+      if (profitTarget !== null) {
+        // Show profit progress (0% at P/L=0, 100% at profitTarget)
+        const pct = Math.max(0, Math.min(100, (session.pl / profitTarget) * 100));
+        fill.style.width = pct + "%";
+        fill.className = "rls-progress-fill " + (session.pl >= 0 ? "rl-profit" : "rl-loss");
+      } else {
+        // Show loss budget consumed (0% at P/L=0, 100% at -lossBudget)
+        const pct = Math.max(0, Math.min(100, (-session.pl / session.lossBudget) * 100));
+        fill.style.width = pct + "%";
+        fill.className = "rls-progress-fill rl-neutral";
+      }
+
+      // Sequence display
+      const seq = session.sequence;
+      if (seq.length > 0) {
+        rlsSequenceDisplay.innerHTML = seq.map((num, i) => {
+          let cls = "rls-seq-num";
+          if (i === 0) cls += " rls-first";
+          if (i === seq.length - 1) cls += " rls-last";
+          if (i === 0 && i === seq.length - 1) cls += " rls-first rls-last";
+          // Display with up to 2 decimal places, no floating-point noise
+          const display = Number(num.toFixed(4));
+          return `<span class="${cls}">${display}</span>`;
+        }).join("");
+      } else {
+        rlsSequenceDisplay.innerHTML = `<span style="color:var(--muted);font-size:9px;">Sequence empty — session ended</span>`;
+      }
+
+      // Recent spins
+      const lastSpins = session.spins.slice(-10).reverse();
+      rlsRecentSpins.innerHTML = lastSpins.length
+        ? lastSpins.map((spin, i) => `<button type="button" class="history-number ${spin.number === 0 ? "green" : (window.RLSEngine.classify(spin.number).includes("red") ? "red" : "black")}${i === 0 ? " latest" : ""}" title="${spin.won ? "WIN" : "LOSS"} ${signed(spin.plChange)}">${spin.number}</button>`).join("")
+        : "";
+
+      summaryEl.textContent = `Active · ${signed(session.pl)} · Spin ${session.spins.length + 1}`;
+      summaryEl.style.color = session.pl >= 0 ? "var(--green)" : "var(--red)";
+    } else {
+      // No active session
+      rlsActive.hidden = true;
+      rlsIdle.hidden = false;
+      rlsSequenceDisplay.innerHTML = "";
+      rlsRecentSpins.innerHTML = "";
+      document.querySelector("#rls-pl").textContent = "0";
+      document.querySelector("#rls-pl").className = "rls-stat-value";
+      // Auto-expand settings when idle
+      const cfgDetails = rlsIdle?.closest(".system-panel")?.querySelector(".sys-config-collapse");
+      if (cfgDetails) cfgDetails.setAttribute("open", "");
+      summaryEl.textContent = totalSessions > 0 ? `${totalSessions} sessions · Total ${signed(totalPL)}` : "Ready";
+      summaryEl.style.color = "";
+    }
+
+    // Results
+    if (history.length > 0) {
+      rlsResultsHeading.hidden = false;
+      document.querySelector("#rls-session-count").textContent = history.length;
+      rlsResults.innerHTML = [...history].reverse().map((s) => {
+        const reason = s.stopReason === "loss-limit" ? "burst" : s.stopReason === "profit-target" ? "won" : s.stopReason === "manual" ? "stopped" : "stopped";
+        const label = s.stopReason === "loss-limit" ? "LOSS LIMIT" : s.stopReason === "profit-target" ? "TARGET HIT" : s.stopReason === "funds-exhausted" ? "FUNDS OUT" : "STOPPED";
+        const modeLabel = s.mode === "follow" ? "Follow" : s.mode === "against" ? "Against" : "Fixed";
+        return `<article class="result-row ${reason}">
+          <strong>${modeLabel} <span class="rl-tag">RLS</span> · ${label}</strong>
+          <span>${s.spins.length} spins</span>
+          <span>P/L ${signed(s.pl)}</span>
+          <span>${money(s.lossBudget)} budget</span>
+        </article>`;
+      }).join("");
+    } else {
+      rlsResultsHeading.hidden = true;
+      rlsResults.innerHTML = "";
+    }
+  }
+
+  // RLS event handlers — always save config so settings persist across sessions
+  function rlsAttempt(action) {
+    try { action(); }
+    catch (error) { say(error.message, true); }
+  }
+  function rlsApplyConfig() {
+    rls.setConfig("side", document.querySelector("#rls-side").value);
+    rls.setConfig("mode", document.querySelector("#rls-mode").value);
+    rls.setConfig("baseUnit", Number(document.querySelector("#rls-unit").value));
+    rls.setConfig("sequence", document.querySelector("#rls-sequence").value);
+    const mult = document.querySelector("#rls-multiplier").value;
+    rls.setConfig("profitMultiplier", mult === "none" ? null : Number(mult));
+    rls.setConfig("laPartage", document.querySelector("#rls-lapartage").value === "1");
+    rls.setConfig("startingBankroll", Number(document.querySelector("#rls-bankroll").value));
+    saveRLS(rls);
+  }
+  document.querySelector("#rls-apply").addEventListener("click", () => rlsAttempt(() => {
+    rlsApplyConfig();
+    renderRLS(rls.getState());
+    say("RLS settings applied.");
+  }));
+
+  document.querySelector("#rls-start").addEventListener("click", () => rlsAttempt(() => {
+    // Auto-apply settings from form before starting
+    rlsApplyConfig();
+    // Reset any stale session first
+    const s = rls.getState();
+    if (s.session && s.session.status === "active") {
+      console.log("[RLS] Cleaning stale session");
+      rls.stopSession("stale-cleanup");
+    }
+    rls.startSession();
+    saveRLS(rls);
+    renderRLS(rls.getState());
+    const bet = rls._currentBet(rls.getState().session);
+    const st = rls.getState();
+    say("RLS session started — bet " + money(bet) + " on " + (st.session?.resolvedSide || st.config.side) + ".");
+  }));
+
+  document.querySelector("#rls-stop").addEventListener("click", () => rlsAttempt(() => {
+    if (!rls.getState().session) return;
+    rls.stopSession("manual");
+    saveRLS(rls);
+    renderRLS(rls.getState());
+    say("RLS session stopped. P/L " + money(rls.getState().history.at(-1)?.pl || 0) + ".");
+  }));
+
+  document.querySelector("#rls-reset").addEventListener("click", () => rlsAttempt(() => {
+    if (rls.getState().session && rls.getState().session.status === "active") {
+      rls.stopSession("manual");
+    }
+    rls.resetSession();
+    saveRLS(rls);
+    renderRLS(rls.getState());
+    say("RLS reset — completed sessions cleared.");
+  }));
+
+  // Hook: when main engine processes a spin, forward it to RLS if active
+  const _origAddSpin = engine.addSpin.bind(engine);
+  engine.addSpin = function(number) {
+    _origAddSpin(number);
+    try {
+      if (rls.getState().session && rls.getState().session.status === "active") {
+        rls.applySpin(number);
+        saveRLS(rls);
+        renderRLS(rls.getState());
+        // Notify if auto-stopped
+        const postState = rls.getState();
+        if (!postState.session || postState.session.status !== "active") {
+          const last = postState.history.at(-1);
+          if (last) say("RLS session ended: " + last.stopReason?.replace(/-/g, " ").toUpperCase() + " · P/L " + money(last.pl));
+        }
+      }
+    } catch (e) { /* RLS spin error should not block main engine */ }
+  };
+
+  // Also listen for undo
+  const _origUndo = engine.undoLastSpin.bind(engine);
+  engine.undoLastSpin = function() {
+    const result = _origUndo();
+    try {
+      if (result && rls.getState().session && rls.getState().session.status === "active") {
+        rls.undoLastSpin();
+        saveRLS(rls);
+        renderRLS(rls.getState());
+      }
+    } catch (e) { /* RLS undo error should not block main engine */ }
+    return result;
+  };
+
+  // Initial render
+  renderRLS(rls.getState());
+  window.__rlsReady = true;
+
+window.liveDashboard = { engine, storage, googleSync, hotStreets, freddy, rls, exportSnapshot: () => engine.exportSnapshot() };
 
 // Keep one local control connection open for this dashboard window. The local
 // server exits after the final dashboard window closes.

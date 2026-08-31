@@ -5,6 +5,26 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.31.1 - 2026-08-31
+
+### Added
+
+- Added the Reverse Labouchère System (RLS) as a standalone even-money tracker.
+- RLS supports Fixed, Follow, and Against bet side modes.
+- RLS supports configurable profit target (0.5x, 1x, 1.5x, 2x, or No limit).
+- RLS supports La Partage table rules (half loss on zero).
+- RLS settings persist across sessions and are applied automatically on Start.
+- RLS completed sessions show mode label and stop reason.
+- Added 32 unit tests for the RLS engine covering session lifecycle, win/loss
+  mechanics, subsequent rounds, bet side modes, undo, and snapshot round-trips.
+
+### Fixed
+
+- Corrected La Partage on zero: zero now correctly strikes off two sequence
+  numbers (first and last) like a normal loss, while only applying half the
+  P/L impact. Previously the sequence was not modified on zero, which was
+  incorrect.
+
 ## v2026.08.14.1 - 2026-08-14
 
 ### Fixed
