@@ -249,52 +249,78 @@ test("fixed mode: always bets configured side", () => {
   assert.strictEqual(state.session.resolvedSide, "red");
 });
 
-test("random mode: picks a random side each spin", () => {
+test("random mode: pre-resolved side used for bet, new random for next", () => {
   const engine = new RLSEngine({ sequence: [5, 5, 5, 5, 5, 5], baseUnit: 1, side: "red", mode: "random" });
   engine.startSession();
-  // Mock Math.random to return 0.5 → index 3 → "high"
+  // First spin uses config side "red" (no prior pre-resolve)
+  // Mock Math.random for the pre-resolve AFTER the spin → 0.5 → index 3 → "high"
   const origRandom = Math.random;
   Math.random = () => 0.5;
-  engine.applySpin(20); // 20 is high → win on "high"
+  engine.applySpin(7); // 7 is red → WIN on "red", bet = (5+5)*1 = 10
   Math.random = origRandom;
   let state = engine.getState();
-  assert.strictEqual(state.session.resolvedSide, "high");
-  assert.strictEqual(state.session.pl, 10); // bet = (5+5)*1 = 10
+  assert.strictEqual(state.session.resolvedSide, "high"); // pre-resolved for NEXT spin
+  assert.strictEqual(state.session.pl, 10);
 });
 
-test("random mode: each spin can pick a different side", () => {
+test("random mode: each spin uses pre-resolved side from previous", () => {
   const engine = new RLSEngine({ sequence: [5, 5, 5, 5, 5, 5], baseUnit: 1, side: "red", mode: "random" });
   engine.startSession();
   const origRandom = Math.random;
-  // Spin 1: 0.1 → index 0 → "low"
+  // Spin 1: uses config side "red", pre-resolve → 0.1 → index 0 → "low"
   Math.random = () => 0.1;
-  engine.applySpin(10); // 10 is low → win, bet = 10, pl = 10, seq gains 10
+  engine.applySpin(7); // 7 is red → WIN, bet = 10, pl = 10
   let state = engine.getState();
   assert.strictEqual(state.session.resolvedSide, "low");
   assert.strictEqual(state.session.pl, 10);
-  // Spin 2: 0.8 → index 4 → "black"
+  // Spin 2: uses pre-resolved "low", pre-resolve → 0.8 → index 4 → "black"
   Math.random = () => 0.8;
-  engine.applySpin(2); // 2 is black → win on "black", bet = 5+10 = 15, pl = 25
+  engine.applySpin(2); // 2 is low → WIN on "low", bet = 5+10 = 15, pl = 25
   Math.random = origRandom;
   state = engine.getState();
   assert.strictEqual(state.session.resolvedSide, "black");
-  assert.strictEqual(state.session.pl, 25); // +10 then +15
+  assert.strictEqual(state.session.pl, 25);
 });
 
-test("random mode: snapshot round-trip preserves resolved sides", () => {
+test("random mode: snapshot round-trip preserves sequence and P/L", () => {
   const engine = new RLSEngine({ sequence: [5, 5, 5, 5, 5, 5], baseUnit: 1, side: "red", mode: "random" });
   engine.startSession();
   const origRandom = Math.random;
-  Math.random = () => 0.5; // → "high"
-  engine.applySpin(20); // win
+  Math.random = () => 0.5; // pre-resolve → "high" for next spin
+  engine.applySpin(7); // 7 is red → win on config side "red"
   Math.random = origRandom;
   const snapshot = engine.exportSnapshot();
   const engine2 = RLSEngine.fromSnapshot(snapshot);
   const s1 = engine.getState();
   const s2 = engine2.getState();
-  assert.deepStrictEqual(s1.session.resolvedSide, s2.session.resolvedSide);
+  // resolvedSide may differ (pre-resolved randomly after each spin)
   assert.deepStrictEqual(s1.session.sequence, s2.session.sequence);
   assert.strictEqual(s1.session.pl, s2.session.pl);
+  assert.strictEqual(s1.session.spins.length, s2.session.spins.length);
+});
+
+test("random mode: outcome is deterministic across rebuilds (regression)", () => {
+  // Bug: a fresh Math.random roll on every rebuild changed past win/loss outcomes,
+  // so the sequence grew/shrunk unpredictably. The actual side used must be
+  // recorded in the event so rebuilds reproduce identical results.
+  const engine = new RLSEngine({ sequence: [5, 5, 5, 5, 5, 5], baseUnit: 1, side: "red", mode: "random" });
+  engine.startSession();
+  const origRandom = Math.random;
+  Math.random = () => 0.5; // pre-resolve for next spin
+  engine.applySpin(7); // 7 is red → win on "red"
+  Math.random = origRandom;
+  const snapshot = engine.exportSnapshot();
+  // Rebuild twice, independently, with different Math.random afterward
+  const a = RLSEngine.fromSnapshot(snapshot);
+  Math.random = () => 0.9;
+  const b = RLSEngine.fromSnapshot(snapshot);
+  Math.random = origRandom;
+  const sa = a.getState().session;
+  const sb = b.getState().session;
+  assert.deepStrictEqual(sa.sequence, sb.sequence);
+  assert.strictEqual(sa.pl, sb.pl);
+  assert.strictEqual(sa.spins[0].won, sb.spins[0].won);
+  assert.strictEqual(sa.spins[0].effectiveSide, sb.spins[0].effectiveSide);
 });
 
 // ── Undo ──

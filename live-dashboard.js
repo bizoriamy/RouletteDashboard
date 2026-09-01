@@ -1424,7 +1424,9 @@
       const profitTarget = session.profitMultiplier !== null ? session.lossBudget * session.profitMultiplier : null;
 
       document.querySelector("#rls-active-side").textContent = (session.resolvedSide || session.side).toUpperCase();
-      document.querySelector("#rls-active-label").textContent = `Spin ${session.spins.length + 1} · ${session.mode === "follow" ? "Follow" : session.mode === "against" ? "Against" : session.mode === "random" ? "Random" : "Fixed"}`;
+      document.querySelector("#rls-active-label").textContent = session.mode === "random"
+        ? `Bet on ${session.resolvedSide ? (session.resolvedSide).toUpperCase() : "?"} · Spin ${session.spins.length + 1}`
+        : `Spin ${session.spins.length + 1} · ${session.mode === "follow" ? "Follow" : session.mode === "against" ? "Against" : "Fixed"}`;
       document.querySelector("#rls-next-bet").textContent = money(bet);
       const plEl = document.querySelector("#rls-pl");
       plEl.textContent = signed(session.pl);

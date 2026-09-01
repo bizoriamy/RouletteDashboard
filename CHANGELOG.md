@@ -5,6 +5,20 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.08.31.3 - 2026-09-01
+
+### Fixed
+
+- Fixed RLS **Random** mode so the "Bet on X" prompt always matches the side
+  actually used on the next spin. Previously the random side was re-rolled on
+  every state rebuild, which could flip past wins into losses and make the
+  sequence grow or shrink unpredictably.
+- RLS Random mode now records the resolved side in each spin event, so
+  rebuilding the state (on refresh, undo, or snapshot import) reproduces the
+  exact same sequence and P/L.
+- Added a regression test confirming random-mode outcomes are deterministic
+  across rebuilds (36 tests total).
+
 ## v2026.08.31.2 - 2026-08-31
 
 ### Added

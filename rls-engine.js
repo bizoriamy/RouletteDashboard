@@ -116,8 +116,11 @@
     applySpin(number) {
       if (!this.session || this.session.status !== "active") return;
       const event = { type: "spin", number: Number(number), at: new Date().toISOString() };
+      // Record the side actually being bet on (the pre-resolved side) so rebuilds
+      // are deterministic — otherwise a fresh random roll on each rebuild would
+      // change past win/loss outcomes and corrupt the sequence.
       if (this.session.mode === "random") {
-        event.resolvedSide = ALL_SIDES[Math.floor(Math.random() * ALL_SIDES.length)];
+        event.resolvedSide = this.session.resolvedSide || this.session.side;
       }
       this._commit(event);
     }
@@ -230,6 +233,8 @@
                 state.session.resolvedSide = PAIRS[state.session.resolvedSide];
               }
             }
+          } else if (state.session.status === "active" && state.session.mode === "random") {
+            state.session.resolvedSide = ALL_SIDES[Math.floor(Math.random() * ALL_SIDES.length)];
           }
 
           // Check stop conditions — collect, don't push to events
