@@ -155,6 +155,31 @@ function loadSync(saved = {}) {
   assert.equal(proxyFailureArchive.pending, true, "proxy failures must keep the archive pending");
   assert.match(proxyFailureArchive.lastSyncError, /Launch Live Dashboard\.bat/);
 
+  const socketDeniedFallback = loadSync({
+    "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
+  });
+  socketDeniedFallback.context.location = { protocol: "http:", host: "localhost:8765" };
+  const socketDeniedCalls = [];
+  socketDeniedFallback.context.fetch = async (url, opts) => {
+    socketDeniedCalls.push({ url, body: JSON.parse(opts.body) });
+    if (url === "http://localhost:8765/api/sync") {
+      return {
+        clone: () => ({ json: async () => ({ ok: false, error: "Cannot reach Apps Script: [WinError 10013] forbidden by its access permissions" }) }),
+        json: async () => ({ ok: false, error: "Cannot reach Apps Script: [WinError 10013] forbidden by its access permissions" }),
+      };
+    }
+    return { json: async () => ({ ok: true }) };
+  };
+  const socketDeniedSync = new socketDeniedFallback.Sync();
+  const socketDeniedEngine = new socketDeniedFallback.context.RouletteCore.RouletteEngine();
+  socketDeniedEngine.addSpin(24);
+  const socketDeniedArchive = socketDeniedSync.archiveCurrentSession(socketDeniedEngine, 15);
+  await socketDeniedSync.syncArchive(socketDeniedArchive);
+  assert.equal(socketDeniedCalls.length, 2, "WinError 10013 should retry through direct browser Apps Script upload");
+  assert.equal(socketDeniedCalls[0].url, "http://localhost:8765/api/sync");
+  assert.equal(socketDeniedCalls[1].url, "https://script.google.com/macros/s/test/exec");
+  assert.equal(socketDeniedArchive.pending, false);
+
   const boundary = loadSync({
     "roulette-google-sync-config-v1": JSON.stringify({ url: "https://script.google.com/macros/s/test/exec", token: "12345678901234567890", enabled: true }),
     "roulette-google-sync-meta-v1": JSON.stringify({

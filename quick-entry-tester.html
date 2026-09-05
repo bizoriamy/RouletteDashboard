@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quick Entry - Version Switcher</title>
+  <style>
+    :root {
+      --felt-dark: #0B2F24;
+      --felt: #123B2C;
+      --gold: #C9A227;
+      --gold-light: #E4C765;
+      --cream: #EFE7D3;
+      --cream-dim: #B9AF95;
+      --felt-line: #1D5240;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--felt-dark);
+      color: var(--cream);
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid var(--felt-line);
+      border-radius: 10px;
+      background: var(--felt);
+    }
+    
+    h1 {
+      color: var(--gold-light);
+      margin-top: 0;
+    }
+    
+    .info-section {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .button-group h3 {
+      margin: 0;
+      font-size: 12px;
+      color: var(--cream-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .version-button {
+      padding: 12px 16px;
+      border: 2px solid var(--felt-line);
+      border-radius: 6px;
+      background: rgba(201, 162, 39, 0.1);
+      color: var(--cream);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    
+    .version-button:hover {
+      background: rgba(201, 162, 39, 0.2);
+      border-color: var(--gold);
+      box-shadow: 0 0 8px rgba(201, 162, 39, 0.2);
+    }
+    
+    .version-button.primary {
+      background: var(--gold);
+      color: var(--felt-dark);
+      border-color: var(--gold);
+    }
+    
+    .version-button.primary:hover {
+      background: var(--gold-light);
+    }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+      padding: 10px;
+      border: 1px solid var(--felt-line);
+      text-align: left;
+    }
+    
+    .comparison-table th {
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--gold-light);
+      font-weight: 700;
+    }
+    
+    .comparison-table td {
+      color: var(--cream-dim);
+    }
+    
+    .check {
+      color: #7FCF9E;
+      font-weight: 700;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    
+    .status-current {
+      background: rgba(127, 207, 158, 0.2);
+      color: #7FCF9E;
+    }
+    
+    .status-new {
+      background: rgba(217, 138, 43, 0.2);
+      color: var(--amber);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎰 Quick Entry Version Switcher</h1>
+    
+    <div class="info-section">
+      <strong>Testing Instructions:</strong><br/>
+      Click either button below to open the Quick Entry window. Test both versions side-by-side to compare features and behavior. 
+      The original version remains the default; the enhanced version is available for evaluation.
+    </div>
+    
+    <div class="buttons-grid">
+      <div class="button-group">
+        <h3>Current Version</h3>
+        <button class="version-button primary" onclick="testOriginal()">
+          Open Original Quick Entry
+        </button>
+        <span class="status-badge status-current">Active</span>
+      </div>
+      
+      <div class="button-group">
+        <h3>Enhanced Version</h3>
+        <button class="version-button" onclick="testEnhanced()">
+          Open Enhanced Quick Entry
+        </button>
+        <span class="status-badge status-new">Preview</span>
+      </div>
+    </div>
+    
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Original</th>
+          <th>Enhanced</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Input Controls</strong></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>Layout Options (0 Top / 0 Left)</strong></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>Always on Top</strong></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>Resizable Window</strong></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>Recent History Strip</strong></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓ (Enhanced positioning)</span></td>
+        </tr>
+        <tr>
+          <td><strong>Number Hit Badges</strong></td>
+          <td>—</td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>Dark Felt Styling</strong></td>
+          <td>Light theme</td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>Dozen/Column Stats</strong></td>
+          <td>—</td>
+          <td><span class="check">✓</span></td>
+        </tr>
+        <tr>
+          <td><strong>BroadcastChannel Sync</strong></td>
+          <td><span class="check">✓</span></td>
+          <td><span class="check">✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <script>
+    function testOriginal() {
+      const features = "width=620,height=650,resizable=yes,scrollbars=no";
+      const popup = window.open("quick-entry-window.html", "roulette-quick-entry-original", features);
+      if (!popup) alert("Popup blocked. Please allow popups for localhost.");
+      else popup.focus();
+    }
+    
+    function testEnhanced() {
+      const features = "width=780,height=900,resizable=no,scrollbars=no";
+      const popup = window.open("quick-entry-enhanced.html", "roulette-quick-entry-enhanced", features);
+      if (!popup) alert("Popup blocked. Please allow popups for localhost.");
+      else popup.focus();
+    }
+  </script>
+</body>
+</html>

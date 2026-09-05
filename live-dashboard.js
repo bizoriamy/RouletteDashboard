@@ -268,6 +268,8 @@
     if (event.target.matches(".resume")) attempt(() => engine.resumeTwelve(side));
   });
   const quickEntryChannel = new BroadcastChannel("roulette-quick-entry-v1");
+  let quickEntryLastServerId = 0;
+  let quickEntryServerPrimed = false;
   function quickEntryNumbers() {
     return engine.getState().spins.slice(-10).reverse().map((spin) => Number(spin.number));
   }
@@ -322,11 +324,26 @@
   document.querySelector("#numbers24-button").addEventListener("click", openFloating24Numbers);
   quickEntryChannel.addEventListener("message", (event) => {
     if (event.data?.type === "request-state") sendQuickEntryState();
-    if (event.data?.type === "action") {
-      if (event.data.action === "undo") undoSpin("quick");
-      else recordSpin(Number(event.data.number), "quick");
-    }
   });
+  async function pollQuickEntryActions() {
+    try {
+      const response = await fetch(`/api/quick-entry?after=${quickEntryLastServerId}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!payload.ok) return;
+      if (!quickEntryServerPrimed) {
+        quickEntryLastServerId = Number(payload.latestId) || 0;
+        quickEntryServerPrimed = true;
+        return;
+      }
+      for (const event of Array.isArray(payload.events) ? payload.events : []) {
+        quickEntryLastServerId = Math.max(quickEntryLastServerId, Number(event.id) || 0);
+        if (event.action === "undo") undoSpin("quick");
+        else if (event.action === "spin") recordSpin(Number(event.number), "quick");
+      }
+    } catch (_) {}
+  }
+  pollQuickEntryActions();
+  window.setInterval(pollQuickEntryActions, 350);
   document.addEventListener("keydown", (event) => { if (event.ctrlKey && event.key.toLowerCase() === "q") { event.preventDefault(); openFloatingQuickEntry(); } });
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
     const endingSessionNumber = tableSession.number;

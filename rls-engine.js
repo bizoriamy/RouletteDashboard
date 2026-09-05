@@ -99,6 +99,7 @@
         type: "start",
         sequence: seq,
         lossBudget,
+        startingBankroll: this.config.startingBankroll,
         side: this.config.side,
         mode: this.config.mode,
         baseUnit: this.config.baseUnit,
@@ -168,6 +169,7 @@
             sequence: [...event.sequence],
             originalSequence: [...event.sequence],
             lossBudget: event.lossBudget,
+            startingBankroll: event.startingBankroll ?? event.lossBudget,
             side: event.side,
             mode: event.mode || "fixed",
             baseUnit: event.baseUnit,
@@ -317,7 +319,7 @@
     }
 
     _bankrollLeft(session) {
-      return session.lossBudget + session.pl;
+      return (session.startingBankroll ?? session.lossBudget) + session.pl;
     }
 
     getState() {

@@ -393,5 +393,56 @@ test("v1 snapshot rejected", () => {
   assert.throws(() => RLSEngine.fromSnapshot({ version: 1, config: {}, events: [] }), /damaged/);
 });
 
+// ── funds-exhausted uses bankroll, not loss budget ──
+console.log("\nfunds-exhausted check");
+test("session continues with large bankroll when lossBudget depleted (user bug repro)", () => {
+  // User's exact config: seq [1,3,2,4,2,3], unit 0.1, bankroll 100, profitTarget 1x
+  // Path: W(1), L(2), L(2), L(2) → seq [4], pl=-1.1
+  // Old: bankrollLeft = 1.5 + (-1.1) = 0.3999... < 0.4 → funds-exhausted!
+  // Fixed: bankrollLeft = 100 + (-1.1) = 98.9 ≥ 0.4 → continues
+  const engine = new RLSEngine({
+    sequence: [1, 3, 2, 4, 2, 3], baseUnit: 0.1, side: "red",
+    startingBankroll: 100, profitMultiplier: 1, laPartage: true,
+  });
+  engine.startSession();
+  engine.applySpin(1);  // W(1): [1,3,2,4,2,3] → [1,3,2,4,2,3,4], pl=0.4
+  engine.applySpin(2);  // L(2): → [3,2,4,2,3], pl=-0.1
+  engine.applySpin(2);  // L(2): → [2,4,2], pl=-0.7
+  engine.applySpin(2);  // L(2): → [4], pl=-1.1
+  const s = engine.getState();
+  assert.strictEqual(s.session.status, "active");
+  assert.deepStrictEqual(s.session.sequence, [4]);
+});
+
+test("session stops when bankroll is truly too small", () => {
+  // Same path but bankroll=1 → bankrollLeft = 1+(-1.1)=-0.1 < 0.4 → stops
+  const engine = new RLSEngine({
+    sequence: [1, 3, 2, 4, 2, 3], baseUnit: 0.1, side: "red",
+    startingBankroll: 1, profitMultiplier: 1, laPartage: true,
+  });
+  engine.startSession();
+  engine.applySpin(1);
+  engine.applySpin(2);
+  engine.applySpin(2);
+  engine.applySpin(2);
+  const s = engine.getState();
+  assert.strictEqual(s.session, null);
+  assert.strictEqual(s.history.length, 1);
+  assert.strictEqual(s.history[0].stopReason, "funds-exhausted");
+});
+
+test("snapshot preserves startingBankroll", () => {
+  const engine = new RLSEngine({
+    sequence: [2, 2], baseUnit: 1, side: "red", startingBankroll: 50, profitMultiplier: null,
+  });
+  engine.startSession();
+  engine.applySpin(1); // win
+  const snapshot = engine.exportSnapshot();
+  const engine2 = RLSEngine.fromSnapshot(snapshot);
+  const s = engine2.getState();
+  assert.strictEqual(s.session.startingBankroll, 50);
+  assert.strictEqual(s.session.status, "active");
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed > 0 ? 1 : 0);

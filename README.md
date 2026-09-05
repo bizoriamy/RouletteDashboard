@@ -3,7 +3,7 @@
 Local-first European roulette tracking, betting-session management, backtesting,
 floating quick entry, and completed-session Google Sheets archiving.
 
-**Current version:** `v2026.08.14.1`  
+**Current version:** `v2026.09.05.3`  
 **Active branch:** `local-sync`  
 **Local source of truth:** `C:\Users\HP\PawWork\roulette-analyzer`
 

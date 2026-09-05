@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath($DashboardRoot).TrimEnd('\')
 $serverPath = [IO.Path]::GetFullPath((Join-Path $root 'server.py'))
 $dashboardPath = Join-Path $root 'live-dashboard.html'
+$runtimeDir = Join-Path $root '.runtime'
 $healthUrl = "http://127.0.0.1:$Port/__roulette_health__"
 $dashboardUrl = "http://localhost:$Port/live-dashboard.html?build=$([uri]::EscapeDataString($Build))"
 $expectedTitle = "*<title>Roulette Live Dashboard * $Build</title>*"
@@ -62,7 +63,9 @@ if ($healthy -and (Test-Dashboard $healthy)) {
             $_.CommandLine -match "(?i)(?:`"|\s|^)$quotedServer(?:`"|\s|$)"
         })
     } catch {
-        Fail "Windows denied process command-line inspection. Cannot safely identify this dashboard's stale servers: $($_.Exception.Message)" 12
+        Write-Host "Warning: Windows denied process command-line inspection, so stale dashboard process cleanup was skipped: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "The launcher will still verify port $Port before starting a new server."
+        $stale = @()
     }
 
     foreach ($process in $stale) {
@@ -91,8 +94,11 @@ if ($healthy -and (Test-Dashboard $healthy)) {
         Fail 'Python 3 was not found in PATH.' 15
     }
 
-    $logPath = Join-Path $env:TEMP 'roulette-dashboard-server.log'
-    $errorLogPath = Join-Path $env:TEMP 'roulette-dashboard-server-error.log'
+    if (-not (Test-Path -LiteralPath $runtimeDir -PathType Container)) {
+        New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
+    }
+    $logPath = Join-Path $runtimeDir 'roulette-dashboard-server.log'
+    $errorLogPath = Join-Path $runtimeDir 'roulette-dashboard-server-error.log'
     Write-Host "Starting exactly one dashboard server..."
     try {
         $env:ROULETTE_PORT = [string]$Port

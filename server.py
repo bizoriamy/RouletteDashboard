@@ -89,8 +89,6 @@ def set_window_topmost(target, enabled):
 
 class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     _session_lock = threading.Lock()
-    _session_clients = 0
-    _shutdown_generation = 0
     _quick_entry_lock = threading.Lock()
     _quick_entry_id = 0
     _quick_entry_event = None
@@ -122,10 +120,14 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def handle_dashboard_session_(self):
-        """Keep the server alive while at least one dashboard window is open."""
-        with self._session_lock:
-            type(self)._session_clients += 1
-            type(self)._shutdown_generation += 1
+        """Stream a lightweight heartbeat to dashboard windows.
+
+        The dashboard server intentionally stays alive after browser windows are
+        closed or briefly disconnected. Earlier builds shut the server down when
+        the live-state connection disappeared; that made Freddy Floating, Quick
+        Entry, and 24 Numbers fail with "localhost refused to connect" from
+        otherwise visible stale windows.
+        """
 
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -139,30 +141,6 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
                 time.sleep(1)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
-        finally:
-            with self._session_lock:
-                type(self)._session_clients = max(0, type(self)._session_clients - 1)
-                type(self)._shutdown_generation += 1
-                generation = type(self)._shutdown_generation
-                no_clients = type(self)._session_clients == 0
-            if no_clients:
-                threading.Thread(
-                    target=self._shutdown_if_still_unused_,
-                    args=(generation,),
-                    daemon=True,
-                ).start()
-
-    def _shutdown_if_still_unused_(self, generation):
-        # Allow refreshes and quick reopens without cycling the server.
-        time.sleep(4)
-        with self._session_lock:
-            should_stop = (
-                type(self)._session_clients == 0
-                and type(self)._shutdown_generation == generation
-            )
-        if should_stop:
-            self.server._dashboard_stopping = True
-            self.server.shutdown()
 
     def handle_numbers_24_(self, request_path):
         """Serve files from the 24Numbers directory via /24/ prefix."""

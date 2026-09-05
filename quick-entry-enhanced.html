@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BetPilot Quick Entry - v2026.09.05.2</title>
+    <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
+    <link rel="stylesheet" href="quick-entry-enhanced.css?v=2026.09.05.2" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div><small>LIVE COMPANION</small><h1>BetPilot Quick Entry</h1></div>
+        <div class="header-options">
+          <label class="layout-choice">Layout
+            <select id="quick-layout" aria-label="Roulette zero position">
+              <option value="left">0 Left</option>
+              <option value="top">0 Top (vertical)</option>
+            </select>
+          </label>
+          <label><input id="quick-topmost" type="checkbox" /> Always on top</label>
+        </div>
+      </header>
+      <section id="quick-history" class="history" aria-label="Latest ten winning numbers"></section>
+      <div class="controls">
+        <input id="quick-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="0-36" autofocus />
+        <button id="quick-enter" class="primary" type="button">Enter</button>
+        <button id="quick-undo" type="button">Undo</button>
+        <span id="quick-status">Connected to main dashboard</span>
+      </div>
+      <div id="board-container" class="board-container layout-left">
+        <section id="quick-grid" class="grid layout-left" aria-label="European roulette number layout"></section>
+        <section id="quick-streets" class="streets layout-left" aria-label="Street bets"></section>
+      </div>
+      <section id="quick-groups" class="groups" aria-label="Dozen and column bets">
+        <button class="group-tile" data-group="d1">D1<span class="group-stat"><span class="stat-label">Hit:</span><span class="stat-count">0</span></span><span class="group-stat"><span class="stat-label">Abs:</span><span class="stat-count">0</span></span></button>
+        <button class="group-tile" data-group="d2">D2<span class="group-stat"><span class="stat-label">Hit:</span><span class="stat-count">0</span></span><span class="group-stat"><span class="stat-label">Abs:</span><span class="stat-count">0</span></span></button>
+        <button class="group-tile" data-group="d3">D3<span class="group-stat"><span class="stat-label">Hit:</span><span class="stat-count">0</span></span><span class="group-stat"><span class="stat-label">Abs:</span><span class="stat-count">0</span></span></button>
+        <button class="group-tile" data-group="c1">C1<span class="group-stat"><span class="stat-label">Hit:</span><span class="stat-count">0</span></span><span class="group-stat"><span class="stat-label">Abs:</span><span class="stat-count">0</span></span></button>
+        <button class="group-tile" data-group="c2">C2<span class="group-stat"><span class="stat-label">Hit:</span><span class="stat-count">0</span></span><span class="group-stat"><span class="stat-label">Abs:</span><span class="stat-count">0</span></span></button>
+        <button class="group-tile" data-group="c3">C3<span class="group-stat"><span class="stat-label">Hit:</span><span class="stat-count">0</span></span><span class="group-stat"><span class="stat-label">Abs:</span><span class="stat-count">0</span></span></button>
+      </section>
+      <footer><span>Spin processing remains in the main dashboard.</span><strong>v2026.09.05.2</strong></footer>
+    </main>
+    <script src="quick-entry-enhanced.js?v=2026.09.05.2"></script>
+  </body>
+</html>

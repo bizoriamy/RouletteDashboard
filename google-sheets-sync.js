@@ -57,15 +57,28 @@
       if(this.useProxy_){
         const payload=JSON.parse(body); payload._targetUrl=this.config.url; const proxyBody=JSON.stringify(payload);
         try {
-          return await fetch(this.proxyUrl_,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:proxyBody});
+          const response=await fetch(this.proxyUrl_,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:proxyBody});
+          try {
+            if(response?.clone){
+              const result=await response.clone().json();
+              const error=String(result?.error||"");
+              if(!result?.ok&&/WinError\s+10013|forbidden by its access permissions/i.test(error)){
+                return await this.directPost_(body,`Local sync proxy was blocked by Windows socket permissions (${error}).`);
+              }
+            }
+          } catch (_) {}
+          return response;
         } catch(error) {
           throw new Error(`Cannot reach the local sync proxy at ${this.proxyUrl_}. Confirm the dashboard was launched with Launch Live Dashboard.bat, then retry Sync pending sessions. Original error: ${error.message||error}`);
         }
       }
+      return this.directPost_(body,"Cannot reach the Google Apps Script web app URL.");
+    }
+    async directPost_(body,prefix="Cannot reach the Google Apps Script web app URL.") {
       try {
         return await fetch(this.config.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body});
       } catch(error) {
-        throw new Error(`Cannot reach the Google Apps Script web app URL. Confirm the /exec URL is current and accessible, then retry Sync pending sessions. Original error: ${error.message||error}`);
+        throw new Error(`${prefix} Direct browser fallback also failed. Confirm the /exec URL is current and accessible, then retry Sync pending sessions. Original error: ${error.message||error}`);
       }
     }
     async syncNow_(engine,hotStreets=null,freddy=null) {

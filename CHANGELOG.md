@@ -5,6 +5,47 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.09.05.3 - 2026-09-05
+
+### Fixed
+
+- Added a completed-session sync fallback for Windows socket permission errors.
+  If the local Python proxy cannot reach Apps Script with `WinError 10013`, the
+  browser now retries the same upload directly against the configured Apps
+  Script `/exec` URL.
+- Pending sessions are still retained locally if both the local proxy and direct
+  browser fallback fail.
+
+## v2026.09.05.2 - 2026-09-05
+
+### Fixed
+
+- Quick Entry now sends spin and undo commands through the local dashboard
+  server bridge instead of relying only on browser `BroadcastChannel` delivery.
+  This makes the floating Quick Entry window more reliable with Chrome app
+  windows and stale/reopened popup windows.
+- Bumped dashboard and Quick Entry cache-buster query strings so Chrome loads
+  the current JavaScript after this repair.
+
+## v2026.09.05.1 - 2026-09-05
+
+### Fixed
+
+- Kept the local dashboard server alive after browser live-state disconnects.
+  This prevents Freddy Floating, Quick Entry, and 24 Numbers from opening into
+  `localhost refused to connect` after the main browser connection briefly
+  drops or a stale window remains visible.
+- If Windows blocks process command-line inspection, the launcher now skips
+  stale-process cleanup with a warning and still verifies port 8765 before
+  starting the dashboard instead of failing immediately.
+- Dashboard server logs now write to the project `.runtime` folder instead of
+  `%TEMP%`, making launcher start-up more reliable and diagnostics easier to
+  find.
+- Updated README's current version to match the shared `VERSION` file.
+- Aligned the hardcoded dashboard, Freddy Floating, and Quick Entry window
+  version labels with `VERSION` so launcher health verification does not stop a
+  healthy server because of a stale page label.
+
 ## v2026.08.31.3 - 2026-09-01
 
 ### Fixed

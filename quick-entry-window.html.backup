@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Quick Roulette Entry - v2026.09.05.2</title>
+    <title>Quick Roulette Entry - v2026.08.31.3</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
-    <link rel="stylesheet" href="quick-entry-window.css?v=2026.09.05.2" />
+    <link rel="stylesheet" href="quick-entry-window.css?v=2026.08.14.1" />
   </head>
   <body>
     <main>
@@ -29,8 +29,8 @@
         <span id="quick-status">Connected to main dashboard</span>
       </div>
       <section id="quick-grid" class="grid layout-left" aria-label="European roulette number layout"></section>
-      <footer><span>Spin processing remains in the main dashboard.</span><strong>v2026.09.05.2</strong></footer>
+      <footer><span>Spin processing remains in the main dashboard.</span><strong>v2026.08.31.3</strong></footer>
     </main>
-    <script src="quick-entry-window.js?v=2026.09.05.2"></script>
+    <script src="quick-entry-window.js?v=2026.08.14.1"></script>
   </body>
 </html>

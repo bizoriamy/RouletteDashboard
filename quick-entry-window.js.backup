@@ -11,24 +11,11 @@
   const color = (number) => number === 0 ? "green" : red.has(number) ? "red" : "black";
 
   function requestState() { channel.postMessage({ type: "request-state" }); }
-  async function send(action, number) {
-    try {
-      const response = await fetch("/api/quick-entry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action === "undo" ? { action } : { action, number })
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "Quick Entry send failed");
-      if (Array.isArray(payload.history)) renderHistory(payload.history.slice().reverse());
-      status.textContent = action === "undo" ? "Undo sent" : `Sent ${number}`;
-      channel.postMessage({ type: "request-state" });
-    } catch (error) {
-      status.textContent = error?.message || "Quick Entry send failed";
-    } finally {
-      input.value = "";
-      input.focus();
-    }
+  function send(action, number) {
+    channel.postMessage({ type: "action", action, number });
+    status.textContent = action === "undo" ? "Undo sent" : `Sent ${number}`;
+    input.value = "";
+    input.focus();
   }
   function submitTyped() {
     const text = input.value.trim();
