@@ -2,9 +2,9 @@
 
 ## Active repository
 
-- The source of truth is `C:\Users\HP\PawWork\roulette-analyzer\`.
-- Treat `C:\Users\HP\PawWork\` as a separate parent repository. Do not edit,
-  commit, or report its revision as the Roulette Analyzer revision.
+- The source of truth is `C:\Users\HP\PawWork\casino-tracker\roulette\`.
+- This is part of the consolidated Casino Tracker workspace. The parent
+  repository tracks all casino tools under `casino-tracker/`.
 
 ## Version
 
@@ -23,8 +23,8 @@
 
 ## Git safety
 
-- The local working branch and one-way backup destination are `local-sync`.
-- Push only to `origin/local-sync`.
+- The local working branch is `dev`. The stable branch is `main`.
+- Push only to `origin/dev`.
 - Never pull, switch branches, merge, rebase, reset, or push to `main` as part
   of the PawWork one-way sync.
 - Before committing, verify the repository root, current branch, and remote.

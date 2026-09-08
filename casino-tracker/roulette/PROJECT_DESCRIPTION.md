@@ -6,7 +6,7 @@ floating-keypad spin entry with Even-Money, 12-Number, 4-Streets, and Freddy's
 Triangle Snake tracking, configurable progressions, backtesting, and session
 analysis.
 
-The live application runs from `C:\Users\HP\PawWork\roulette-analyzer` on a
+The live application runs from `C:\Users\HP\PawWork\casino-tracker\roulette` on a
 private local server. Active play never depends on Google Sheets: spins,
 settings, strategy states, and recent completed-session archives are retained in
 the browser first. At session end, the user may synchronize the completed

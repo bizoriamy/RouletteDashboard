@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quick Entry Compact</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <div class="header-left">
+        <h1>Quick Entry</h1>
+        <span id="status" class="status">Ready</span>
+      </div>
+      <div class="header-right">
+        <label class="layout-switch">
+          <select id="layout-select" aria-label="Layout">
+            <option value="left">0 Left</option>
+            <option value="top">0 Top</option>
+          </select>
+        </label>
+        <label class="topmost-label">
+          <input id="topmost" type="checkbox" /> Pin
+        </label>
+      </div>
+    </header>
+
+    <section id="history" class="history" aria-label="Recent numbers"></section>
+
+    <div class="controls">
+      <input id="num-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="0-36" autofocus />
+      <button id="btn-enter" class="btn primary" type="button">Enter</button>
+      <button id="btn-undo" class="btn" type="button">Undo</button>
+      <label id="btn-upload" class="btn" type="button">Upload CSV<input id="csv-input" type="file" accept=".csv,.txt" hidden /></label>
+    </div>
+
+    <!-- THE GRID: numbers + streets + groups embedded together -->
+    <div id="board" class="board layout-left"></div>
+
+    <footer>
+      <span>Spin processing in main dashboard</span>
+      <span>v1.0.0</span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

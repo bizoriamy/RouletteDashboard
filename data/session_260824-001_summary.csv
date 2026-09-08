@@ -1,0 +1,2 @@
+session_id,max_step,total_spins,max_drawdown,largest_burst,combined_net,bettorA_net,bettorB_net,bettorC_net,bettorD_net,bettorA_wins,bettorA_losses,bettorB_wins,bettorB_losses,bettorC_wins,bettorC_losses,bettorD_wins,bettorD_losses,bettorA_max_hits,bettorB_max_hits,bettorC_max_hits,bettorD_max_hits
+260824-001,5,6,11.0,20,11.0,5.0,0.0,3.0,3.0,5,1,2,4,5,1,3,3,0,0,0,0

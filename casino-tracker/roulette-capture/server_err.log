@@ -1,0 +1,13 @@
+127.0.0.1 - - [28/Jul/2026 13:24:43] "GET / HTTP/1.1" 200 -
+[capture] "GET /api/spins HTTP/1.1" 200 -
+[capture] "POST /api/spin HTTP/1.1" 200 -
+[capture] "GET /api/spins HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 13:24:58] "GET /test.html HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 13:24:58] code 404, message File not found
+127.0.0.1 - - [28/Jul/2026 13:24:58] "GET /view HTTP/1.1" 404 -
+127.0.0.1 - - [28/Jul/2026 13:25:21] code 404, message File not found
+127.0.0.1 - - [28/Jul/2026 13:25:21] "GET /view HTTP/1.1" 404 -
+127.0.0.1 - - [28/Jul/2026 13:25:21] "GET /capture.js HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 13:25:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2026 13:25:21] "GET /test.html HTTP/1.1" 200 -
+[capture] "POST /api/spin HTTP/1.1" 200 -

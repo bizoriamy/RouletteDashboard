@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roulette Capture — Setup</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #ddd;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .container { max-width: 700px; width: 100%; }
+    h1 {
+      font-size: 28px;
+      color: #e63946;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: #111128;
+      border: 1px solid #2d2d5e;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 16px;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .card p, .card li {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.7;
+    }
+    .card ol { padding-left: 20px; }
+    .card code {
+      background: #1a1a3e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #e63946;
+    }
+
+    .method-card {
+      background: #0d1b2a;
+      border: 1px solid #2d6a4f;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .method-card h3 {
+      font-size: 15px;
+      color: #2d6a4f;
+      margin-bottom: 8px;
+    }
+    .method-card p, .method-card li {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.7;
+    }
+    .method-card.alt {
+      border-color: #3a3a6e;
+    }
+    .method-card.alt h3 { color: #888; }
+
+    .big-link {
+      display: inline-block;
+      padding: 16px 40px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: 1px;
+      transition: background 0.15s;
+      margin: 8px 0;
+      text-align: center;
+    }
+    .big-link.primary {
+      background: #2d6a4f;
+      color: #fff;
+    }
+    .big-link.primary:hover { background: #1b4332; }
+    .big-link.secondary {
+      background: #e63946;
+      color: #fff;
+      font-size: 14px;
+      padding: 10px 24px;
+      cursor: move;
+    }
+    .big-link.secondary:hover { background: #c1121f; }
+    .hint {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .status-box {
+      background: #1a1a2e;
+      border: 1px solid #2d2d5e;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    .status-box .label { color: #888; }
+    .status-box .value { color: #2d6a4f; font-weight: 700; }
+    .status-box .value.error { color: #e63946; }
+
+    .links {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .links a {
+      padding: 8px 16px;
+      border: 1px solid #3a3a6e;
+      border-radius: 6px;
+      color: #ccc;
+      text-decoration: none;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    .links a:hover { background: #1a1a3e; }
+
+    .future-note {
+      margin-top: 24px;
+      padding: 16px;
+      background: #0d1b2a;
+      border: 1px dashed #2d6a4f;
+      border-radius: 8px;
+    }
+    .future-note h3 {
+      font-size: 14px;
+      color: #2d6a4f;
+      margin-bottom: 6px;
+    }
+    .future-note p {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.6;
+    }
+    .future-note code {
+      background: #1a1a3e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #2d6a4f;
+    }
+
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 12px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎰 Roulette Capture</h1>
+    <p class="subtitle">Capture winning numbers from any online casino — no OCR needed.</p>
+
+    <!-- Method 1: Standalone Tab (RECOMMENDED) -->
+    <div class="method-card">
+      <h3>✅ Method 1: Standalone Tab (recommended)</h3>
+      <p>Works with <strong>every</strong> casino — even if the game is in an embedded frame. No setup needed.</p>
+      <div style="text-align:center;">
+        <a class="big-link primary" href="/capture" target="_blank">📂 Open Capture Tab</a>
+      </div>
+      <ol style="margin-top:8px;">
+        <li>Click the button above to open the <strong>Capture Tab</strong></li>
+        <li>Keep it <strong>next to your casino window</strong> (side by side)</li>
+        <li>When a winning number appears, <strong>type it</strong> in the Capture Tab</li>
+        <li>Press <strong>Enter</strong> — number is saved immediately</li>
+        <li>You verify every number before sending (no automation errors)</li>
+      </ol>
+    </div>
+
+    <!-- Method 2: Bookmarklet (when page has visible numbers) -->
+    <div class="method-card alt">
+      <h3>⌨ Method 2: Bookmarklet (auto-detect)</h3>
+      <p>Works when the winning numbers are visible in the page (not in a frame). Drag to your bookmarks bar:</p>
+      <div style="text-align:center;">
+        <a class="big-link secondary" href="javascript:(function(){document.body.appendChild(document.createElement('script')).src='http://localhost:8081/capture.js?'+Date.now();})();"
+           onclick="alert('Drag this button to your bookmarks bar, then click it on the casino page.'); return false;">
+          🎰 Capture
+        </a>
+      </div>
+      <p class="hint">Drag this link to your bookmarks bar (not click it here).</p>
+      <ol style="margin-top:8px;">
+        <li>Navigate to your casino page</li>
+        <li>Click the <strong>"Capture"</strong> bookmark</li>
+        <li>An overlay appears — verify the number, then click <strong>"Send to Dashboard"</strong></li>
+        <li>If no numbers detected (game in a frame), just <strong>type manually</strong> and Send</li>
+      </ol>
+    </div>
+
+    <!-- Server status -->
+    <div class="card">
+      <h2>🔌 Server Status</h2>
+      <div class="status-box">
+        <span class="label">Capture server (port 8081):</span>
+        <span id="server-status" class="value">Checking...</span>
+      </div>
+    </div>
+
+    <!-- View captured spins -->
+    <div class="card">
+      <h2>📊 View captured spins</h2>
+      <p>Open the <a href="/view" style="color:#e63946;">capture dashboard</a> to see all recorded numbers in real-time. The page auto-refreshes.</p>
+      <div class="links">
+        <a href="/view">📊 View captured spins</a>
+        <a href="/capture" target="_blank">📂 Open Capture Tab</a>
+        <a href="/test.html">🧪 Test page</a>
+      </div>
+    </div>
+
+    <!-- Future integration -->
+    <div class="future-note">
+      <h3>🔌 Future Integration</h3>
+      <p>
+        This capture project is fully independent. When you're ready to integrate with the main dashboard:
+      </p>
+      <p style="margin-top:6px;">
+        The capture server stores all spins in <code>spins.json</code> (same directory).
+        Your main dashboard can either:
+      </p>
+      <ul style="padding-left:20px;margin-top:6px;font-size:13px;color:#888;line-height:1.7;">
+        <li><strong>Poll</strong> <code>GET http://localhost:8081/api/spins</code> for new numbers</li>
+        <li><strong>Read</strong> <code>spins.json</code> directly if both servers share a filesystem</li>
+        <li><strong>Auto-forward</strong> by adding a webhook callback in the capture-server</li>
+      </ul>
+      <p style="margin-top:6px;font-size:13px;color:#888;">
+        No changes needed to your existing dashboard files.
+      </p>
+    </div>
+
+    <!-- Server control -->
+    <div class="card">
+      <h2>⚙ Running the server</h2>
+      <p>Open a terminal in the <code>roulette-capture</code> folder and run:</p>
+      <div style="background:#1a1a3e;padding:12px;border-radius:6px;margin:10px 0;font-family:monospace;font-size:14px;color:#2d6a4f;">
+        python capture-server.py
+      </div>
+      <p>Keep the terminal window open while you play. The server runs on port 8081.</p>
+    </div>
+
+    <div class="footer">
+      Roulette Capture · Standalone proof-of-concept · Ready for integration
+    </div>
+  </div>
+
+  <script>
+    async function checkServer() {
+      const el = document.getElementById('server-status');
+      try {
+        const resp = await fetch('/api/spins');
+        if (resp.ok) {
+          const data = await resp.json();
+          el.textContent = '✓ Online (' + data.length + ' spins captured)';
+          el.className = 'value';
+        } else {
+          el.textContent = '⚠ Error: ' + resp.status;
+          el.className = 'value error';
+        }
+      } catch {
+        el.textContent = '✗ Server not reachable. Run capture-server.py';
+        el.className = 'value error';
+      }
+    }
+    checkServer();
+  </script>
+</body>
+</html>

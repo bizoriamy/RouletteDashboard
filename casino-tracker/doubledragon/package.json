@@ -1,0 +1,20 @@
+{
+  "name": "double-dragon",
+  "version": "1.0.0",
+  "description": "DoubleDragon roulette session tracker",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.doubledragon.tracker",
+    "productName": "DoubleDragon",
+    "files": ["main.js", "index.html"],
+    "win": { "target": "portable" }
+  },
+  "devDependencies": {
+    "electron": "13.6.9",
+    "electron-builder": "^26.0.12"
+  }
+}

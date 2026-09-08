@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Test Casino Page — Roulette Capture</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #ddd;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .casino-layout {
+      max-width: 900px;
+      width: 100%;
+    }
+    /* Casino header */
+    .casino-header {
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border-radius: 12px;
+      border: 1px solid #2d2d5e;
+      margin-bottom: 24px;
+    }
+    .casino-header h1 {
+      font-size: 22px;
+      color: #e63946;
+      letter-spacing: 2px;
+    }
+    .casino-header p {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    /* Result display like a real casino */
+    .result-area {
+      background: #0d1b2a;
+      border: 2px solid #1b3a4b;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .result-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+    .winning-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      font-size: 36px;
+      font-weight: 900;
+      color: #fff;
+      background: #e63946;
+      box-shadow: 0 0 30px rgba(230, 57, 70, 0.4);
+      margin-bottom: 12px;
+      transition: all 0.3s;
+    }
+    .winning-number.green { background: #2d6a4f; box-shadow: 0 0 30px rgba(45, 106, 79, 0.4); }
+    .winning-number.black { background: #222; box-shadow: 0 0 30px rgba(100, 100, 100, 0.3); }
+    .result-details {
+      font-size: 13px;
+      color: #888;
+    }
+    .result-details span { margin: 0 8px; }
+    /* History grid */
+    .history-section {
+      background: #111128;
+      border: 1px solid #2d2d5e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .history-section h2 {
+      font-size: 13px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .history-grid {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .history-chip {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .history-chip.red { background: #e63946; }
+    .history-chip.black { background: #222; border: 1px solid #444; }
+    .history-chip.green { background: #2d6a4f; }
+    /* Controls to change the test number */
+    .test-controls {
+      background: #111128;
+      border: 1px solid #2d2d5e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .test-controls h3 {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+    .control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .control-row button {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid #3a3a6e;
+      background: transparent;
+      color: #ccc;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .control-row button:hover {
+      background: #1a1a3e;
+    }
+    .control-row button.active {
+      background: #e63946;
+      color: #fff;
+      border-color: #e63946;
+    }
+    .control-row input {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #3a3a6e;
+      background: #16213e;
+      color: #fff;
+      font-size: 16px;
+      width: 80px;
+      outline: none;
+    }
+    /* Instructions */
+    .instructions {
+      background: #111128;
+      border: 1px solid #2d2d5e;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .instructions h3 {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .instructions ol {
+      padding-left: 20px;
+      font-size: 13px;
+      color: #aaa;
+      line-height: 1.8;
+    }
+    .instructions code {
+      background: #1a1a3e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #e63946;
+    }
+  </style>
+</head>
+<body>
+  <div class="casino-layout">
+    <!-- Casino Header -->
+    <div class="casino-header">
+      <h1>🎰 ROULETTE ROYALE</h1>
+      <p>Test Casino · European Roulette · Simulated Page</p>
+    </div>
+
+    <!-- Result Display (simulates live casino result area) -->
+    <div class="result-area" id="result-area">
+      <div class="result-label">Winning Number</div>
+      <div id="winning-display" class="winning-number red">17</div>
+      <div class="result-details">
+        <span id="result-color">Red</span>
+        <span>·</span>
+        <span id="result-parity">Odd</span>
+        <span>·</span>
+        <span id="result-range">Low (1–18)</span>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="history-section">
+      <h2>Recent Numbers</h2>
+      <div id="history-grid" class="history-grid"></div>
+    </div>
+
+    <!-- Test Controls -->
+    <div class="test-controls">
+      <h3>🔧 Test Controls — Change the winning number</h3>
+      <div class="control-row">
+        <button class="active" data-n="17">17</button>
+        <button data-n="0">0</button>
+        <button data-n="7">7</button>
+        <button data-n="23">23</button>
+        <button data-n="36">36</button>
+        <button data-n="14">14</button>
+        <input id="custom-num" type="number" min="0" max="36" placeholder="0-36" />
+        <button id="set-custom">Set</button>
+      </div>
+    </div>
+
+    <!-- Instructions for testing -->
+    <div class="instructions">
+      <h3>📋 How to test the bookmarklet</h3>
+      <ol>
+        <li>Make sure <code>capture-server.py</code> is running (port 8081)</li>
+        <li>Open <a href="/" style="color:#e63946;">localhost:8081</a> and drag the bookmarklet to your bookmarks bar</li>
+        <li><strong>Come back to this page</strong>, click the bookmarklet</li>
+        <li>The overlay should appear with "17" detected (or whatever number is shown)</li>
+        <li>Verify the number, then click "Send to Dashboard"</li>
+        <li>Check captured spins at <a href="/view" style="color:#e63946;">/view</a></li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+    const HISTORY = [5, 12, 23, 0, 17, 8, 30, 19, 3, 26, 14, 9, 33, 21, 7, 34, 11, 25, 18, 4];
+
+    function updateDisplay(num) {
+      const display = document.getElementById('winning-display');
+      const colorEl = document.getElementById('result-color');
+      const parityEl = document.getElementById('result-parity');
+      const rangeEl = document.getElementById('result-range');
+
+      display.textContent = num;
+      display.className = 'winning-number';
+      if (num === 0) {
+        display.classList.add('green');
+        colorEl.textContent = 'Green';
+        parityEl.textContent = '—';
+        rangeEl.textContent = 'Zero';
+      } else {
+        display.classList.add(RED_NUMBERS.has(num) ? 'red' : 'black');
+        colorEl.textContent = RED_NUMBERS.has(num) ? 'Red' : 'Black';
+        parityEl.textContent = num % 2 === 0 ? 'Even' : 'Odd';
+        rangeEl.textContent = num <= 18 ? 'Low (1–18)' : 'High (19–36)';
+      }
+
+      // Update active button
+      document.querySelectorAll('[data-n]').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.n) === num);
+      });
+    }
+
+    function renderHistory() {
+      const grid = document.getElementById('history-grid');
+      grid.innerHTML = HISTORY.map(n => {
+        let cls = 'history-chip ';
+        if (n === 0) cls += 'green';
+        else cls += RED_NUMBERS.has(n) ? 'red' : 'black';
+        return `<div class="${cls}">${n}</div>`;
+      }).join('');
+    }
+
+    // Event handlers
+    document.querySelectorAll('[data-n]').forEach(btn => {
+      btn.addEventListener('click', () => updateDisplay(parseInt(btn.dataset.n)));
+    });
+
+    document.getElementById('set-custom').addEventListener('click', () => {
+      const val = parseInt(document.getElementById('custom-num').value, 10);
+      if (!isNaN(val) && val >= 0 && val <= 36) updateDisplay(val);
+    });
+
+    document.getElementById('custom-num').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('set-custom').click();
+    });
+
+    // Init
+    renderHistory();
+  </script>
+</body>
+</html>

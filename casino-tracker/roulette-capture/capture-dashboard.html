@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Captured Spins — Roulette Capture</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #ddd;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 20px;
+      color: #e63946;
+      letter-spacing: 0.5px;
+    }
+    header .meta {
+      font-size: 13px;
+      color: #888;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .toolbar button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid #3a3a6e;
+      background: transparent;
+      color: #ccc;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .toolbar button:hover { background: #1a1a3e; }
+    .toolbar button.primary {
+      background: #e63946;
+      color: #fff;
+      border-color: #e63946;
+    }
+    .toolbar button.primary:hover { background: #c1121f; }
+    .toolbar .status {
+      font-size: 12px;
+      color: #888;
+      padding: 4px 8px;
+    }
+    .toolbar .status.error { color: #e63946; }
+    .toolbar .status.ok { color: #2d6a4f; }
+
+    /* Spin list */
+    .spin-list {
+      background: #111128;
+      border: 1px solid #2d2d5e;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .spin-header {
+      display: grid;
+      grid-template-columns: 60px 1fr 140px;
+      padding: 10px 16px;
+      background: #1a1a3e;
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #2d2d5e;
+    }
+    .spin-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 140px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #1a1a2e;
+      align-items: center;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .spin-row:hover { background: #1a1a2e; }
+    .spin-row:last-child { border-bottom: none; }
+    .spin-number {
+      font-size: 20px;
+      font-weight: 900;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .spin-number.red { background: #e63946; color: #fff; }
+    .spin-number.black { background: #222; color: #fff; border: 1px solid #444; }
+    .spin-number.green { background: #2d6a4f; color: #fff; }
+    .spin-time { color: #666; font-size: 12px; }
+    .spin-method { font-size: 11px; color: #555; text-align: right; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: #555;
+    }
+    .empty-state p { font-size: 14px; margin-top: 8px; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .spin-header, .spin-row {
+        grid-template-columns: 50px 1fr 100px;
+        padding: 8px 12px;
+      }
+      .spin-time { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🎰 Captured Spins</h1>
+      <div class="meta"><span id="spin-count">0</span> numbers captured</div>
+    </div>
+    <div class="toolbar">
+      <button id="refresh-btn" class="primary">Refresh</button>
+      <button id="clear-btn">Clear All</button>
+      <span id="status-indicator" class="status">Idle</span>
+    </div>
+  </header>
+
+  <div class="spin-list" id="spin-list">
+    <div class="spin-header">
+      <span>Number</span>
+      <span>Captured At</span>
+      <span>Method</span>
+    </div>
+    <div id="spin-rows"></div>
+  </div>
+
+  <script>
+    const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+
+    const statusEl = document.getElementById('status-indicator');
+    const spinRows = document.getElementById('spin-rows');
+    const spinCount = document.getElementById('spin-count');
+
+    function numColor(n) {
+      if (n === 0) return 'green';
+      return RED_NUMBERS.has(n) ? 'red' : 'black';
+    }
+
+    function formatTime(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString(undefined, {
+          month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+      } catch { return iso; }
+    }
+
+    async function loadSpins() {
+      statusEl.textContent = 'Loading...';
+      statusEl.className = 'status';
+      try {
+        const resp = await fetch('/api/spins');
+        const spins = await resp.json();
+        renderSpins(spins);
+        statusEl.textContent = `Updated (${spins.length} spins)`;
+        statusEl.className = 'status ok';
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.className = 'status error';
+      }
+    }
+
+    function renderSpins(spins) {
+      spinCount.textContent = spins.length;
+      if (spins.length === 0) {
+        spinRows.innerHTML = `
+          <div class="empty-state">
+            <div style="font-size:36px;">🎰</div>
+            <p>No spins captured yet.</p>
+            <p style="font-size:12px;color:#444;">Click the bookmarklet on a casino page to capture numbers.</p>
+          </div>`;
+        return;
+      }
+
+      // Show newest first
+      const reversed = [...spins].reverse();
+      spinRows.innerHTML = reversed.map(s => `
+        <div class="spin-row">
+          <div class="spin-number ${numColor(s.number)}">${s.number}</div>
+          <div>
+            <div class="spin-time">${formatTime(s.capturedAt)}</div>
+          </div>
+          <div class="spin-method">${s.method || 'bookmarklet'}${s.label ? ' · ' + s.label : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', loadSpins);
+
+    document.getElementById('clear-btn').addEventListener('click', async () => {
+      if (!confirm('Clear all captured spins? This cannot be undone.')) return;
+      try {
+        await fetch('/api/spins', { method: 'DELETE' });
+        loadSpins();
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.className = 'status error';
+      }
+    });
+
+    // Auto-refresh every 5 seconds
+    loadSpins();
+    setInterval(loadSpins, 5000);
+  </script>
+</body>
+</html>

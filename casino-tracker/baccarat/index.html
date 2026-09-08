@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Baccarat Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Session Setup Screen -->
+    <div id="session-setup" class="screen active">
+        <div class="setup-card">
+            <h1>🎰 BACCARAT TRACKER</h1>
+            <div class="setup-form">
+                <label for="casino-name">CASINO NAME</label>
+                <input type="text" id="casino-name" placeholder="e.g., BetVictor, BK8" autocomplete="off">
+                
+                <label for="table-type">TABLE TYPE</label>
+                <select id="table-type">
+                    <option value="5comm">5% Commission Table</option>
+                    <option value="nocomm">No Commission Table</option>
+                </select>
+                
+                <label for="unit-value">1 UNIT = $</label>
+                <input type="number" id="unit-value" value="0.50" min="0.01" step="0.01">
+                
+                <button id="start-session" class="btn btn-gold">START SESSION</button>
+            </div>
+            <div class="csv-link">
+                <a href="#" id="export-csv">📄 Export All Sessions to CSV</a>
+                <a href="#" id="view-history">📋 View Past Sessions</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Betting Screen -->
+    <div id="betting-screen" class="screen">
+        <header class="session-header">
+            <div class="session-info">
+                <span id="session-label" class="session-label">BV-001</span>
+                <span id="casino-display" class="casino-name">BetVictor</span>
+                <span id="table-type-display" class="table-type">5% Comm</span>
+            </div>
+            <div class="balance-display">
+                <span class="balance-label">BALANCE</span>
+                <span id="balance" class="balance-value">$0.00</span>
+            </div>
+        </header>
+
+        <main class="betting-area">
+            <!-- Current Bet Header -->
+            <div class="current-bet-header">
+                <span class="bet-label">CURRENT BET</span>
+            </div>
+
+            <!-- Unit Buttons -->
+            <div class="unit-controls">
+                <button class="btn btn-unit" data-unit="1">+1</button>
+                <button class="btn btn-unit" data-unit="2">+2</button>
+                <button class="btn btn-unit" data-unit="5">+5</button>
+                <button class="btn btn-unit btn-double">x2</button>
+                <button class="btn btn-unit btn-clear" id="clear-bet">CLR</button>
+            </div>
+
+            <!-- Bet Selection Buttons -->
+            <div class="bet-buttons">
+                <button class="btn btn-banker" id="btn-banker">BANKER</button>
+                <button class="btn btn-tie" id="btn-tie">TIE</button>
+                <button class="btn btn-player" id="btn-player">PLAYER</button>
+                <button class="btn btn-pass" id="btn-pass">PASS</button>
+            </div>
+
+            <!-- Bet Amount Display (after buttons) -->
+            <div class="current-bet">
+                <div class="bet-amount">
+                    <span id="current-units">0</span>
+                    <span class="unit-label">UNITS</span>
+                    <span id="current-dollar">($0.00)</span>
+                </div>
+            </div>
+
+            <!-- Result Selection (appears after bet placed or PASS) -->
+            <div id="result-panel" class="result-panel hidden">
+                <div id="bet-summary" class="bet-summary">5 units ($2.50) on Banker</div>
+                <div class="result-buttons">
+                    <button class="btn btn-win" id="btn-win">WIN</button>
+                    <button class="btn btn-push" id="btn-push">TIE</button>
+                    <button class="btn btn-lose" id="btn-lose">LOSE</button>
+                </div>
+            </div>
+
+            <!-- Pass Result Panel (for skipped hands) -->
+            <div id="pass-panel" class="result-panel hidden">
+                <div class="bet-summary">HAND PASSED - Who won?</div>
+                <div class="result-buttons">
+                    <button class="btn btn-banker-sm" id="pass-banker">B</button>
+                    <button class="btn btn-tie-sm" id="pass-tie">T</button>
+                    <button class="btn btn-player-sm" id="pass-player">P</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- History Panel -->
+        <footer class="history-panel">
+            <div class="history-header">
+                <h3>SESSION HISTORY</h3>
+                <div class="history-actions">
+                    <button id="export-session-csv" class="btn btn-small btn-export">📄 CSV</button>
+                    <button id="end-session" class="btn btn-small btn-end">END</button>
+                </div>
+            </div>
+            <div class="history-stats">
+                <span>Bets: <strong id="total-bets">0</strong></span>
+                <span>Wins: <strong id="total-wins">0</strong></span>
+                <span>Win%: <strong id="win-rate">0%</strong></span>
+                <span>P/L: <strong id="session-pl">$0.00</strong></span>
+            </div>
+            <div id="history-list" class="history-list">
+                <!-- History items will be inserted here -->
+            </div>
+        </footer>
+    </div>
+
+    <!-- Past Sessions Screen -->
+    <div id="past-sessions-screen" class="screen">
+        <header class="screen-header">
+            <button id="back-to-setup" class="btn btn-small btn-back">← BACK</button>
+            <h2 id="past-sessions-title">PAST SESSIONS</h2>
+            <button id="export-history-csv" class="btn btn-small btn-export">📄 CSV</button>
+        </header>
+        <div id="past-sessions-list" class="past-sessions-list">
+            <!-- Past sessions will be inserted here -->
+        </div>
+        <!-- Session Detail View (hidden by default) -->
+        <div id="session-detail" class="session-detail hidden">
+            <div id="session-detail-header" class="session-detail-header"></div>
+            <div class="session-detail-actions">
+                <button id="export-session-detail" class="btn btn-small btn-export">📄 Export This Session</button>
+            </div>
+            <div id="session-detail-list" class="session-detail-list"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

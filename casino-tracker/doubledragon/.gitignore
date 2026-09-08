@@ -1,0 +1,13 @@
+# Node and Electron artefacts
+node_modules/
+.npm-cache/
+dist*/
+
+# Local Chrome and debugging profiles
+.chrome-profile*/
+debug-profile*/
+
+# Local/editor files
+*.log
+.DS_Store
+Thumbs.db

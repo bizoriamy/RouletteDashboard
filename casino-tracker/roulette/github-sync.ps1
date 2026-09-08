@@ -61,15 +61,15 @@ try {
     if ([IO.Path]::GetFullPath($root).TrimEnd('\') -ine $repo) { Fail "Git root '$root' does not match '$repo'." 22 }
 
     $branch = (Git branch --show-current | Select-Object -Last 1).Trim()
-    if ($branch -cne 'local-sync') { Fail "Current branch is '$branch'. Switch to local-sync manually; this launcher will not switch or alter branches." 23 }
+    if ($branch -cne 'dev') { Fail "Current branch is '$branch'. Switch to dev manually; this launcher will not switch or alter branches." 23 }
 
     $remote = (Git remote get-url origin | Select-Object -Last 1).Trim()
     $normalizedRemote = $remote.TrimEnd('/').Replace('git@github.com:', 'https://github.com/')
     if ($normalizedRemote -ine $expectedRemote) { Fail "origin is '$remote', not '$expectedRemote'." 24 }
 
-    Write-Host 'Checking GitHub authentication and origin/local-sync (no pull)...'
-    $remoteResult = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/local-sync')
-    if ($remoteResult.ExitCode -ne 0) { Fail "Could not authenticate or read origin/local-sync:`n$($remoteResult.Output -join [Environment]::NewLine)" 25 }
+    Write-Host 'Checking GitHub authentication and origin/dev (no pull)...'
+    $remoteResult = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/dev')
+    if ($remoteResult.ExitCode -ne 0) { Fail "Could not authenticate or read origin/dev:`n$($remoteResult.Output -join [Environment]::NewLine)" 25 }
     $remoteHash = (($remoteResult.Output | Select-Object -Last 1) -split '\s+')[0]
 
     if ($ValidateOnly) {
@@ -81,9 +81,9 @@ try {
             Write-Host "Validation passed: $($changes.Count) local status line(s) would be considered for commit."
         }
         if ($localHash -eq $remoteHash) {
-            Write-Host "Validation passed: origin/local-sync is up to date at $localHash."
+            Write-Host "Validation passed: origin/dev is up to date at $localHash."
         } else {
-            Write-Host "Validation passed: local $localHash differs from origin/local-sync $remoteHash; no commit or push was attempted."
+            Write-Host "Validation passed: local $localHash differs from origin/dev $remoteHash; no commit or push was attempted."
         }
         exit 0
     }
@@ -91,7 +91,7 @@ try {
     Git add --all -- . | Out-Null
     $staged = @(Git diff --cached --name-only)
     if ($staged.Count -gt 0) {
-        Write-Host "Committing $($staged.Count) changed path(s) to local-sync..."
+        Write-Host "Committing $($staged.Count) changed path(s) to dev..."
         $message = 'Sync PawWork local changes ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         Git commit -m $message | ForEach-Object { Write-Host $_ }
     } else {
@@ -100,26 +100,26 @@ try {
 
     $localHash = (Git rev-parse HEAD | Select-Object -Last 1).Trim()
     if ($localHash -eq $remoteHash) {
-        Write-Host "origin/local-sync is up to date at $localHash."
+        Write-Host "origin/dev is up to date at $localHash."
         exit 0
     }
 
     # Refuse non-fast-forward or unrelated updates; never pull, merge, or reset.
     & git -C $repo merge-base --is-ancestor $remoteHash $localHash
     if ($LASTEXITCODE -ne 0) {
-        Fail 'origin/local-sync is not an ancestor of local HEAD. Push refused; reconcile manually without involving main.' 26
+        Fail 'origin/dev is not an ancestor of local HEAD. Push refused; reconcile manually without involving main.' 26
     }
 
-    Write-Host 'Pushing local HEAD to origin/local-sync only...'
-    $push = GitRemote @('push', 'origin', 'HEAD:refs/heads/local-sync') 120
+    Write-Host 'Pushing local HEAD to origin/dev only...'
+    $push = GitRemote @('push', 'origin', 'HEAD:refs/heads/dev') 120
     if ($push.ExitCode -ne 0) { Fail "Push failed:`n$($push.Output -join [Environment]::NewLine)" 27 }
     $push.Output | ForEach-Object { Write-Host $_ }
 
-    $confirmed = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/local-sync')
+    $confirmed = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/dev')
     if ($confirmed.ExitCode -ne 0) { Fail 'Push returned success, but final remote verification failed.' 28 }
     $confirmedHash = (($confirmed.Output | Select-Object -Last 1) -split '\s+')[0]
     if ($confirmedHash -ne $localHash) { Fail "Remote verification mismatch: local $localHash, remote $confirmedHash." 29 }
-    Write-Host "Confirmed origin/local-sync is up to date at $localHash."
+    Write-Host "Confirmed origin/dev is up to date at $localHash."
     exit 0
 } catch {
     Fail $_.Exception.Message 30

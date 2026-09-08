@@ -1,0 +1,20 @@
+# BetPilot-myMates Requirements
+
+## Python Version
+3.7 or higher
+
+## External Dependencies
+None — BetPilot uses only Python standard library.
+
+## Optional (For Future Extensions)
+- pandas — for advanced data analysis
+- matplotlib — for charting/visualization
+- openpyxl — for Excel export
+
+## Installation
+No dependencies required for base installation.
+
+To install optional packages:
+```bash
+pip install pandas matplotlib openpyxl
+```

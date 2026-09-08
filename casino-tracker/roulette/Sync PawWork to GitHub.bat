@@ -8,7 +8,7 @@ set "STAGE=initial validation"
 
 echo PawWork one-way GitHub sync
 echo Source of truth: %REPO%
-echo Destination: origin/local-sync only
+echo Destination: origin/dev only
 echo SAFETY: This launcher never pulls, switches branches, merges, resets, or changes main.
 echo.
 
@@ -45,12 +45,12 @@ if /I not "%GIT_ROOT%"=="%EXPECTED_ROOT%" (
 
 set "STAGE=branch verification"
 for /f "delims=" %%G in ('git branch --show-current 2^>nul') do set "CURRENT_BRANCH=%%G"
-if not "%CURRENT_BRANCH%"=="local-sync" (
+if not "%CURRENT_BRANCH%"=="dev" (
   echo ERROR: Current branch is "%CURRENT_BRANCH%".
-  echo Switch to local-sync manually. This launcher will not switch branches.
+  echo Switch to dev manually. This launcher will not switch branches.
   goto :failed
 )
-echo Verified branch: local-sync
+echo Verified branch: dev
 
 set "STAGE=remote verification"
 for /f "delims=" %%G in ('git remote get-url origin 2^>nul') do set "ACTUAL_REMOTE=%%G"
@@ -81,31 +81,31 @@ if not errorlevel 1 (
 )
 
 set "STAGE=commit"
-echo Committing local PawWork changes to local-sync...
+echo Committing local PawWork changes to dev...
 git commit -m "Sync PawWork local changes %date% %time%"
 if errorlevel 1 goto :failed
 
 :push
-set "STAGE=push to origin/local-sync"
-echo Checking and pushing origin/local-sync...
-git push origin HEAD:refs/heads/local-sync
+set "STAGE=push to origin/dev"
+echo Checking and pushing origin/dev...
+git push origin HEAD:refs/heads/dev
 if errorlevel 1 goto :failed
 
 set "LOCAL_HEAD="
 set "TRACKING_HEAD="
 for /f "delims=" %%G in ('git rev-parse HEAD 2^>nul') do set "LOCAL_HEAD=%%G"
-for /f "delims=" %%G in ('git rev-parse origin/local-sync 2^>nul') do set "TRACKING_HEAD=%%G"
+for /f "delims=" %%G in ('git rev-parse origin/dev 2^>nul') do set "TRACKING_HEAD=%%G"
 if not defined LOCAL_HEAD (
   echo ERROR: Could not verify local HEAD after push.
   goto :failed
 )
 if /I not "%LOCAL_HEAD%"=="%TRACKING_HEAD%" (
-  echo ERROR: Local HEAD and origin/local-sync tracking state do not match after push.
+  echo ERROR: Local HEAD and origin/dev tracking state do not match after push.
   goto :failed
 )
 
 echo.
-echo SUCCESS: origin/local-sync is up to date at:
+echo SUCCESS: origin/dev is up to date at:
 echo %LOCAL_HEAD%
 echo No pull was performed. Main was not changed or pushed.
 echo.

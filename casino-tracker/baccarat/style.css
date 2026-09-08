@@ -1,0 +1,737 @@
+/* Baccarat Tracker - Casino Theme */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    --gold: #FFD700;
+    --gold-dark: #B8860B;
+    --green: #0D6B3D;
+    --green-dark: #064D2A;
+    --red: #DC143C;
+    --blue: #1E90FF;
+    --bg-dark: #1A1A2E;
+    --bg-card: #16213E;
+    --text-light: #FFFFFF;
+    --text-muted: #A0A0A0;
+    --border: #2D2D4A;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-light);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Screens */
+.screen {
+    display: none;
+    min-height: 100vh;
+    padding: 10px;
+}
+
+.screen.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Setup Screen */
+#session-setup {
+    justify-content: center;
+    align-items: center;
+}
+
+.setup-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 350px;
+    border: 1px solid var(--gold);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.setup-card h1 {
+    text-align: center;
+    color: var(--gold);
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.setup-form label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.setup-form input {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-light);
+    font-size: 1rem;
+    width: 100%;
+}
+
+.setup-form input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.setup-form select {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-light);
+    font-size: 1rem;
+    width: 100%;
+    cursor: pointer;
+}
+
+.setup-form select:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.csv-link {
+    margin-top: 15px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.csv-link a {
+    color: var(--gold);
+    font-size: 0.8rem;
+    text-decoration: none;
+    opacity: 0.8;
+}
+
+.csv-link a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn-gold {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #000;
+    margin-top: 10px;
+}
+
+.btn-gold:hover {
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.btn-small {
+    padding: 8px 12px;
+    font-size: 0.75rem;
+}
+
+/* Recent Sessions */
+.recent-sessions {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+}
+
+.recent-sessions h3 {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--bg-dark);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.session-item:hover {
+    background: var(--border);
+}
+
+.session-item .session-id {
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.session-item .session-profit {
+    font-size: 0.85rem;
+}
+
+.profit-positive { color: #00E676; }
+.profit-negative { color: var(--red); }
+
+/* Betting Screen */
+#betting-screen {
+    padding: 0;
+}
+
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.session-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.session-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.casino-name {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.table-type {
+    font-size: 0.6rem;
+    color: var(--gold);
+    background: rgba(255, 215, 0, 0.15);
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 2px;
+}
+
+.balance-display {
+    text-align: right;
+}
+
+.balance-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    display: block;
+}
+
+.balance-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Betting Area */
+.betting-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    gap: 15px;
+}
+
+.current-bet {
+    text-align: center;
+    padding: 15px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.bet-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.current-bet-header {
+    text-align: center;
+    padding: 8px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.current-bet-header .bet-label {
+    margin-bottom: 0;
+}
+
+.bet-amount {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+}
+
+#current-units {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.unit-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+#current-dollar {
+    font-size: 1rem;
+    color: var(--text-light);
+}
+
+/* Unit Controls */
+.unit-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-unit {
+    flex: 1;
+    min-width: 55px;
+    padding: 12px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+.btn-unit:hover {
+    border-color: var(--gold);
+}
+
+.btn-double {
+    background: var(--green-dark);
+    border-color: var(--green);
+}
+
+.btn-clear {
+    background: #3D0000;
+    border-color: var(--red);
+}
+
+/* Bet Buttons */
+.bet-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-banker, .btn-player, .btn-tie {
+    flex: 1;
+    padding: 18px 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.btn-banker {
+    background: linear-gradient(135deg, var(--red), #A00020);
+}
+
+.btn-player {
+    background: linear-gradient(135deg, var(--blue), #0066CC);
+}
+
+.btn-tie {
+    background: linear-gradient(135deg, var(--green), var(--green-dark));
+    flex: 0.6;
+}
+
+.btn-banker:active { box-shadow: 0 0 20px var(--red); }
+.btn-player:active { box-shadow: 0 0 20px var(--blue); }
+.btn-tie:active { box-shadow: 0 0 20px var(--green); }
+
+.btn-pass {
+    background: linear-gradient(135deg, #555, #333);
+    color: white;
+    font-size: 0.7rem;
+    padding: 8px 12px;
+    flex: 0.4;
+}
+
+.btn-pass:active { box-shadow: 0 0 15px #888; }
+
+/* Small hand result buttons for PASS */
+.btn-banker-sm, .btn-player-sm, .btn-tie-sm {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    flex: none;
+}
+
+.btn-banker-sm { background: var(--red); }
+.btn-player-sm { background: var(--blue); }
+.btn-tie-sm { background: var(--green); }
+
+.btn-banker-sm:active { box-shadow: 0 0 15px var(--red); }
+.btn-player-sm:active { box-shadow: 0 0 15px var(--blue); }
+.btn-tie-sm:active { box-shadow: 0 0 15px var(--green); }
+
+/* Result Panel */
+.result-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--gold);
+    animation: slideIn 0.3s ease;
+}
+
+.result-panel.hidden {
+    display: none;
+}
+
+.bet-summary {
+    font-size: 0.9rem;
+    color: var(--gold);
+    text-align: center;
+    font-weight: 600;
+    padding: 5px 0;
+}
+
+.result-buttons {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-win {
+    background: linear-gradient(135deg, #00E676, #00A854);
+    color: #000;
+    flex: 1;
+    max-width: 100px;
+}
+
+.btn-push {
+    background: linear-gradient(135deg, #FFD700, #B8860B);
+    color: #000;
+    flex: 1;
+    max-width: 100px;
+}
+
+.btn-lose {
+    background: linear-gradient(135deg, var(--red), #8B0000);
+    flex: 1;
+    max-width: 100px;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* History Panel */
+.history-panel {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    padding: 12px 15px;
+    max-height: 300px;
+    overflow: hidden;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.history-header h3 {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.history-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-end {
+    background: var(--red);
+    color: white;
+}
+
+.btn-export {
+    background: var(--green-dark);
+    color: white;
+}
+
+.history-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-stats strong {
+    color: var(--text-light);
+}
+
+.history-list {
+    overflow-y: auto;
+    max-height: 200px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: var(--bg-dark);
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+}
+
+.history-item .bet-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.history-item .side-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+}
+
+.side-banker { background: var(--red); }
+.side-player { background: var(--blue); }
+.side-tie { background: var(--green); }
+.side-pass { background: #666; }
+
+.pass-label {
+    color: #888;
+    font-size: 0.7rem;
+}
+
+.result-pass { color: #888; }
+
+.history-item .result-win { color: #00E676; }
+.history-item .result-lose { color: var(--red); }
+.history-item .result-push { color: var(--gold); }
+
+/* Past Sessions Screen */
+.screen-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+.screen-header h2 {
+    font-size: 1rem;
+    color: var(--gold);
+    flex: 1;
+}
+
+.btn-back {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-light);
+}
+
+.btn-export {
+    background: var(--green-dark);
+    color: white;
+}
+
+.past-sessions-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.past-session-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+}
+
+.past-session-card .session-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.past-session-card .session-id {
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.past-session-card .session-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.past-session-card .session-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.past-session-card .session-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.past-session-card .session-time {
+    color: var(--gold);
+    font-size: 0.7rem;
+}
+
+.no-sessions {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px;
+    font-size: 0.9rem;
+}
+
+.session-tap-hint {
+    font-size: 0.65rem;
+    color: var(--gold);
+    text-align: right;
+    margin-top: 5px;
+    opacity: 0.7;
+}
+
+.past-session-card:active {
+    background: var(--border);
+}
+
+/* Session Detail View */
+.session-detail {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.session-detail.hidden {
+    display: none;
+}
+
+.session-detail-header {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+}
+
+.session-detail-actions {
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.detail-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.detail-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    flex-wrap: wrap;
+}
+
+.session-detail-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.hand-number {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    min-width: 30px;
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+    .bet-buttons {
+        flex-direction: column;
+    }
+    
+    .btn-banker, .btn-player, .btn-tie {
+        flex: none;
+        padding: 14px;
+    }
+    
+    .btn-tie {
+        order: -1;
+    }
+}

@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BetPilot-myMates — Simulator Frontend</title>
+  <style>
+    body { font-family: Arial,Helvetica,sans-serif; margin: 18px; }
+    textarea { width: 100%; height: 80px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: center; }
+    th { background: #f2f2f2; }
+    .controls { display:flex; gap:12px; align-items:center; margin-bottom:8px; }
+    .col { flex: 1; }
+    .small { width:120px; }
+    .summary { margin-top: 14px; }
+    .ok { color: green }
+    .bad { color: red }
+    .actions { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>BetPilot-myMates — Simulator Frontend</h1>
+  <p>Open this file in your browser. Paste numbers (comma-separated) or upload a text file with numbers (one per line or comma-separated), choose max step, then Run Simulation.</p>
+
+  <div class="controls">
+    <div class="col">
+      <label><strong>Paste winning numbers</strong> (e.g. 7,0,19,32)</label>
+      <textarea id="numbersInput" placeholder="e.g. 7,0,19,32,14"></textarea>
+    </div>
+    <div style="display:flex;flex-direction:column; gap:8px;">
+      <label><strong>Or upload file</strong>
+        <input id="fileInput" type="file" accept="text/*" />
+      </label>
+
+      <label>Max step
+        <select id="maxStepSelect">
+          <option value="6">6 (default)</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </label>
+
+      <label>Quiet output
+        <input id="quiet" type="checkbox" />
+      </label>
+
+      <div class="actions">
+        <button id="runBtn">Run Simulation</button>
+        <button id="downloadCsvBtn" disabled>Download CSV</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="output">
+    <!-- Per-spin table will go here -->
+  </div>
+
+  <script>
+    // Column sets
+    const COL1 = new Set([1,4,7,10,13,16,19,22,25,28,31,34]);
+    const COL2 = new Set([2,5,8,11,14,17,20,23,26,29,32,35]);
+    const COL3 = new Set([3,6,9,12,15,18,21,24,27,30,33,36]);
+    const STEPS = [1,3,9,27,81,243];
+
+    const A_cycle = [ [1,2], [1,3], [2,3] ];
+    const B_cycle = [ [2,3], [1,2], [1,3] ];
+
+    function parseNumbersFromText(text) {
+      text = (text || '').trim();
+      if (!text) return [];
+      // allow commas and newlines
+      const parts = text.split(/[,\n\r]+/).map(s => s.trim()).filter(s => s !== '');
+      const nums = [];
+      for (const p of parts) {
+        const n = Number(p);
+        if (!Number.isInteger(n) || n < 0 || n > 36) {
+          throw new Error('Invalid number: ' + p + '. Numbers must be integers 0-36');
+        }
+        nums.push(n);
+      }
+      return nums;
+    }
+
+    function computeDrawdown(cumulative) {
+      let peak = cumulative.length ? cumulative[0] : 0;
+      let maxDD = 0;
+      for (const v of cumulative) {
+        if (v > peak) peak = v;
+        const dd = peak - v;
+        if (dd > maxDD) maxDD = dd;
+      }
+      return maxDD;
+    }
+
+    function simulate(spins, maxStep) {
+      const bettorA = { name:'A', stepIndex:0, totalBet:0, totalReturn:0, spins:0, wins:0, losses:0, maxStepHits:0, maxStepWins:0, maxStepLosses:0, history: [] };
+      const bettorB = { name:'B', stepIndex:0, totalBet:0, totalReturn:0, spins:0, wins:0, losses:0, maxStepHits:0, maxStepWins:0, maxStepLosses:0, history: [] };
+
+      const perSpin = [];
+      const cumulative = [];
+      let cum = 0;
+
+      for (let i = 0; i < spins.length; ++i) {
+        const spinIdx = i+1;
+        const number = spins[i];
+        const pairA = A_cycle[i % 3];
+        const pairB = B_cycle[i % 3];
+
+        // resolve for A
+        const stakeA = STEPS[bettorA.stepIndex];
+        const totalStakeA = stakeA * 2;
+        bettorA.totalBet += totalStakeA;
+        bettorA.spins += 1;
+        
+        const atMaxA = bettorA.stepIndex >= maxStep - 1;
+        if (atMaxA) bettorA.maxStepHits += 1;
+        
+        let winA = false;
+        if (number !== 0) {
+          if (pairA.some(col => (col===1 && COL1.has(number)) || (col===2 && COL2.has(number)) || (col===3 && COL3.has(number)))) {
+            winA = true;
+          }
+        }
+        let payoutA = 0;
+        let netA = 0;
+        if (winA) {
+          payoutA = stakeA * 3;
+          netA = payoutA - totalStakeA;
+          bettorA.totalReturn += payoutA;
+          bettorA.wins += 1;
+          if (atMaxA) bettorA.maxStepWins += 1;
+          bettorA.stepIndex = 0;
+        } else {
+          payoutA = 0;
+          netA = - totalStakeA;
+          bettorA.totalReturn += 0;
+          bettorA.losses += 1;
+          if (atMaxA) bettorA.maxStepLosses += 1;
+          if (atMaxA) {
+            bettorA.stepIndex = 0;
+          } else if (bettorA.stepIndex < maxStep - 1) {
+            bettorA.stepIndex += 1;
+          }
+        }
+        bettorA.history.push({spin: spinIdx, pair: pairA.slice(), stake: stakeA, win: winA, net: netA, nextStep: bettorA.stepIndex+1});
+
+        // resolve for B
+        const stakeB = STEPS[bettorB.stepIndex];
+        const totalStakeB = stakeB * 2;
+        bettorB.totalBet += totalStakeB;
+        bettorB.spins += 1;
+        
+        const atMaxB = bettorB.stepIndex >= maxStep - 1;
+        if (atMaxB) bettorB.maxStepHits += 1;
+        
+        let winB = false;
+        if (number !== 0) {
+          if (pairB.some(col => (col===1 && COL1.has(number)) || (col===2 && COL2.has(number)) || (col===3 && COL3.has(number)))) {
+            winB = true;
+          }
+        }
+        let payoutB = 0;
+        let netB = 0;
+        if (winB) {
+          payoutB = stakeB * 3;
+          netB = payoutB - totalStakeB;
+          bettorB.totalReturn += payoutB;
+          bettorB.wins += 1;
+          if (atMaxB) bettorB.maxStepWins += 1;
+          bettorB.stepIndex = 0;
+        } else {
+          payoutB = 0;
+          netB = - totalStakeB;
+          bettorB.totalReturn += 0;
+          bettorB.losses += 1;
+          if (atMaxB) bettorB.maxStepLosses += 1;
+          if (atMaxB) {
+            bettorB.stepIndex = 0;
+          } else if (bettorB.stepIndex < maxStep - 1) {
+            bettorB.stepIndex += 1;
+          }
+        }
+        bettorB.history.push({spin: spinIdx, pair: pairB.slice(), stake: stakeB, win: winB, net: netB, nextStep: bettorB.stepIndex+1});
+
+        const spinTotal = netA + netB;
+        cum += spinTotal;
+        cumulative.push(cum);
+
+        perSpin.push({ spin: spinIdx, number, pairA: pairA.slice(), stakeA, winA, netA, nextStepA: bettorA.stepIndex+1, pairB: pairB.slice(), stakeB, winB, netB, nextStepB: bettorB.stepIndex+1, spinTotal, cumulative: cum });
+      }
+
+      const summaryA = { spins: bettorA.spins, wins: bettorA.wins, losses: bettorA.losses, totalBet: bettorA.totalBet, totalReturn: bettorA.totalReturn, net: bettorA.totalReturn - bettorA.totalBet, maxStepHits: bettorA.maxStepHits, maxStepWins: bettorA.maxStepWins, maxStepLosses: bettorA.maxStepLosses };
+      const summaryB = { spins: bettorB.spins, wins: bettorB.wins, losses: bettorB.losses, totalBet: bettorB.totalBet, totalReturn: bettorB.totalReturn, net: bettorB.totalReturn - bettorB.totalBet, maxStepHits: bettorB.maxStepHits, maxStepWins: bettorB.maxStepWins, maxStepLosses: bettorB.maxStepLosses };
+
+      // session metrics
+      const maxDrawdown = computeDrawdown(cumulative);
+      let largestBurst = 0; let largestBurstSpin = null;
+      for (const r of perSpin) {
+        if (Math.abs(r.spinTotal) > Math.abs(largestBurst)) { largestBurst = r.spinTotal; largestBurstSpin = r.spin; }
+      }
+      const maxWinA = Math.max(...perSpin.map(r => r.netA));
+      const maxLossA = Math.min(...perSpin.map(r => r.netA));
+      const maxWinB = Math.max(...perSpin.map(r => r.netB));
+      const maxLossB = Math.min(...perSpin.map(r => r.netB));
+
+      const sessionMetrics = { spins: spins.length, combined_net: cum, max_drawdown: maxDrawdown, largest_burst: largestBurst, largest_burst_spin: largestBurstSpin, largest_win_A: maxWinA, largest_loss_A: maxLossA, largest_win_B: maxWinB, largest_loss_B: maxLossB, max_step_hits_A: bettorA.maxStepHits, max_step_wins_A: bettorA.maxStepWins, max_step_losses_A: bettorA.maxStepLosses, max_step_hits_B: bettorB.maxStepHits, max_step_wins_B: bettorB.maxStepWins, max_step_losses_B: bettorB.maxStepLosses };
+
+      return { perSpin, summaryA, summaryB, sessionMetrics };
+    }
+
+    function prettyPair(pair) { return `Col${pair[0]}+Col${pair[1]}`; }
+
+    function renderResults(result, quiet) {
+      const out = document.getElementById('output');
+      out.innerHTML = '';
+
+      if (!quiet) {
+        const tbl = document.createElement('table');
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+          <tr>
+            <th>Spin</th>
+            <th>Number</th>
+            <th>Bettor A Pair</th>
+            <th>A stake</th>
+            <th>A result</th>
+            <th>A net</th>
+            <th>Next step A</th>
+            <th>Bettor B Pair</th>
+            <th>B stake</th>
+            <th>B result</th>
+            <th>B net</th>
+            <th>Next step B</th>
+          </tr>`;
+        tbl.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        for (const r of result.perSpin) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${r.spin}</td>
+            <td>${r.number}</td>
+            <td>${prettyPair(r.pairA)}</td>
+            <td>${r.stakeA} (${r.stakeA*2})</td>
+            <td class="${r.winA? 'ok':'bad'}">${r.winA? 'WIN':'LOSS'}</td>
+            <td>${r.netA.toFixed(2)}</td>
+            <td>${r.nextStepA}</td>
+            <td>${prettyPair(r.pairB)}</td>
+            <td>${r.stakeB} (${r.stakeB*2})</td>
+            <td class="${r.winB? 'ok':'bad'}">${r.winB? 'WIN':'LOSS'}</td>
+            <td>${r.netB.toFixed(2)}</td>
+            <td>${r.nextStepB}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+        tbl.appendChild(tbody);
+        out.appendChild(tbl);
+      }
+
+      const summaryDiv = document.createElement('div');
+      summaryDiv.className = 'summary';
+      summaryDiv.innerHTML = `
+        <h3>Summary</h3>
+        <p><strong>Bettor A</strong> — spins: ${result.summaryA.spins}, wins: ${result.summaryA.wins}, losses: ${result.summaryA.losses}, total bet: ${result.summaryA.totalBet.toFixed(2)}, total return: ${result.summaryA.totalReturn.toFixed(2)}, net: ${result.summaryA.net.toFixed(2)}</p>
+        <p><strong>Bettor A Max Step</strong> — hits: ${result.summaryA.maxStepHits}, wins: ${result.summaryA.maxStepWins}, losses: ${result.summaryA.maxStepLosses}</p>
+        <p><strong>Bettor B</strong> — spins: ${result.summaryB.spins}, wins: ${result.summaryB.wins}, losses: ${result.summaryB.losses}, total bet: ${result.summaryB.totalBet.toFixed(2)}, total return: ${result.summaryB.totalReturn.toFixed(2)}, net: ${result.summaryB.net.toFixed(2)}</p>
+        <p><strong>Bettor B Max Step</strong> — hits: ${result.summaryB.maxStepHits}, wins: ${result.summaryB.maxStepWins}, losses: ${result.summaryB.maxStepLosses}</p>
+      `;
+      out.appendChild(summaryDiv);
+
+      // session id generation and saving to localStorage
+      const now = new Date();
+      const pad = (n, w) => String(n).padStart(w, '0');
+      const spinsCount = result.perSpin.length;
+      const spinsTag = pad(spinsCount, 6);
+      const dateTag = pad(now.getFullYear() % 100,2) + pad(now.getMonth()+1,2) + pad(now.getDate(),2);
+
+      // load existing sessions map from localStorage
+      const sessionsKey = 'betpilot_sessions';
+      let sessionsMap = {};
+      try { sessionsMap = JSON.parse(localStorage.getItem(sessionsKey) || '{}'); } catch(e){ sessionsMap = {}; }
+
+      // determine next sequence for today
+      let seq = 1;
+      for (const sid of Object.keys(sessionsMap)) {
+        const parts = sid.split('-');
+        if (parts.length >= 3 && parts[1] === dateTag) {
+          const s = parseInt(parts[2], 10);
+          if (!isNaN(s) && s >= seq) seq = s+1;
+        }
+      }
+      const sessionId = `${spinsTag}-${dateTag}-${pad(seq,3)}`;
+
+      const sessionInfoDiv = document.createElement('div');
+      sessionInfoDiv.innerHTML = `<p><strong>Session ID:</strong> ${sessionId}</p>`;
+      out.appendChild(sessionInfoDiv);
+
+      // compute session metrics and attach
+      const sessionRecord = {
+        session_id: sessionId,
+        timestamp: now.toISOString(),
+        spins: result.perSpin.length,
+        max_step: Number(document.getElementById('maxStepSelect').value),
+        summaryA: result.summaryA,
+        summaryB: result.summaryB,
+        sessionMetrics: result.sessionMetrics
+      };
+
+      sessionsMap[sessionId] = sessionRecord;
+      try { localStorage.setItem(sessionsKey, JSON.stringify(sessionsMap)); }
+      catch(e){ console.warn('Failed to save session to localStorage', e); }
+
+      const savedNote = document.createElement('div');
+      savedNote.innerHTML = `<p>Saved to browser storage as <code>${sessionId}</code>. Use the lookup box below to view saved sessions.</p>`;
+      out.appendChild(savedNote);
+
+      // lookup UI
+      const lookupDiv = document.createElement('div');
+      lookupDiv.innerHTML = `
+        <label>Lookup session ID: <input id="lookupSession" placeholder="e.g. ${sessionId}"/></label>
+        <button id="lookupBtn">Lookup</button>
+        <div id="lookupResult"></div>
+      `;
+      out.appendChild(lookupDiv);
+
+      document.getElementById('lookupBtn').addEventListener('click', ()=>{
+        const q = document.getElementById('lookupSession').value.trim();
+        const lr = document.getElementById('lookupResult');
+        lr.innerHTML = '';
+        if (!q) { lr.innerText = 'Enter a session id'; return; }
+        const map = JSON.parse(localStorage.getItem(sessionsKey) || '{}');
+        if (!map[q]) { lr.innerHTML = `<p>Session <code>${q}</code> not found in browser storage.</p>`; return; }
+        const rec = map[q];
+        lr.innerHTML = `<pre>${JSON.stringify(rec, null, 2)}</pre>`;
+      });
+
+      // enable CSV download (include session id in filename)
+      const downloadBtn = document.getElementById('downloadCsvBtn');
+      downloadBtn.disabled = false;
+      downloadBtn.onclick = () => downloadCSV(result, sessionId);
+    }
+
+    function downloadCSV(result, sessionId) {
+      const rows = [];
+      rows.push(['Spin','Number','A Pair','A Stake','A Result','A Net','NextStepA','B Pair','B Stake','B Result','B Net','NextStepB','SpinTotal','Cumulative']);
+      for (const r of result.perSpin) {
+        rows.push([r.spin, r.number, prettyPair(r.pairA), r.stakeA, r.winA ? 'WIN':'LOSS', r.netA.toFixed(2), r.nextStepA, prettyPair(r.pairB), r.stakeB, r.winB?'WIN':'LOSS', r.netB.toFixed(2), r.nextStepB, r.spinTotal.toFixed(2), r.cumulative.toFixed(2)]);
+      }
+      // summary rows
+      rows.push([]);
+      rows.push(['Summary A','spins', result.summaryA.spins, 'wins', result.summaryA.wins, 'losses', result.summaryA.losses, 'totalBet', result.summaryA.totalBet.toFixed(2), 'totalReturn', result.summaryA.totalReturn.toFixed(2), 'net', result.summaryA.net.toFixed(2)]);
+      rows.push(['Summary B','spins', result.summaryB.spins, 'wins', result.summaryB.wins, 'losses', result.summaryB.losses, 'totalBet', result.summaryB.totalBet.toFixed(2), 'totalReturn', result.summaryB.totalReturn.toFixed(2), 'net', result.summaryB.net.toFixed(2)]);
+      rows.push([]);
+      rows.push(['SessionMetrics','combined_net', result.sessionMetrics.combined_net, 'max_drawdown', result.sessionMetrics.max_drawdown, 'largest_burst', result.sessionMetrics.largest_burst, 'largest_burst_spin', result.sessionMetrics.largest_burst_spin]);
+
+      const csv = rows.map(r => r.map(c => typeof c === 'string' && c.includes(',') ? '"'+c+'"' : c).join(',')).join('\n');
+      const blob = new Blob([csv], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `betpilot_results_${sessionId || 'session'}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // UI wiring
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('fileInput');
+      const textInput = document.getElementById('numbersInput').value;
+      const maxStep = Number(document.getElementById('maxStepSelect').value);
+      const quiet = document.getElementById('quiet').checked;
+
+      let spins = [];
+      try {
+        if (fileInput.files && fileInput.files.length > 0) {
+          const f = fileInput.files[0];
+          const text = await f.text();
+          spins = parseNumbersFromText(text);
+        } else {
+          spins = parseNumbersFromText(textInput);
+        }
+      } catch (err) {
+        alert('Error parsing numbers: ' + err.message);
+        return;
+      }
+
+      if (spins.length === 0) { alert('No spins provided'); return; }
+
+      const result = simulate(spins, maxStep);
+      renderResults(result, quiet);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('numbersInput').value = '';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('output').innerHTML = '';
+      document.getElementById('downloadCsvBtn').disabled = true;
+    });
+
+    // disable download initially
+    document.getElementById('downloadCsvBtn').disabled = true;
+  </script>
+</body>
+</html>

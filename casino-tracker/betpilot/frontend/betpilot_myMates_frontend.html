@@ -1,0 +1,1173 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BetPilot-myMates — Collector of Roulette Strategies</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        input[type="number"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: monospace;
+        }
+        input[type="number"] {
+            width: 120px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .btn-download {
+            background: #4caf50;
+            color: white;
+        }
+        .btn-download:hover {
+            background: #45a049;
+        }
+        .results-section {
+            margin-top: 30px;
+            display: none;
+        }
+        .results-section.show {
+            display: block;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .metric-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .win { color: #4caf50; font-weight: bold; }
+        .loss { color: #f44336; font-weight: bold; }
+        .neutral { color: #999; }
+        .section-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            color: #333;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .spin-detail {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        .spin-number {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .bettor-result {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .bettor-card {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+            font-size: 13px;
+        }
+        .bettor-card.win {
+            border-left-color: #4caf50;
+            background: #f1f8f4;
+        }
+        .bettor-card.loss {
+            border-left-color: #f44336;
+            background: #fef1f0;
+        }
+        .session-id {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert.show {
+            display: block;
+        }
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef5350;
+        }
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #66bb6a;
+        }
+        .type-column { color: #667eea; font-weight: 600; }
+        .type-dozen { color: #ff9800; font-weight: 600; }
+                .pair-info { font-size: 12px; color: #666; margin-top: 5px; }
+        /* Comparison panel */
+        .comparison-section {
+            margin-top: 20px;
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            display: none;
+        }
+        .comparison-section.show { display: block; }
+        .comparison-section h3 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .comparison-table { width: 100%; border-collapse: collapse; }
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            padding: 10px 16px;
+            text-align: center;
+            font-size: 13px;
+        }
+        .comparison-table td {
+            padding: 10px 16px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #d0d9ff;
+        }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        .cmp-label { text-align: left !important; font-size: 13px; color: #555; }
+        .cmp-win { color: #2e7d32; }
+        .cmp-loss { color: #c62828; }
+        .cmp-zero { color: #888; }
+        .cmp-highlight { background: #e8f5e9; }
+        .stopped-badge {
+            display: inline-block;
+            font-size: 11px;
+            background: #ffebee;
+            color: #c62828;
+            border-radius: 4px;
+            padding: 1px 6px;
+            margin-left: 4px;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 BetPilot-myMates</h1>
+        <p class="subtitle">Collector of Roulette Strategies | European Roulette Simulator | <strong id="appVersionBadge"></strong></p>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="input-section">
+            <div class="form-group">
+                <label>📊 Roulette Winning Numbers (one per line, 0-36)</label>
+                <textarea id="numbers" placeholder="1&#10;5&#10;17&#10;0&#10;32&#10;..."></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label for="strategyMode">Strategy Mode</label>
+                    <select id="strategyMode">
+                        <option value="classic4">Classic 4 Bettors (Columns+Dozens)</option>
+                        <option value="absence2">Absence Trigger 2 Bettors (1 Column + 1 Dozen)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="absenceTrigger">Absence Trigger X (new mode)</label>
+                    <select id="absenceTrigger">
+                        <option value="3">3</option>
+                        <option value="4" selected>4 (Default)</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="maxStep">Max Steps (1-6)</label>
+                    <input type="number" id="maxStep" min="1" max="6" value="6">
+                </div>
+                <div class="form-group">
+                    <label for="spinCount">Show First N Spins</label>
+                    <input type="number" id="spinCount" min="1" value="10">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="simulate()">🚀 Run Simulation</button>
+                <button class="btn-secondary" onclick="clearResults()">🗑️ Clear</button>
+                <button class="btn-download" id="downloadBtn" style="display:none;" onclick="downloadCSV()">⬇️ Download Detailed CSV</button>
+                <button class="btn-download" id="downloadSummaryBtn" style="display:none;" onclick="downloadSessionSummaryCSV()">📊 Download Summary CSV</button>
+            </div>
+        </div>
+
+        <div id="results" class="results-section">
+            <!-- Metrics -->
+            <div class="section-header">📈 Session Metrics</div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Spins</div>
+                    <div class="metric-value" id="totalSpins">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Max Drawdown</div>
+                    <div class="metric-value" id="maxDrawdown">0u</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Largest Burst</div>
+                    <div class="metric-value" id="largestBurst">0u</div>
+                </div>
+            </div>
+
+                        <!-- Bettor Summary -->
+            <div class="section-header">👥 Bettor Summary</div>
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>Bettor</th>
+                        <th>Type</th>
+                        <th>Spins</th>
+                        <th>Wins/Losses</th>
+                        <th>Bankroll Change</th>
+                        <th>Max Step Hits</th>
+                        <th>Max Wins/Losses</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryBody"></tbody>
+            </table>
+
+            <!-- Step Comparison Panel -->
+            <div class="comparison-section" id="comparisonSection">
+                <h3>⚖️ Summary of Summary — Max Step Comparison (Same Numbers)</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Strategy</th>
+                            <th>Total Bankroll Change</th>
+                            <th>A</th>
+                            <th>B</th>
+                            <th>C</th>
+                            <th>D</th>
+                            <th>Bettors Stopped</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Per-Spin Details -->
+            <div class="section-header">🎲 Per-Spin Details</div>
+            <div id="spinDetails"></div>
+
+            <!-- Session ID -->
+            <div class="session-id" id="sessionId"></div>
+        </div>
+    </div>
+
+    <script>
+        const COLUMN_SETS = {
+            1: new Set([1,4,7,10,13,16,19,22,25,28,31,34]),
+            2: new Set([2,5,8,11,14,17,20,23,26,29,32,35]),
+            3: new Set([3,6,9,12,15,18,21,24,27,30,33,36])
+        };
+
+        const DOZEN_SETS = {
+            1: new Set([1,2,3,4,5,6,7,8,9,10,11,12]),
+            2: new Set([13,14,15,16,17,18,19,20,21,22,23,24]),
+            3: new Set([25,26,27,28,29,30,31,32,33,34,35,36])
+        };
+
+        const PAIR_OPTIONS = [[1,2], [1,3], [2,3]];
+        const STEPS = [1, 3, 9, 27, 81, 243];
+        const ABSENCE_STEPS = [1, 3, 9];
+        const APP_VERSION = "v2.6.0";
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const badge = document.getElementById('appVersionBadge');
+            if (badge) badge.textContent = APP_VERSION;
+        });
+
+        class Bettor {
+            constructor(name, type, maxStep, stopOnMaxLoss = true, customSteps = null) {
+                this.name = name;
+                this.type = type;
+                this.maxStep = maxStep;
+                this.stopOnMaxLoss = stopOnMaxLoss;
+                this.customSteps = customSteps;
+                this.stepIndex = 0;
+                this.totalBet = 0;
+                this.totalReturn = 0;
+                this.spins = 0;
+                this.wins = 0;
+                this.losses = 0;
+                this.maxStepHits = 0;
+                this.maxStepWins = 0;
+                this.maxStepLosses = 0;
+                this.isActive = true;
+                this.burstSpin = null;
+                this.cumulativeNet = 0;
+                this.peakNet = 0;
+                this.minNet = 0;
+            }
+
+            currentStake() {
+                const steps = this.customSteps || STEPS;
+                return steps[this.stepIndex];
+            }
+
+            placeAndResolve(pair, winningNum) {
+                if (!this.isActive) {
+                    return {
+                        stake: 0,
+                        totalStake: 0,
+                        payout: 0,
+                        net: 0,
+                        win: false,
+                        stopped: true,
+                        bursted: false
+                    };
+                }
+
+                const stake = this.currentStake();
+                const totalStake = stake * 2;
+                
+                let winningBets = 0;
+                if (this.type === 'column') {
+                    const col1Hits = COLUMN_SETS[pair[0]].has(winningNum);
+                    const col2Hits = COLUMN_SETS[pair[1]].has(winningNum);
+                    winningBets = Number(col1Hits) + Number(col2Hits);
+                } else {
+                    const d1Hits = DOZEN_SETS[pair[0]].has(winningNum);
+                    const d2Hits = DOZEN_SETS[pair[1]].has(winningNum);
+                    winningBets = Number(d1Hits) + Number(d2Hits);
+                }
+                const isWin = winningBets === 1;
+
+                // One of the two bets wins; the other loses.
+                const payout = isWin ? (stake * 3) : 0;
+                const net = payout - totalStake;
+
+                this.totalBet += totalStake;
+                this.totalReturn += payout;
+                this.spins += 1;
+
+                const atMax = this.stepIndex >= (this.maxStep - 1);
+                let bursted = false;
+                if (atMax) {
+                    this.maxStepHits += 1;
+                }
+
+                if (isWin) {
+                    this.wins += 1;
+                    if (atMax) this.maxStepWins += 1;
+                    this.stepIndex = 0;
+                } else {
+                    this.losses += 1;
+                    if (atMax) {
+                        this.maxStepLosses += 1;
+                        bursted = true;
+                        if (this.stopOnMaxLoss) {
+                            this.isActive = false;
+                        }
+                        this.stepIndex = 0;
+                    } else if (this.stepIndex < (this.maxStep - 1)) {
+                        this.stepIndex += 1;
+                    } else {
+                        this.stepIndex = 0;
+                    }
+                }
+
+                this.cumulativeNet += net;
+                this.peakNet = Math.max(this.peakNet, this.cumulativeNet);
+                this.minNet = Math.min(this.minNet, this.cumulativeNet);
+
+                return {
+                    stake: stake,
+                    totalStake: totalStake,
+                    payout: payout,
+                    net: net,
+                    win: isWin,
+                    stopped: false,
+                    bursted: bursted
+                };
+            }
+        }
+
+        // Run simulation for a specific maxStep and return summary only (no display side effects)
+        function runSimulationForStep(numbers, maxStep) {
+            const bettors = {
+                'A': new Bettor('A', 'column', maxStep),
+                'B': new Bettor('B', 'column', maxStep),
+                'C': new Bettor('C', 'dozen', maxStep),
+                'D': new Bettor('D', 'dozen', maxStep)
+            };
+            numbers.forEach((winNum, idx) => {
+                const spinIndex = idx + 1;
+                let colPairA = PAIR_OPTIONS[(spinIndex - 1) % PAIR_OPTIONS.length];
+                let colPairB = PAIR_OPTIONS[spinIndex % PAIR_OPTIONS.length];
+                let dozenPairC = PAIR_OPTIONS[(spinIndex - 1) % PAIR_OPTIONS.length];
+                let dozenPairD = PAIR_OPTIONS[spinIndex % PAIR_OPTIONS.length];
+                if (JSON.stringify(colPairA) === JSON.stringify(colPairB))
+                    colPairB = PAIR_OPTIONS[(spinIndex + 1) % PAIR_OPTIONS.length];
+                if (JSON.stringify(dozenPairC) === JSON.stringify(dozenPairD))
+                    dozenPairD = PAIR_OPTIONS[(spinIndex + 1) % PAIR_OPTIONS.length];
+                const rA = bettors['A'].placeAndResolve(colPairA, winNum);
+                const rB = bettors['B'].placeAndResolve(colPairB, winNum);
+                const rC = bettors['C'].placeAndResolve(dozenPairC, winNum);
+                const rD = bettors['D'].placeAndResolve(dozenPairD, winNum);
+                if (rA.bursted) bettors['A'].burstSpin = spinIndex;
+                if (rB.bursted) bettors['B'].burstSpin = spinIndex;
+                if (rC.bursted) bettors['C'].burstSpin = spinIndex;
+                if (rD.bursted) bettors['D'].burstSpin = spinIndex;
+            });
+            return bettors;
+        }
+
+        function runComparison(numbers) {
+            document.querySelector('#comparisonSection h3').textContent = '⚖️ Summary of Summary — Max Step Comparison (Same Numbers)';
+            const rows = [4, 5, 6].map((step, idx) => {
+                const b = runSimulationForStep(numbers, step);
+                const netA = b['A'].totalReturn - b['A'].totalBet;
+                const netB = b['B'].totalReturn - b['B'].totalBet;
+                const netC = b['C'].totalReturn - b['C'].totalBet;
+                const netD = b['D'].totalReturn - b['D'].totalBet;
+                const total = netA + netB + netC + netD;
+                const stopped = ['A','B','C','D'].filter(k => !b[k].isActive);
+                const fmt = v => `<span class="${v > 0 ? 'cmp-win' : v < 0 ? 'cmp-loss' : 'cmp-zero'}">${v.toFixed(0)}u</span>`;
+                const totalClass = total > 0 ? 'cmp-win' : total < 0 ? 'cmp-loss' : 'cmp-zero';
+                const stoppedHtml = stopped.length === 0
+                    ? '<span style="color:#4caf50">None</span>'
+                    : stopped.map(k => `<span class="stopped-badge">💥${k}@${b[k].burstSpin}</span>`).join(' ');
+                return `<tr class="${total > 0 ? 'cmp-highlight' : ''}">
+                    <td class="cmp-label">${idx + 1}</td>
+                    <td class="cmp-label">Max Step <strong>${step}</strong></td>
+                    <td class="${totalClass}" style="font-size:17px;">${total.toFixed(0)}u</td>
+                    <td>${fmt(netA)}</td>
+                    <td>${fmt(netB)}</td>
+                    <td>${fmt(netC)}</td>
+                    <td>${fmt(netD)}</td>
+                    <td>${stoppedHtml}</td>
+                </tr>`;
+            });
+            document.getElementById('comparisonBody').innerHTML = rows.join('');
+            document.getElementById('comparisonSection').classList.add('show');
+        }
+
+        function getColumnIndex(number) {
+            if (COLUMN_SETS[1].has(number)) return 1;
+            if (COLUMN_SETS[2].has(number)) return 2;
+            if (COLUMN_SETS[3].has(number)) return 3;
+            return null;
+        }
+
+        function getDozenIndex(number) {
+            if (DOZEN_SETS[1].has(number)) return 1;
+            if (DOZEN_SETS[2].has(number)) return 2;
+            if (DOZEN_SETS[3].has(number)) return 3;
+            return null;
+        }
+
+        function pickMostAbsent(absences) {
+            let picked = 1;
+            let maxAbs = absences[1];
+            for (const k of [2, 3]) {
+                if (absences[k] > maxAbs) {
+                    maxAbs = absences[k];
+                    picked = k;
+                }
+            }
+            return picked;
+        }
+
+        function pairFromAbsent(absentIndex) {
+            return [1, 2, 3].filter(x => x !== absentIndex);
+        }
+
+        function updateAbsenceCounters(absences, hitIndex) {
+            for (const k of [1, 2, 3]) {
+                if (hitIndex === k) {
+                    absences[k] = 0;
+                } else {
+                    absences[k] += 1;
+                }
+            }
+        }
+
+        function runAbsenceMode(numbers, triggerX) {
+            const bettors = {
+                'COL': new Bettor('COL', 'column', 3, false, ABSENCE_STEPS),
+                'DOZ': new Bettor('DOZ', 'dozen', 3, false, ABSENCE_STEPS)
+            };
+            const colAbs = { 1: 0, 2: 0, 3: 0 };
+            const dozAbs = { 1: 0, 2: 0, 3: 0 };
+            const records = [];
+
+            numbers.forEach((winningNum, idx) => {
+                const spinIndex = idx + 1;
+                const colAbsBefore = { ...colAbs };
+                const dozAbsBefore = { ...dozAbs };
+                const colTarget = pickMostAbsent(colAbs);
+                const dozTarget = pickMostAbsent(dozAbs);
+                const colTriggered = colAbs[colTarget] >= triggerX;
+                const dozTriggered = dozAbs[dozTarget] >= triggerX;
+
+                const colPair = pairFromAbsent(colTarget);
+                const dozPair = pairFromAbsent(dozTarget);
+
+                const colResult = colTriggered
+                    ? bettors['COL'].placeAndResolve(colPair, winningNum)
+                    : { stake: 0, totalStake: 0, payout: 0, net: 0, win: false, stopped: false, bursted: false, waiting: true };
+
+                const dozResult = dozTriggered
+                    ? bettors['DOZ'].placeAndResolve(dozPair, winningNum)
+                    : { stake: 0, totalStake: 0, payout: 0, net: 0, win: false, stopped: false, bursted: false, waiting: true };
+
+                const colHit = getColumnIndex(winningNum);
+                const dozHit = getDozenIndex(winningNum);
+                updateAbsenceCounters(colAbs, colHit);
+                updateAbsenceCounters(dozAbs, dozHit);
+                const colAbsAfter = { ...colAbs };
+                const dozAbsAfter = { ...dozAbs };
+
+                const combinedNet = colResult.net + dozResult.net;
+                records.push({
+                    spin: spinIndex,
+                    winningNumber: winningNum,
+                    bettor_col: {
+                        type: 'column',
+                        targetAbsent: colTarget,
+                        pair: colPair,
+                        step: bettors['COL'].stepIndex + 1,
+                        triggerX: triggerX,
+                        triggered: colTriggered,
+                        beforeAbsence: colAbsBefore,
+                        afterAbsence: colAbsAfter,
+                        hitIndex: colHit,
+                        ...colResult
+                    },
+                    bettor_doz: {
+                        type: 'dozen',
+                        targetAbsent: dozTarget,
+                        pair: dozPair,
+                        step: bettors['DOZ'].stepIndex + 1,
+                        triggerX: triggerX,
+                        triggered: dozTriggered,
+                        beforeAbsence: dozAbsBefore,
+                        afterAbsence: dozAbsAfter,
+                        hitIndex: dozHit,
+                        ...dozResult
+                    },
+                    combinedNet: combinedNet
+                });
+            });
+
+            const maxDrawdown = Math.max(
+                bettors['COL'].peakNet - bettors['COL'].minNet,
+                bettors['DOZ'].peakNet - bettors['DOZ'].minNet
+            );
+            const largestBurst = records.length ? Math.max(...records.map(r => Math.abs(r.combinedNet))) : 0;
+
+            return { bettors, records, maxDrawdown, largestBurst };
+        }
+
+        function runAbsenceComparison(numbers) {
+            document.querySelector('#comparisonSection h3').textContent = '⚖️ Summary of Summary — Absence Trigger Comparison (Same Numbers)';
+            const rows = [3, 4, 5, 6].map((triggerX, idx) => {
+                const result = runAbsenceMode(numbers, triggerX);
+                const colNet = result.bettors['COL'].totalReturn - result.bettors['COL'].totalBet;
+                const dozNet = result.bettors['DOZ'].totalReturn - result.bettors['DOZ'].totalBet;
+                const total = colNet + dozNet;
+                const totalClass = total > 0 ? 'cmp-win' : total < 0 ? 'cmp-loss' : 'cmp-zero';
+                const fmt = v => `<span class="${v > 0 ? 'cmp-win' : v < 0 ? 'cmp-loss' : 'cmp-zero'}">${v.toFixed(0)}u</span>`;
+                const burstCount = result.bettors['COL'].maxStepLosses + result.bettors['DOZ'].maxStepLosses;
+                return `<tr class="${total > 0 ? 'cmp-highlight' : ''}">
+                    <td class="cmp-label">${idx + 1}</td>
+                    <td class="cmp-label">Trigger <strong>${triggerX}</strong></td>
+                    <td class="${totalClass}" style="font-size:17px;">${total.toFixed(0)}u</td>
+                    <td>${fmt(colNet)}</td>
+                    <td>${fmt(dozNet)}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>Burst hits: ${burstCount}</td>
+                </tr>`;
+            });
+            document.getElementById('comparisonBody').innerHTML = rows.join('');
+            document.getElementById('comparisonSection').classList.add('show');
+        }
+
+        function simulate() {
+            const numbersText = document.getElementById('numbers').value.trim();
+            if (!numbersText) {
+                showAlert('Please enter roulette numbers', 'error');
+                return;
+            }
+
+            const numbers = numbersText.split('\n')
+                .map(n => parseInt(n.trim()))
+                .filter(n => !isNaN(n) && n >= 0 && n <= 36);
+
+            if (numbers.length === 0) {
+                showAlert('No valid numbers entered (0-36)', 'error');
+                return;
+            }
+
+            const strategyMode = document.getElementById('strategyMode').value;
+            const sessionId = generateSessionId();
+
+            if (strategyMode === 'absence2') {
+                const triggerX = parseInt(document.getElementById('absenceTrigger').value) || 4;
+                const absenceResult = runAbsenceMode(numbers, triggerX);
+                displayAbsenceResults(absenceResult, sessionId, triggerX);
+                saveSession(sessionId, absenceResult.bettors, absenceResult.records, absenceResult.maxDrawdown, absenceResult.largestBurst);
+                document.getElementById('downloadBtn').style.display = 'flex';
+                document.getElementById('downloadSummaryBtn').style.display = 'flex';
+                runAbsenceComparison(numbers);
+            } else {
+                const maxStep = parseInt(document.getElementById('maxStep').value) || 6;
+                const bettors = {
+                    'A': new Bettor('A', 'column', maxStep),
+                    'B': new Bettor('B', 'column', maxStep),
+                    'C': new Bettor('C', 'dozen', maxStep),
+                    'D': new Bettor('D', 'dozen', maxStep)
+                };
+
+                const perSpinRecords = [];
+
+                numbers.forEach((winNum, idx) => {
+                    const spinIndex = idx + 1;
+                    const colPairA = PAIR_OPTIONS[(spinIndex - 1) % PAIR_OPTIONS.length];
+                    let colPairB = PAIR_OPTIONS[spinIndex % PAIR_OPTIONS.length];
+                    const dozenPairC = PAIR_OPTIONS[(spinIndex - 1) % PAIR_OPTIONS.length];
+                    let dozenPairD = PAIR_OPTIONS[spinIndex % PAIR_OPTIONS.length];
+
+                    if (JSON.stringify(colPairA) === JSON.stringify(colPairB)) {
+                        colPairB = PAIR_OPTIONS[(spinIndex + 1) % PAIR_OPTIONS.length];
+                    }
+                    if (JSON.stringify(dozenPairC) === JSON.stringify(dozenPairD)) {
+                        dozenPairD = PAIR_OPTIONS[(spinIndex + 1) % PAIR_OPTIONS.length];
+                    }
+
+                    const resultA = bettors['A'].placeAndResolve(colPairA, winNum);
+                    const resultB = bettors['B'].placeAndResolve(colPairB, winNum);
+                    const resultC = bettors['C'].placeAndResolve(dozenPairC, winNum);
+                    const resultD = bettors['D'].placeAndResolve(dozenPairD, winNum);
+
+                    if (resultA.bursted) bettors['A'].burstSpin = spinIndex;
+                    if (resultB.bursted) bettors['B'].burstSpin = spinIndex;
+                    if (resultC.bursted) bettors['C'].burstSpin = spinIndex;
+                    if (resultD.bursted) bettors['D'].burstSpin = spinIndex;
+
+                    const combinedNet = resultA.net + resultB.net + resultC.net + resultD.net;
+                    perSpinRecords.push({
+                        spin: spinIndex,
+                        winningNumber: winNum,
+                        bettor_a: { type: 'column', pair: colPairA, step: bettors['A'].stepIndex + 1, ...resultA },
+                        bettor_b: { type: 'column', pair: colPairB, step: bettors['B'].stepIndex + 1, ...resultB },
+                        bettor_c: { type: 'dozen', pair: dozenPairC, step: bettors['C'].stepIndex + 1, ...resultC },
+                        bettor_d: { type: 'dozen', pair: dozenPairD, step: bettors['D'].stepIndex + 1, ...resultD },
+                        combinedNet: combinedNet
+                    });
+                });
+
+                const maxDrawdown = Math.max(
+                    bettors['A'].peakNet - bettors['A'].minNet,
+                    bettors['B'].peakNet - bettors['B'].minNet,
+                    bettors['C'].peakNet - bettors['C'].minNet,
+                    bettors['D'].peakNet - bettors['D'].minNet
+                );
+                const largestBurst = Math.max(...perSpinRecords.map(r => Math.abs(r.combinedNet)));
+                displayResults(bettors, perSpinRecords, maxDrawdown, largestBurst, sessionId);
+                saveSession(sessionId, bettors, perSpinRecords, maxDrawdown, largestBurst);
+                document.getElementById('downloadBtn').style.display = 'flex';
+                document.getElementById('downloadSummaryBtn').style.display = 'flex';
+                runComparison(numbers);
+            }
+
+            const comparison = document.getElementById('comparisonSection');
+            if (comparison) {
+                comparison.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function displayResults(bettors, records, maxDrawdown, largestBurst, sessionId) {
+            document.getElementById('totalSpins').textContent = records.length;
+            document.getElementById('maxDrawdown').textContent = maxDrawdown.toFixed(2) + 'u';
+            document.getElementById('largestBurst').textContent = largestBurst.toFixed(2) + 'u';
+
+            const summaryHtml = Object.values(bettors).map(b => {
+                const net = b.totalReturn - b.totalBet;
+                const netClass = net > 0 ? 'win' : net < 0 ? 'loss' : 'neutral';
+                return `<tr>
+                    <td><strong>${b.name}</strong></td>
+                    <td><span class="type-${b.type}">${b.type.toUpperCase()}</span></td>
+                    <td>${b.spins}</td>
+                    <td>${b.wins}/${b.losses}</td>
+                    <td class="${netClass}">${net > 0 ? '+' : ''}${net.toFixed(0)}u</td>
+                    <td>${b.maxStepHits}</td>
+                    <td>${b.maxStepWins}/${b.maxStepLosses}</td>
+                    <td>${b.isActive ? 'ACTIVE' : `STOPPED @ Spin ${b.burstSpin}`}</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('summaryBody').innerHTML = summaryHtml;
+
+            const spinCount = Math.min(parseInt(document.getElementById('spinCount').value) || 10, records.length);
+            const spinHtml = records.slice(0, spinCount).map(rec => {
+                const bettorHtml = ['A', 'B', 'C', 'D'].map(name => {
+                    const b = rec[`bettor_${name.toLowerCase()}`];
+                    const betClass = b.stopped ? 'neutral' : (b.win ? 'win' : 'loss');
+                    const typeName = b.type === 'column' ? 'Col' : 'Dz';
+                    let resultLabel = b.win ? '✅ WIN' : '❌ LOSS';
+                    if (b.bursted) {
+                        resultLabel = '💥 BURST (STOPPED)';
+                    } else if (b.stopped) {
+                        resultLabel = '⏸️ STOPPED';
+                    }
+                    return `<div class="bettor-card ${betClass}">
+                        <strong>${name}</strong> <span class="type-${b.type}">${typeName}</span> 
+                        Pair(${b.pair[0]}-${b.pair[1]})
+                        <br>Step ${b.step}
+                        <br>Stake per bet: ${b.stake}u
+                        <br>Total stake: ${b.totalStake}u
+                        <br>Payout: ${b.payout}u
+                        <br>Bankroll change: ${b.net > 0 ? '+' : ''}${b.net.toFixed(0)}u
+                        <br>${resultLabel}
+                    </div>`;
+                }).join('');
+                return `<div class="spin-detail">
+                    <div class="spin-number">Spin ${rec.spin}: Number ${rec.winningNumber}</div>
+                    <div class="bettor-result">${bettorHtml}</div>
+                    <div style="margin-top: 10px; text-align: right; font-weight: bold; color: #667eea; font-size: 15px;">
+                        Combined bankroll change: ${rec.combinedNet > 0 ? '+' : ''}${rec.combinedNet.toFixed(0)}u
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('spinDetails').innerHTML = spinHtml;
+
+            document.getElementById('sessionId').textContent = `Session: ${sessionId} | ${APP_VERSION}`;
+            document.getElementById('results').classList.add('show');
+            showAlert('✓ Simulation completed successfully!', 'success');
+        }
+
+        function displayAbsenceResults(result, sessionId, triggerX) {
+            const bettors = result.bettors;
+            const records = result.records;
+            document.getElementById('totalSpins').textContent = records.length;
+            document.getElementById('maxDrawdown').textContent = result.maxDrawdown.toFixed(2) + 'u';
+            document.getElementById('largestBurst').textContent = result.largestBurst.toFixed(2) + 'u';
+
+            const colNet = bettors['COL'].totalReturn - bettors['COL'].totalBet;
+            const dozNet = bettors['DOZ'].totalReturn - bettors['DOZ'].totalBet;
+            const summaryRows = [
+                { name: 'COL', type: 'column', spins: bettors['COL'].spins, wins: bettors['COL'].wins, losses: bettors['COL'].losses, net: colNet, hits: bettors['COL'].maxStepHits, maxWL: `${bettors['COL'].maxStepWins}/${bettors['COL'].maxStepLosses}` },
+                { name: 'DOZ', type: 'dozen', spins: bettors['DOZ'].spins, wins: bettors['DOZ'].wins, losses: bettors['DOZ'].losses, net: dozNet, hits: bettors['DOZ'].maxStepHits, maxWL: `${bettors['DOZ'].maxStepWins}/${bettors['DOZ'].maxStepLosses}` }
+            ];
+
+            const summaryHtml = summaryRows.map(b => {
+                const netClass = b.net > 0 ? 'win' : b.net < 0 ? 'loss' : 'neutral';
+                return `<tr>
+                    <td><strong>${b.name}</strong></td>
+                    <td><span class="type-${b.type}">${b.type.toUpperCase()}</span></td>
+                    <td>${b.spins}</td>
+                    <td>${b.wins}/${b.losses}</td>
+                    <td class="${netClass}">${b.net > 0 ? '+' : ''}${b.net.toFixed(0)}u</td>
+                    <td>${b.hits}</td>
+                    <td>${b.maxWL}</td>
+                    <td>RESET@Step3</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('summaryBody').innerHTML = summaryHtml;
+
+            const spinCount = Math.min(parseInt(document.getElementById('spinCount').value) || 10, records.length);
+            const spinHtml = records.slice(0, spinCount).map(rec => {
+                const col = rec.bettor_col;
+                const doz = rec.bettor_doz;
+                const buildCard = (label, b, typeLabel) => {
+                    const outcome = b.waiting ? '⏳ WAIT' : (b.win ? '✅ WIN' : '❌ LOSS');
+                    const hitLabel = b.hitIndex ? `${typeLabel}${b.hitIndex}` : 'None (0)';
+                    const beforeA = b.beforeAbsence || {1: 0, 2: 0, 3: 0};
+                    const afterA = b.afterAbsence || {1: 0, 2: 0, 3: 0};
+                    const idxPrefix = b.type === 'column' ? 'C' : 'D';
+                    return `<div class="bettor-card ${b.waiting ? 'neutral' : (b.win ? 'win' : 'loss')}">
+                        <strong>${label}</strong> <span class="type-${b.type}">${typeLabel}</span>
+                        <br>Trigger X: ${b.triggerX}
+                        <br>Target absent: ${b.targetAbsent}
+                        <br>Triggered now: ${b.triggered ? 'YES' : 'NO'}
+                        <br>Hit this spin: ${hitLabel}
+                        <br>Absence before: ${idxPrefix}1=${beforeA[1]}, ${idxPrefix}2=${beforeA[2]}, ${idxPrefix}3=${beforeA[3]}
+                        <br>Absence after: ${idxPrefix}1=${afterA[1]}, ${idxPrefix}2=${afterA[2]}, ${idxPrefix}3=${afterA[3]}
+                        <br>Pair(${b.pair[0]}-${b.pair[1]})
+                        <br>Step ${b.step}
+                        <br>Stake per bet: ${b.stake}u
+                        <br>Total stake: ${b.totalStake}u
+                        <br>Payout: ${b.payout}u
+                        <br>Bankroll change: ${b.net > 0 ? '+' : ''}${b.net.toFixed(0)}u
+                        <br>${outcome}
+                    </div>`;
+                };
+                return `<div class="spin-detail">
+                    <div class="spin-number">Spin ${rec.spin}: Number ${rec.winningNumber}</div>
+                    <div class="bettor-result">
+                        ${buildCard('COL', col, 'Col')}
+                        ${buildCard('DOZ', doz, 'Dz')}
+                    </div>
+                    <div style="margin-top: 10px; text-align: right; font-weight: bold; color: #667eea; font-size: 15px;">
+                        Combined bankroll change: ${rec.combinedNet > 0 ? '+' : ''}${rec.combinedNet.toFixed(0)}u
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('spinDetails').innerHTML = spinHtml;
+
+            document.getElementById('sessionId').textContent = `Session: ${sessionId} | ${APP_VERSION} | Absence Trigger X=${triggerX}`;
+            document.getElementById('results').classList.add('show');
+            showAlert('✓ Absence strategy simulation completed successfully!', 'success');
+        }
+
+        function generateSessionId() {
+            const now = new Date();
+            const date = now.getFullYear().toString().slice(-2) + 
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0');
+            
+            let sessions = JSON.parse(localStorage.getItem('betpilot_sessions') || '{}');
+            const key = `seq_${date}`;
+            sessions[key] = (sessions[key] || 0) + 1;
+            localStorage.setItem('betpilot_sessions', JSON.stringify(sessions));
+            
+            return `${date}-${String(sessions[key]).padStart(3, '0')}`;
+        }
+
+        function saveSession(sessionId, bettors, records, maxDrawdown, largestBurst) {
+            const sessionData = {
+                sessionId: sessionId,
+                timestamp: new Date().toISOString(),
+                appVersion: APP_VERSION,
+                bettors: Object.fromEntries(
+                    Object.entries(bettors).map(([k, v]) => [
+                        k,
+                        {
+                            name: v.name,
+                            type: v.type,
+                            spins: v.spins,
+                            wins: v.wins,
+                            losses: v.losses,
+                            net: v.totalReturn - v.totalBet,
+                            maxStepHits: v.maxStepHits,
+                            maxStepWins: v.maxStepWins,
+                            maxStepLosses: v.maxStepLosses,
+                            stopped: !v.isActive,
+                            burstSpin: v.burstSpin
+                        }
+                    ])
+                ),
+                metrics: {
+                    maxDrawdown: maxDrawdown,
+                    largestBurst: largestBurst,
+                    totalSpins: records.length,
+                    combinedNet: Object.values(bettors).reduce((sum, b) => sum + (b.totalReturn - b.totalBet), 0)
+                },
+                records: records
+            };
+            
+            let allSessions = JSON.parse(localStorage.getItem('betpilot_all_sessions') || '[]');
+            allSessions.push(sessionData);
+            localStorage.setItem('betpilot_all_sessions', JSON.stringify(allSessions));
+        }
+
+        function buildSessionSummaryRow(session) {
+            const bettorSummary = session.bettors || {};
+            return {
+                sessionId: session.sessionId,
+                appVersion: session.appVersion || APP_VERSION,
+                timestamp: session.timestamp,
+                totalSpins: session.metrics.totalSpins,
+                maxDrawdown: session.metrics.maxDrawdown,
+                largestBurst: session.metrics.largestBurst,
+                combinedNet: session.metrics.combinedNet,
+                bettorA_net: bettorSummary.A ? bettorSummary.A.net : 0,
+                bettorB_net: bettorSummary.B ? bettorSummary.B.net : 0,
+                bettorC_net: bettorSummary.C ? bettorSummary.C.net : 0,
+                bettorD_net: bettorSummary.D ? bettorSummary.D.net : 0,
+                bettorA_wins: bettorSummary.A ? bettorSummary.A.wins : 0,
+                bettorA_losses: bettorSummary.A ? bettorSummary.A.losses : 0,
+                bettorB_wins: bettorSummary.B ? bettorSummary.B.wins : 0,
+                bettorB_losses: bettorSummary.B ? bettorSummary.B.losses : 0,
+                bettorC_wins: bettorSummary.C ? bettorSummary.C.wins : 0,
+                bettorC_losses: bettorSummary.C ? bettorSummary.C.losses : 0,
+                bettorD_wins: bettorSummary.D ? bettorSummary.D.wins : 0,
+                bettorD_losses: bettorSummary.D ? bettorSummary.D.losses : 0,
+                maxStepA: bettorSummary.A ? bettorSummary.A.maxStepHits : 0,
+                maxStepB: bettorSummary.B ? bettorSummary.B.maxStepHits : 0,
+                maxStepC: bettorSummary.C ? bettorSummary.C.maxStepHits : 0,
+                maxStepD: bettorSummary.D ? bettorSummary.D.maxStepHits : 0,
+                stoppedA: bettorSummary.A ? bettorSummary.A.stopped : false,
+                stoppedB: bettorSummary.B ? bettorSummary.B.stopped : false,
+                stoppedC: bettorSummary.C ? bettorSummary.C.stopped : false,
+                stoppedD: bettorSummary.D ? bettorSummary.D.stopped : false,
+                burstSpinA: bettorSummary.A ? bettorSummary.A.burstSpin : '',
+                burstSpinB: bettorSummary.B ? bettorSummary.B.burstSpin : '',
+                burstSpinC: bettorSummary.C ? bettorSummary.C.burstSpin : '',
+                burstSpinD: bettorSummary.D ? bettorSummary.D.burstSpin : '',
+                bettorCOL_net: bettorSummary.COL ? bettorSummary.COL.net : 0,
+                bettorDOZ_net: bettorSummary.DOZ ? bettorSummary.DOZ.net : 0,
+                bettorCOL_wins: bettorSummary.COL ? bettorSummary.COL.wins : 0,
+                bettorCOL_losses: bettorSummary.COL ? bettorSummary.COL.losses : 0,
+                bettorDOZ_wins: bettorSummary.DOZ ? bettorSummary.DOZ.wins : 0,
+                bettorDOZ_losses: bettorSummary.DOZ ? bettorSummary.DOZ.losses : 0,
+                maxStepCOL: bettorSummary.COL ? bettorSummary.COL.maxStepHits : 0,
+                maxStepDOZ: bettorSummary.DOZ ? bettorSummary.DOZ.maxStepHits : 0
+            };
+        }
+        
+        function downloadCSV() {
+            const sessions = JSON.parse(localStorage.getItem('betpilot_all_sessions') || '[]');
+            if (sessions.length === 0) {
+                showAlert('No sessions to download', 'error');
+                return;
+            }
+
+            const latestSession = sessions[sessions.length - 1];
+            const records = latestSession.records;
+
+            let csv = '';
+            const isClassic = records.length > 0 && records[0].bettor_a;
+
+            if (isClassic) {
+                csv = 'Spin,Number,BettorA_Type,BettorA_Pair,BettorA_Step,BettorA_Net,BettorA_Win,BettorB_Type,BettorB_Pair,BettorB_Step,BettorB_Net,BettorB_Win,BettorC_Type,BettorC_Pair,BettorC_Step,BettorC_Net,BettorC_Win,BettorD_Type,BettorD_Pair,BettorD_Step,BettorD_Net,BettorD_Win,Combined_Net\n';
+                records.forEach(rec => {
+                    const row = [
+                        rec.spin,
+                        rec.winningNumber,
+                        rec.bettor_a.type, `${rec.bettor_a.pair[0]}-${rec.bettor_a.pair[1]}`, rec.bettor_a.step, rec.bettor_a.net, rec.bettor_a.win,
+                        rec.bettor_b.type, `${rec.bettor_b.pair[0]}-${rec.bettor_b.pair[1]}`, rec.bettor_b.step, rec.bettor_b.net, rec.bettor_b.win,
+                        rec.bettor_c.type, `${rec.bettor_c.pair[0]}-${rec.bettor_c.pair[1]}`, rec.bettor_c.step, rec.bettor_c.net, rec.bettor_c.win,
+                        rec.bettor_d.type, `${rec.bettor_d.pair[0]}-${rec.bettor_d.pair[1]}`, rec.bettor_d.step, rec.bettor_d.net, rec.bettor_d.win,
+                        rec.combinedNet
+                    ];
+                    csv += row.join(',') + '\n';
+                });
+            } else {
+                csv = 'Spin,Number,COL_TargetAbsent,COL_Pair,COL_Step,COL_Triggered,COL_Hit,COL_AbsBefore_C1,COL_AbsBefore_C2,COL_AbsBefore_C3,COL_AbsAfter_C1,COL_AbsAfter_C2,COL_AbsAfter_C3,COL_Net,COL_Win,DOZ_TargetAbsent,DOZ_Pair,DOZ_Step,DOZ_Triggered,DOZ_Hit,DOZ_AbsBefore_D1,DOZ_AbsBefore_D2,DOZ_AbsBefore_D3,DOZ_AbsAfter_D1,DOZ_AbsAfter_D2,DOZ_AbsAfter_D3,DOZ_Net,DOZ_Win,Combined_Net\n';
+                records.forEach(rec => {
+                    const row = [
+                        rec.spin,
+                        rec.winningNumber,
+                        rec.bettor_col.targetAbsent,
+                        `${rec.bettor_col.pair[0]}-${rec.bettor_col.pair[1]}`,
+                        rec.bettor_col.step,
+                        rec.bettor_col.triggered,
+                        rec.bettor_col.hitIndex || '',
+                        rec.bettor_col.beforeAbsence ? rec.bettor_col.beforeAbsence[1] : '',
+                        rec.bettor_col.beforeAbsence ? rec.bettor_col.beforeAbsence[2] : '',
+                        rec.bettor_col.beforeAbsence ? rec.bettor_col.beforeAbsence[3] : '',
+                        rec.bettor_col.afterAbsence ? rec.bettor_col.afterAbsence[1] : '',
+                        rec.bettor_col.afterAbsence ? rec.bettor_col.afterAbsence[2] : '',
+                        rec.bettor_col.afterAbsence ? rec.bettor_col.afterAbsence[3] : '',
+                        rec.bettor_col.net,
+                        rec.bettor_col.win,
+                        rec.bettor_doz.targetAbsent,
+                        `${rec.bettor_doz.pair[0]}-${rec.bettor_doz.pair[1]}`,
+                        rec.bettor_doz.step,
+                        rec.bettor_doz.triggered,
+                        rec.bettor_doz.hitIndex || '',
+                        rec.bettor_doz.beforeAbsence ? rec.bettor_doz.beforeAbsence[1] : '',
+                        rec.bettor_doz.beforeAbsence ? rec.bettor_doz.beforeAbsence[2] : '',
+                        rec.bettor_doz.beforeAbsence ? rec.bettor_doz.beforeAbsence[3] : '',
+                        rec.bettor_doz.afterAbsence ? rec.bettor_doz.afterAbsence[1] : '',
+                        rec.bettor_doz.afterAbsence ? rec.bettor_doz.afterAbsence[2] : '',
+                        rec.bettor_doz.afterAbsence ? rec.bettor_doz.afterAbsence[3] : '',
+                        rec.bettor_doz.net,
+                        rec.bettor_doz.win,
+                        rec.combinedNet
+                    ];
+                    csv += row.join(',') + '\n';
+                });
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `betpilot_${latestSession.sessionId}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function downloadSessionSummaryCSV() {
+            const sessions = JSON.parse(localStorage.getItem('betpilot_all_sessions') || '[]');
+            if (sessions.length === 0) {
+                showAlert('No session summaries to download', 'error');
+                return;
+            }
+
+            const headers = [
+                'sessionId', 'appVersion', 'timestamp', 'totalSpins', 'maxDrawdown', 'largestBurst', 'combinedNet',
+                'bettorA_net', 'bettorB_net', 'bettorC_net', 'bettorD_net',
+                'bettorA_wins', 'bettorA_losses', 'bettorB_wins', 'bettorB_losses',
+                'bettorC_wins', 'bettorC_losses', 'bettorD_wins', 'bettorD_losses',
+                'maxStepA', 'maxStepB', 'maxStepC', 'maxStepD',
+                'stoppedA', 'stoppedB', 'stoppedC', 'stoppedD',
+                'burstSpinA', 'burstSpinB', 'burstSpinC', 'burstSpinD',
+                'bettorCOL_net', 'bettorDOZ_net', 'bettorCOL_wins', 'bettorCOL_losses',
+                'bettorDOZ_wins', 'bettorDOZ_losses', 'maxStepCOL', 'maxStepDOZ'
+            ];
+
+            const rows = sessions.map(buildSessionSummaryRow);
+            const csvRows = [headers.join(',')].concat(rows.map(row => headers.map(h => row[h] ?? 0).join(',')));
+            const csv = csvRows.join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'betpilot_session_summary.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function clearResults() {
+            document.getElementById('numbers').value = '';
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('downloadSummaryBtn').style.display = 'none';
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert show alert-${type}`;
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+    </script>
+</body>
+</html>
