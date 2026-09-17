@@ -44,6 +44,22 @@ input,select { min-width:0; border:1px solid var(--line); border-radius:5px; bac
 .notice { flex:1; color:var(--muted); font-size:10px; min-height:1em; }
 .notice.error { color:var(--red); }
 
+/* Manually confirmed OCR input */
+.ocr-control { border:1px solid #bfdbfe; border-radius:8px; padding:5px 7px; background:#f8fbff; }
+.ocr-control > summary { display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:10px; }
+.ocr-control > summary span { color:var(--muted); font-size:9px; font-weight:500; }
+.ocr-control > summary span.running { color:var(--green); font-weight:800; }
+.ocr-control > summary span.pending { color:var(--yellow); font-weight:800; }
+.ocr-control > summary span.error { color:var(--red); font-weight:800; }
+.ocr-control-row { display:flex; align-items:flex-end; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.ocr-control-row label,.ocr-confirmation label { display:flex; flex-direction:column; gap:2px; color:var(--muted); font-size:8px; }
+.ocr-control-row select { min-width:230px; }
+.ocr-control-row small { flex:1 1 180px; color:var(--muted); font-size:8px; }
+.ocr-confirmation { display:flex; align-items:flex-end; gap:6px; flex-wrap:wrap; margin-top:6px; padding:7px; border:1px solid #f59e0b; border-radius:7px; background:#fffbeb; }
+.ocr-confirmation[hidden] { display:none; }
+.ocr-confirmation input { width:70px; font-size:15px; font-weight:800; text-align:center; }
+.ocr-confirmation span { color:#725316; font-size:9px; }
+
 /* Focus mode */
 #next-bets-panel[hidden] { display:none; }
 .focus-control { display:flex; justify-content:flex-end; }

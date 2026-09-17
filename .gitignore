@@ -5,6 +5,14 @@ __pycache__/
 *.log
 *.tmp
 *.temp
+casino-tracker/.secrets/
+casino-tracker/roulette/data/ocr-events.jsonl
+casino-tracker/roulette/data/ocr-corrections/
+OCR/.pending/
+OCR/winning_number.txt
+OCR/screenshot.png
+OCR/crop_test.png
+work/
 
 # Git internal files that were copied from roulette-analyzer's .git
 casino-tracker/roulette/.git/

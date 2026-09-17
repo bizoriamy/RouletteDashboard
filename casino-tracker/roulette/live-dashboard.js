@@ -276,6 +276,17 @@
   function sendQuickEntryState() {
     const build = document.querySelector(".build-version")?.textContent?.trim() || "";
     quickEntryChannel.postMessage({ type: "state", numbers: quickEntryNumbers(), build });
+    sendOcrDashboardState();
+  }
+
+  function sendOcrDashboardState() {
+    const state = engine.getState();
+    const lastSpin = state.spins.length ? Number(state.spins[state.spins.length - 1].number) : null;
+    fetch("/api/ocr/dashboard-state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session: tableSession.number, spinCount: state.spinCount, lastNumber: lastSpin })
+    }).catch(() => {});
   }
   function recordSpin(number, source = "manual") {
     const input = document.querySelector("#spin-input");
@@ -286,7 +297,8 @@
       renderHotStreets();
       renderFreddy();
       input.value = "";
-      say(`Spin ${number} recorded${source === "quick" ? " from Quick Entry" : ""}.`);
+      const sourceLabel = source === "quick" ? " from Quick Entry" : source === "ocr" ? " from OCR" : "";
+      say(`Spin ${number} recorded${sourceLabel}.`);
       sendQuickEntryState();
     });
     requestAnimationFrame(() => input.focus());
@@ -302,7 +314,17 @@
     let features = "width=720,height=285,resizable=yes,scrollbars=no";
     try {
       const saved = JSON.parse(localStorage.getItem("roulette-quick-window-v1") || "null");
-      if (saved) features += `,left=${saved.x},top=${saved.y},width=${saved.width},height=${saved.height}`;
+      if (saved) {
+        const availableLeft = Number.isFinite(window.screen.availLeft) ? window.screen.availLeft : 0;
+        const availableTop = Number.isFinite(window.screen.availTop) ? window.screen.availTop : 0;
+        const availableWidth = Math.max(320, window.screen.availWidth || window.screen.width || 720);
+        const availableHeight = Math.max(240, window.screen.availHeight || window.screen.height || 600);
+        const width = Math.min(availableWidth, Math.max(420, Number(saved.width) || 720));
+        const height = Math.min(availableHeight, Math.max(240, Number(saved.height) || 285));
+        const left = Math.min(availableLeft + availableWidth - width, Math.max(availableLeft, Number(saved.x) || availableLeft));
+        const top = Math.min(availableTop + availableHeight - height, Math.max(availableTop, Number(saved.y) || availableTop));
+        features += `,left=${Math.round(left)},top=${Math.round(top)},width=${Math.round(width)},height=${Math.round(height)}`;
+      }
     } catch (_) {}
     const popup = window.open("quick-entry-window.html", "roulette-quick-entry", features);
     if (!popup) say("Allow popups for localhost to open Quick Entry.", true);
@@ -338,12 +360,158 @@
       for (const event of Array.isArray(payload.events) ? payload.events : []) {
         quickEntryLastServerId = Math.max(quickEntryLastServerId, Number(event.id) || 0);
         if (event.action === "undo") undoSpin("quick");
-        else if (event.action === "spin") recordSpin(Number(event.number), "quick");
+        else if (event.action === "spin") recordSpin(Number(event.number), event.source === "ocr" ? "ocr" : "quick");
       }
     } catch (_) {}
   }
   pollQuickEntryActions();
   window.setInterval(pollQuickEntryActions, 350);
+
+  const ocrStatus = document.querySelector("#ocr-status");
+  const ocrStart = document.querySelector("#ocr-start");
+  const ocrStop = document.querySelector("#ocr-stop");
+  const ocrProfile = document.querySelector("#ocr-profile");
+  const ocrMode = document.querySelector("#ocr-mode");
+  const ocrConfirmation = document.querySelector("#ocr-confirmation");
+  const ocrNumber = document.querySelector("#ocr-number");
+  const ocrConfirm = document.querySelector("#ocr-confirm");
+  const ocrSkip = document.querySelector("#ocr-skip");
+  const ocrCandidateNote = document.querySelector("#ocr-candidate-note");
+  let ocrPendingId = null;
+
+  function clearOcrCandidateUi() {
+    ocrPendingId = null;
+    ocrConfirmation.hidden = true;
+    ocrNumber.value = "";
+    ocrCandidateNote.textContent = "";
+  }
+
+  function renderOcrStatus(payload) {
+    const pending = payload?.pending || null;
+    const running = Boolean(payload?.running);
+    ocrStart.disabled = running;
+    ocrStop.disabled = !running;
+    ocrProfile.disabled = running;
+    ocrMode.disabled = running;
+    ocrStatus.className = pending ? "pending" : payload?.error ? "error" : running ? "running" : "";
+    const phaseText = {
+      starting: "Starting",
+      baseline: "Reading baseline",
+      watching: "Watching",
+      "change-detected": "Change detected",
+      reading: "Reading number",
+      pending: "Awaiting confirmation",
+      automatic: "Entered automatically",
+      observed: "Observed",
+      stopped: "Stopped"
+    };
+    ocrStatus.textContent = pending
+      ? "Awaiting confirmation"
+      : payload?.error || payload?.message || phaseText[payload?.phase] || (running ? "Watching" : "Stopped");
+    if (pending) {
+      const isNew = pending.eventId !== ocrPendingId;
+      ocrPendingId = pending.eventId;
+      ocrConfirmation.hidden = false;
+      if (isNew) {
+        ocrNumber.value = String(pending.detectedNumber);
+        ocrNumber.select();
+      }
+      const timing = Number.isFinite(Number(pending.recognitionMs)) ? ` · ${(Number(pending.recognitionMs) / 1000).toFixed(1)}s` : "";
+      const validation = pending.sequenceValid === false ? " · history shift not validated" : pending.sequenceValid === true ? " · history validated" : "";
+      const reason = pending.blockedReason ? ` · ${pending.blockedReason}` : "";
+      ocrCandidateNote.textContent = `OCR detected ${pending.detectedNumber}${timing}${validation}${reason} · monitoring paused`;
+      document.querySelector("#ocr-control").open = true;
+    } else if (ocrPendingId) {
+      clearOcrCandidateUi();
+    }
+  }
+
+  async function pollOcrStatus() {
+    try {
+      const response = await fetch("/api/ocr/status", { cache: "no-store" });
+      const payload = await response.json();
+      if (payload.ok) renderOcrStatus(payload);
+    } catch (_) {
+      renderOcrStatus({ running: false, error: "OCR connection unavailable" });
+    }
+  }
+
+  ocrStart.addEventListener("click", async () => {
+    ocrStart.disabled = true;
+    ocrStatus.textContent = "Starting…";
+    try {
+      localStorage.setItem("roulette-ocr-mode-v1", ocrMode.value);
+      const response = await fetch("/api/ocr/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profile: ocrProfile.value, mode: ocrMode.value }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "OCR could not start");
+      say(`OCR started in ${ocrMode.options[ocrMode.selectedIndex].text} mode. The current result is the baseline and will not be entered.`);
+    } catch (error) {
+      say(error.message || "OCR could not start", true);
+    }
+    pollOcrStatus();
+  });
+
+  ocrStop.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/api/ocr/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "OCR could not stop");
+      say("OCR stopped. Manual and Quick Entry remain available.");
+    } catch (error) {
+      say(error.message || "OCR could not stop", true);
+    }
+    pollOcrStatus();
+  });
+
+  async function confirmOcrNumber() {
+    const text = ocrNumber.value.trim();
+    const number = Number(text);
+    if (!/^\d{1,2}$/.test(text) || !Number.isInteger(number) || number < 0 || number > 36) {
+      say("OCR confirmation must be a whole number from 0 to 36.", true);
+      ocrNumber.select();
+      return;
+    }
+    if (!ocrPendingId) return;
+    ocrConfirm.disabled = true;
+    try {
+      const response = await fetch("/api/ocr/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId: ocrPendingId, number, session: tableSession.number }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "OCR confirmation failed");
+      const corrected = payload.ocrEvent?.status === "corrected";
+      clearOcrCandidateUi();
+      say(`OCR number ${number} confirmed${corrected ? " after correction" : ""}.`);
+    } catch (error) {
+      say(error.message || "OCR confirmation failed", true);
+    } finally {
+      ocrConfirm.disabled = false;
+      pollOcrStatus();
+    }
+  }
+  async function skipOcrRound() {
+    if (!ocrPendingId) return;
+    ocrSkip.disabled = true;
+    try {
+      const response = await fetch("/api/ocr/skip", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId: ocrPendingId, session: tableSession.number }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "OCR round could not be skipped");
+      clearOcrCandidateUi();
+      say("OCR round skipped. No number was entered.");
+    } catch (error) {
+      say(error.message || "OCR round could not be skipped", true);
+    } finally {
+      ocrSkip.disabled = false;
+      pollOcrStatus();
+    }
+  }
+  ocrConfirm.addEventListener("click", confirmOcrNumber);
+  ocrSkip.addEventListener("click", skipOcrRound);
+  ocrNumber.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); confirmOcrNumber(); } });
+  const savedOcrMode = localStorage.getItem("roulette-ocr-mode-v1");
+  if (["observe", "confirm", "automatic"].includes(savedOcrMode)) ocrMode.value = savedOcrMode;
+  ocrMode.addEventListener("change", () => localStorage.setItem("roulette-ocr-mode-v1", ocrMode.value));
+  pollOcrStatus();
+  window.setInterval(pollOcrStatus, 750);
+
   document.addEventListener("keydown", (event) => { if (event.ctrlKey && event.key.toLowerCase() === "q") { event.preventDefault(); openFloatingQuickEntry(); } });
   document.querySelector("#reset-session-button").addEventListener("click", async () => {
     const endingSessionNumber = tableSession.number;
@@ -357,6 +525,8 @@
     storage.save(engine);
     hotStreets.reset();
     freddy.resetSession();
+    clearOcrCandidateUi();
+    fetch("/api/ocr/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
     tableSession = storage.startNextSession();
     render(engine.getState());
     renderHotStreets();

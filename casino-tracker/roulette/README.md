@@ -3,7 +3,7 @@
 Local-first European roulette tracking, betting-session management, backtesting,
 floating quick entry, and completed-session Google Sheets archiving.
 
-**Current version:** `v2026.09.05.3`  
+**Current version:** `v2026.09.17.4`  
 **Active branch:** `dev`  
 **Local source of truth:** `C:\Users\HP\PawWork\casino-tracker\roulette`
 
@@ -90,7 +90,7 @@ See [STRATEGY_GUIDE.md](STRATEGY_GUIDE.md) for the authoritative detailed rules.
 1. Open this folder:
 
    ```text
-   C:\Users\HP\PawWork\roulette-analyzer
+   C:\Users\HP\PawWork\casino-tracker\roulette
    ```
 
 2. Double-click:
@@ -114,6 +114,46 @@ http://localhost:8765/live-dashboard.html
 Do not open `live-dashboard.html` with a `file:///` address. Server features,
 Google Sheets synchronization, OCR support, and window controls require the
 local launcher.
+
+## Fast OCR input
+
+The optional OCR monitor is kept separately at
+`C:\Users\HP\PawWork\OCR`. Open **OCR Input** in the main dashboard, retain the
+**Pragmatic Roulette - Half Width - Max Height** profile, and press **Start
+OCR**. The tested display environment is 1920×1080 with Windows scale 125% and
+the established capture region `(1660, 900, 450, 70)`.
+
+The visible result at startup is an unrecorded baseline. The monitor then checks
+the history-strip image locally four times per second and waits briefly for a
+changed strip to become stable. Only then does it make one OCR request. The
+dashboard shows the recognition phase and elapsed recognition time.
+
+Three selectable modes are available:
+
+- **Observe only** records validated OCR observations without entering spins.
+- **Confirm before entry** displays an editable 0–36 result. Confirm it, correct
+  it, or choose **Skip This Round**.
+- **Automatic when validated** enters a number only when the OCR history shifted
+  correctly and the dashboard spin count did not change during recognition. If
+  either check fails, it falls back to the editable confirmation panel.
+
+If a slow OCR result arrives after the number was entered manually, automatic
+entry is blocked. Skip the pending OCR round; the manually entered spin remains
+the single source of truth. All accepted OCR values use the same local spin
+queue and normal dashboard `recordSpin` path as Quick Entry. No strategy engine
+is bypassed or modified.
+
+The DeepSeek key belongs only in
+`C:\Users\HP\PawWork\casino-tracker\.secrets\ocr.env` as:
+
+```text
+DEEPSEEK_API_KEY=your_private_key
+```
+
+The secret file is excluded from Git. OCR events are written locally to
+`data\ocr-events.jsonl`; screenshots are retained only for corrected
+detections. If OCR stops or loses its connection, manual input and Quick Entry
+continue normally.
 
 ## Local-first Google Sheets synchronization
 
@@ -175,12 +215,14 @@ while troubleshooting.
 
 | Information | Storage location |
 | --- | --- |
-| Active application and documentation | `C:\Users\HP\PawWork\roulette-analyzer` |
+| Active application and documentation | `C:\Users\HP\PawWork\casino-tracker\roulette` |
 | Committed code backup | GitHub branch `dev` |
 | Current session and up to 30 completed local archives | Browser local storage |
 | Synchronized completed history | Google Sheets |
 | Full strategy specification | Read-only Google Doc linked from `STRATEGY_GUIDE.md` |
 | Current unfinished session and preferences | Browser local storage for `http://localhost:8765` |
+| Private OCR API key | `C:\Users\HP\PawWork\casino-tracker\.secrets\ocr.env` (not committed) |
+| OCR confirmation audit log | `data\ocr-events.jsonl` (not committed) |
 
 Browser-local information includes the current unfinished session, up to 30
 completed recovery archives, pending-sync state, FTS card states, last-used
@@ -193,21 +235,23 @@ data or switching browser profiles can remove or isolate this live state. Use
 To back up local PawWork changes, double-click:
 
 ```text
-Sync PawWork to GitHub.bat
+C:\Users\HP\PawWork\Sync PawWork to GitHub.bat
 ```
 
 The synchronization workflow:
 
-- uses `C:\Users\HP\PawWork\roulette-analyzer` as the source of truth;
-- commits and pushes only to `origin/dev`;
+- uses `C:\Users\HP\PawWork` as the consolidated source repository;
+- stages the root documentation, Roulette application, and separate OCR tool;
+- leaves unrelated `work/` material untouched;
+- commits and pushes only to `origin/local-sync`;
 - does not pull;
 - does not switch branches;
 - does not merge or rebase;
 - does not reset files;
 - does not push to `main`.
 
-The GitHub repository uses `dev` as its default display branch. The old
-`main` branch remains untouched as historical state.
+The local working branch is `dev`, while the one-way backup destination remains
+`origin/local-sync`. The old `main` branch remains untouched as historical state.
 
 ## Project structure
 
@@ -230,6 +274,7 @@ The GitHub repository uses `dev` as its default display branch. The old
 | `google-sheets-sync.js` | Local archive and completed-session Google Sheets batch client |
 | `ocr-grid-order.js` | Roulette-history image reading-order support |
 | `server.py` | Local server, sync proxy, OCR, and window-control endpoints |
+| `C:\Users\HP\PawWork\OCR\dashboard_monitor.py` | Separate OCR monitor bridge with baseline and confirmation pause |
 | `dashboard-launcher.ps1` | Server startup and health verification |
 | `Launch Live Dashboard.bat` | User-facing dashboard launcher |
 | `github-sync.ps1` | Safe one-way GitHub synchronization logic |

@@ -7,11 +7,11 @@ A consolidated workspace for casino tracking, analysis, and strategy tools.
 ```
 casino-tracker/
 ├── roulette/           # European Roulette Live Dashboard (main project)
-├── roulette-capture/   # OCR spin capture tool
 ├── baccarat/           # Baccarat session tracker
 ├── betpilot/           # Roulette strategy simulator (Martingale pairs)
 └── doubledragon/       # Desktop roulette tracker (PowerShell)
 
+OCR/                    # Pragmatic Roulette history-strip OCR monitor
 experiments/            # Prototypes, charts, and archived experiments
 ```
 
@@ -24,6 +24,10 @@ casino-tracker/roulette/
 ```
 
 Double-click `Launch Live Dashboard.bat` to start the local server and open the dashboard.
+
+The dashboard can start the separate OCR monitor in Observe, Confirm, or guarded
+Automatic mode. OCR secrets remain under `casino-tracker/.secrets/` and are
+excluded from Git.
 
 See [casino-tracker/roulette/README.md](casino-tracker/roulette/README.md) for full documentation.
 
@@ -70,8 +74,20 @@ C:\Users\HP\PawWork-backup-20260908\
 
 This preserves the pre-reorganization state including all git histories.
 
+## One-way GitHub sync
+
+Double-click the permanent root launcher:
+
+```text
+C:\Users\HP\PawWork\Sync PawWork to GitHub.bat
+```
+
+It verifies the repository, `dev` branch, and GitHub remote; commits the active
+Roulette/OCR project; and pushes only to `origin/local-sync`. It never pulls, switches
+branches, merges, rebases, resets, or pushes to `main`.
+
 ## Notes
 
 - Each sub-project was previously a standalone git repo. Their independent histories are preserved in the backup.
-- The `*-DEL` files/folders at root are duplicates awaiting cleanup.
-- `roulette-analyzer/` at root is the original folder (may be locked if server is running).
+- Roulette runtime logs, OCR audit data, private secrets, pending screenshots,
+  and unrelated `work/` files are excluded from the one-way project sync.

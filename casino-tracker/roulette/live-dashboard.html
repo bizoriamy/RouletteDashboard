@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compact European roulette absence and betting dashboard." />
-    <title>Roulette Live Dashboard · v2026.09.05.3</title>
+    <title>Roulette Live Dashboard · v2026.09.17.4</title>
     <link rel="icon" href="live-dashboard-icon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="live-dashboard-icon.png" />
-    <link rel="stylesheet" href="live-dashboard.css?v=2026.09.05.3" />
+    <link rel="stylesheet" href="live-dashboard.css?v=2026.09.17.4" />
   </head>
   <body>
     <main class="dashboard-shell">
       <!-- Top bar -->
       <header class="topbar">
-        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.09.05.3</small></div>
+        <div><p>European Roulette</p><h1>Live Dashboard</h1><small class="build-version">v2026.09.17.4</small></div>
         <div id="spin-history" class="spin-history" aria-label="Last 12 winning numbers">
           <span class="history-empty">No spins yet</span>
         </div>
@@ -41,6 +41,35 @@
         <span id="notice" class="notice" role="status" aria-live="polite">Type 0–36, then press Enter.</span>
         <div class="last-spin" id="last-spin"><span>Last</span><strong>—</strong></div>
       </form>
+
+      <details id="ocr-control" class="ocr-control">
+        <summary><strong>OCR Input</strong><span id="ocr-status">Stopped</span></summary>
+        <div class="ocr-control-row">
+          <label>Profile
+            <select id="ocr-profile">
+              <option value="Pragmatic-HalfWidth-MaxHeight">Pragmatic Roulette · Half Width · Max Height</option>
+            </select>
+          </label>
+          <label>Mode
+            <select id="ocr-mode">
+              <option value="observe">Observe only</option>
+              <option value="confirm" selected>Confirm before entry</option>
+              <option value="automatic">Automatic when validated</option>
+            </select>
+          </label>
+          <button id="ocr-start" class="primary" type="button">Start OCR</button>
+          <button id="ocr-stop" type="button" disabled>Stop OCR</button>
+          <small>1920×1080 · Scale 125% · local change detection</small>
+        </div>
+        <div id="ocr-confirmation" class="ocr-confirmation" hidden>
+          <label>Detected number
+            <input id="ocr-number" inputmode="numeric" pattern="[0-9]*" min="0" max="36" maxlength="2" />
+          </label>
+          <button id="ocr-confirm" class="primary" type="button">Confirm Number</button>
+          <button id="ocr-skip" type="button">Skip This Round</button>
+          <span id="ocr-candidate-note"></span>
+        </div>
+      </details>
 
       <section id="next-bets-panel" class="focus-control" hidden>
         <button id="focus-mode-button" type="button">Focus mode</button>
@@ -343,12 +372,12 @@
       </div>
     </div>
 
-    <script src="roulette-core.js?v=2026.09.05.3"></script>
-    <script src="rls-engine.js?v=2026.09.05.3"></script>
-    <script src="dashboard-storage.js?v=2026.09.05.3"></script>
-    <script src="google-sheets-sync.js?v=2026.09.05.3"></script>
-    <script src="hot-streets.js?v=2026.09.05.3"></script>
-    <script src="freddy-engine.js?v=2026.09.05.3"></script>
-    <script src="ocr-grid-order.js?v=2026.09.05.3"></script>
-    <script src="live-dashboard.js?v=2026.09.05.3"></script>
+    <script src="roulette-core.js?v=2026.09.17.4"></script>
+    <script src="rls-engine.js?v=2026.09.17.4"></script>
+    <script src="dashboard-storage.js?v=2026.09.17.4"></script>
+    <script src="google-sheets-sync.js?v=2026.09.17.4"></script>
+    <script src="hot-streets.js?v=2026.09.17.4"></script>
+    <script src="freddy-engine.js?v=2026.09.17.4"></script>
+    <script src="ocr-grid-order.js?v=2026.09.17.4"></script>
+    <script src="live-dashboard.js?v=2026.09.17.4"></script>
   </body>

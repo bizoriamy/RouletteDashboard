@@ -24,12 +24,15 @@
 ## Git safety
 
 - The local working branch is `dev`. The stable branch is `main`.
-- Push only to `origin/dev`.
+- Push only to `origin/local-sync`.
 - Never pull, switch branches, merge, rebase, reset, or push to `main` as part
   of the PawWork one-way sync.
 - Before committing, verify the repository root, current branch, and remote.
 - Do not commit `backup-before-*` directories or generated cache files.
 - Preserve user changes and unrelated working-tree files.
+- The permanent launcher is `C:\Users\HP\PawWork\Sync PawWork to GitHub.bat`.
+  Its scoped sync includes repository documentation, Roulette, and OCR only;
+  unrelated `work/` material is not staged.
 
 ## Application structure
 
@@ -44,6 +47,21 @@
   `Launch Live Dashboard.bat` implement the local server and launcher.
 - `google-sheets-sync.js` implements local completed-session archives and
   explicit Google Sheets batch synchronization.
+
+## OCR integration boundary
+
+- The OCR source is `C:\Users\HP\PawWork\OCR`; keep it separate from all
+  roulette strategy engines.
+- `casino-tracker/.secrets/ocr.env` is the only supported API-key location and
+  must never be committed, printed, or copied into source files.
+- Observe mode records observations only. Confirm mode requires an editable
+  confirmation. Automatic mode may enter a spin only after a valid history
+  shift and confirmation that the dashboard spin count did not change during
+  recognition.
+- A late result following manual entry must fall back to confirmation/skip and
+  must never create a duplicate spin.
+- OCR data enters through the existing Quick Entry queue and normal
+  `recordSpin` path. OCR changes must not duplicate or bypass engine logic.
 
 ## Local-first synchronization boundary
 

@@ -5,6 +5,79 @@ This file records meaningful user-facing changes to Roulette Live Dashboard.
 grouped by date where the historical commits did not contain a reliable build
 number.
 
+## v2026.09.17.4 - 2026-09-17
+
+### Added
+
+- Added **Observe only**, **Confirm before entry**, and guarded **Automatic when
+  validated** OCR modes.
+- Added fast local history-strip change detection. DeepSeek OCR is called once
+  after a changed image becomes stable, rather than on every polling pass.
+- Added live OCR phases, recognition timing, and **Skip This Round** for a late
+  result that was already entered manually.
+- Automatic entry requires both a valid one-position history shift and an
+  unchanged dashboard spin count during recognition. A failed safety check
+  falls back to editable confirmation instead of entering a duplicate.
+- Added a permanent root-level one-way GitHub sync launcher for the consolidated
+  PawWork repository. It synchronizes Roulette, OCR, and their documentation to
+  `origin/local-sync` without pulling or changing `main`.
+- Updated the workspace README, project description, OCR instructions, project
+  guidance, and release documentation for the current integration.
+
+### Unchanged
+
+- No roulette, RLS, 4-Streets, Freddy, progression, payout, or synchronization
+  engine was changed.
+
+## v2026.09.17.3 - 2026-09-17
+
+### Fixed
+
+- Forced the hidden OCR monitor subprocess to use UTF-8 for standard output and
+  error logs. This prevents Windows `cp1252` from terminating the monitor when
+  the existing OCR tool prints Chinese or emoji status messages.
+- No OCR recognition rule or betting engine was changed.
+
+## v2026.09.17.2 - 2026-09-17
+
+### Added
+
+- Added optional dashboard controls for the separate Pragmatic Roulette OCR
+  monitor using the agreed Half Width, Maximum Height profile at 1920×1080 and
+  Windows scale 125%.
+- The current screen result establishes an unrecorded baseline. Every later OCR
+  candidate pauses monitoring and requires manual confirmation in an editable
+  0–36 field before entering the existing spin-input queue.
+- Added Start, Stop, status, correction tracking, and local JSONL audit records
+  under `data/ocr-events.jsonl`. Corrected detections may retain their cropped
+  screenshot for later OCR improvement.
+- Added local-only OCR endpoints and failure isolation, so manual and Quick
+  Entry input remain usable if OCR or DeepSeek is unavailable.
+
+### Security
+
+- OCR reads `DEEPSEEK_API_KEY` from the private
+  `casino-tracker/.secrets/ocr.env` file. Secret and generated OCR data paths
+  are excluded from Git.
+
+### Unchanged
+
+- No roulette, RLS, 4-Streets, Freddy, progression, payout, or synchronization
+  engine was changed.
+
+## v2026.09.17.1 - 2026-09-17
+
+### Fixed
+
+- Corrected the Quick Entry build mismatch that caused the floating window to
+  reload repeatedly and prevented reliable number entry.
+- Aligned the main dashboard, Quick Entry, enhanced Quick Entry, and Freddy
+  floating-window labels and cache identifiers with the shared `VERSION` file.
+- Constrained the remembered Quick Entry window position to the visible screen
+  so a saved position from another monitor or workspace cannot reopen it
+  off-screen.
+- No betting strategy or calculation engine was changed.
+
 ## v2026.09.05.3 - 2026-09-05
 
 ### Fixed

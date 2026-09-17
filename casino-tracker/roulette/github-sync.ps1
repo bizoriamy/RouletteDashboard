@@ -8,14 +8,17 @@ $repo = [IO.Path]::GetFullPath($Repository).TrimEnd('\')
 $expectedRemote = 'https://github.com/bizoriamy/RouletteDashboard.git'
 $env:GIT_TERMINAL_PROMPT = '0'
 $env:GCM_INTERACTIVE = 'Never'
+$env:GIT_CONFIG_COUNT = '1'
+$env:GIT_CONFIG_KEY_0 = 'safe.directory'
+$env:GIT_CONFIG_VALUE_0 = $repo
 
 function Fail([string]$Message, [int]$Code) {
     Write-Host "ERROR: $Message" -ForegroundColor Red
     exit $Code
 }
 
-function Git([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments) {
-    $output = & git -C $repo @Arguments 2>&1
+function Invoke-LocalGit([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments) {
+    $output = & git.exe -C $repo @Arguments 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "git $($Arguments -join ' ') failed:`n$($output -join [Environment]::NewLine)"
     }
@@ -57,69 +60,82 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) { Fail 'Git was no
 if (-not (Test-Path -LiteralPath (Join-Path $repo '.git'))) { Fail "'$repo' is not a Git repository." 21 }
 
 try {
-    $root = (Git rev-parse --show-toplevel | Select-Object -Last 1).Trim()
+    $root = (Invoke-LocalGit rev-parse --show-toplevel | Select-Object -Last 1).Trim()
     if ([IO.Path]::GetFullPath($root).TrimEnd('\') -ine $repo) { Fail "Git root '$root' does not match '$repo'." 22 }
 
-    $branch = (Git branch --show-current | Select-Object -Last 1).Trim()
+    $branch = (Invoke-LocalGit branch --show-current | Select-Object -Last 1).Trim()
     if ($branch -cne 'dev') { Fail "Current branch is '$branch'. Switch to dev manually; this launcher will not switch or alter branches." 23 }
 
-    $remote = (Git remote get-url origin | Select-Object -Last 1).Trim()
+    $remote = (Invoke-LocalGit remote get-url origin | Select-Object -Last 1).Trim()
     $normalizedRemote = $remote.TrimEnd('/').Replace('git@github.com:', 'https://github.com/')
     if ($normalizedRemote -ine $expectedRemote) { Fail "origin is '$remote', not '$expectedRemote'." 24 }
 
-    Write-Host 'Checking GitHub authentication and origin/dev (no pull)...'
-    $remoteResult = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/dev')
-    if ($remoteResult.ExitCode -ne 0) { Fail "Could not authenticate or read origin/dev:`n$($remoteResult.Output -join [Environment]::NewLine)" 25 }
-    $remoteHash = (($remoteResult.Output | Select-Object -Last 1) -split '\s+')[0]
-
     if ($ValidateOnly) {
-        $localHash = (Git rev-parse HEAD | Select-Object -Last 1).Trim()
-        $changes = @(Git status --short)
+        $localHash = (Invoke-LocalGit rev-parse HEAD | Select-Object -Last 1).Trim()
+        $changes = @(Invoke-LocalGit status --short)
         if ($changes.Count -eq 0) {
             Write-Host 'Validation passed: no local changes.'
         } else {
             Write-Host "Validation passed: $($changes.Count) local status line(s) would be considered for commit."
         }
-        if ($localHash -eq $remoteHash) {
-            Write-Host "Validation passed: origin/dev is up to date at $localHash."
-        } else {
-            Write-Host "Validation passed: local $localHash differs from origin/dev $remoteHash; no commit or push was attempted."
-        }
+        Write-Host 'Validation passed: destination is origin/local-sync; no network, commit, or push was attempted.'
         exit 0
     }
 
-    Git add --all -- . | Out-Null
-    $staged = @(Git diff --cached --name-only)
+    Write-Host 'Checking GitHub authentication and origin/local-sync (no pull)...'
+    $remoteResult = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/local-sync')
+    if ($remoteResult.ExitCode -ne 0) { Fail "Could not authenticate or read origin/local-sync:`n$($remoteResult.Output -join [Environment]::NewLine)" 25 }
+    $remoteHash = (($remoteResult.Output | Select-Object -Last 1) -split '\s+')[0]
+
+    # Synchronize the active Roulette/OCR project and its repository-level
+    # documentation. Unrelated PawWork experiments remain untouched.
+    $syncPaths = @(
+        '.gitignore',
+        'README.md',
+        'Sync PawWork to GitHub.bat',
+        'casino-tracker/roulette',
+        'OCR'
+    )
+    Invoke-LocalGit add --all -- @syncPaths | Out-Null
+    $staged = @(Invoke-LocalGit diff --cached --name-only)
+    $forbidden = @($staged | Where-Object {
+        $_ -match '(^|/)(\.secrets|backup-before-[^/]*|__pycache__|\.pending)(/|$)' -or
+        $_ -match '\.(pyc|log|tmp|temp)$' -or
+        $_ -match '^casino-tracker/roulette/data/ocr-(events\.jsonl|corrections/)'
+    })
+    if ($forbidden.Count -gt 0) {
+        Fail "Protected runtime or private paths were staged unexpectedly:`n$($forbidden -join [Environment]::NewLine)" 31
+    }
     if ($staged.Count -gt 0) {
         Write-Host "Committing $($staged.Count) changed path(s) to dev..."
         $message = 'Sync PawWork local changes ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-        Git commit -m $message | ForEach-Object { Write-Host $_ }
+        Invoke-LocalGit commit -m $message | ForEach-Object { Write-Host $_ }
     } else {
         Write-Host 'No local changes to commit.'
     }
 
-    $localHash = (Git rev-parse HEAD | Select-Object -Last 1).Trim()
+    $localHash = (Invoke-LocalGit rev-parse HEAD | Select-Object -Last 1).Trim()
     if ($localHash -eq $remoteHash) {
-        Write-Host "origin/dev is up to date at $localHash."
+        Write-Host "origin/local-sync is up to date at $localHash."
         exit 0
     }
 
     # Refuse non-fast-forward or unrelated updates; never pull, merge, or reset.
-    & git -C $repo merge-base --is-ancestor $remoteHash $localHash
+    & git.exe -C $repo merge-base --is-ancestor $remoteHash $localHash
     if ($LASTEXITCODE -ne 0) {
-        Fail 'origin/dev is not an ancestor of local HEAD. Push refused; reconcile manually without involving main.' 26
+        Fail 'origin/local-sync is not an ancestor of local HEAD. Push refused; reconcile manually without involving main.' 26
     }
 
-    Write-Host 'Pushing local HEAD to origin/dev only...'
-    $push = GitRemote @('push', 'origin', 'HEAD:refs/heads/dev') 120
+    Write-Host 'Pushing local HEAD to origin/local-sync only...'
+    $push = GitRemote @('push', 'origin', 'HEAD:refs/heads/local-sync') 120
     if ($push.ExitCode -ne 0) { Fail "Push failed:`n$($push.Output -join [Environment]::NewLine)" 27 }
     $push.Output | ForEach-Object { Write-Host $_ }
 
-    $confirmed = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/dev')
+    $confirmed = GitRemote @('ls-remote', '--exit-code', 'origin', 'refs/heads/local-sync')
     if ($confirmed.ExitCode -ne 0) { Fail 'Push returned success, but final remote verification failed.' 28 }
     $confirmedHash = (($confirmed.Output | Select-Object -Last 1) -split '\s+')[0]
     if ($confirmedHash -ne $localHash) { Fail "Remote verification mismatch: local $localHash, remote $confirmedHash." 29 }
-    Write-Host "Confirmed origin/dev is up to date at $localHash."
+    Write-Host "Confirmed origin/local-sync is up to date at $localHash."
     exit 0
 } catch {
     Fail $_.Exception.Message 30
