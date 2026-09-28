@@ -661,6 +661,171 @@ def make_reader(config=None, secrets=None):
     raise OcrError("Unknown OCR provider: %s" % provider)
 
 
+# --------------------------------------------------------------------------- the history grid
+
+GRID_SIDE_BY_COLOUR = {"B": "banker", "P": "player", "T": "tie"}
+
+
+def grid_markers(image_bytes, min_area=60, max_area=400, min_size=8, max_size=24, pitch=13.5):
+    """Find the B/P/T markers on the history grid: [(side, x, y), ...] with no model call.
+
+    The grid's circles are pure red (Banker), blue (Player) and green (Tie), so classifying them is a
+    colour test rather than a reading. Measured on the user's table: the grid gains exactly one marker
+    per hand, top to bottom within a column, and it shows the result before the panels finish flashing
+    — so this answers in one frame instead of seconds, at no cost.
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image
+    with io.BytesIO(image_bytes) as buffer:
+        with Image.open(buffer) as opened:
+            rgb = np.array(opened.convert("RGB"))
+    hsv = cv2.cvtColor(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), cv2.COLOR_BGR2HSV)
+    masks = {
+        "B": cv2.inRange(hsv, (0, 120, 90), (10, 255, 255)) | cv2.inRange(hsv, (170, 120, 90), (180, 255, 255)),
+        "P": cv2.inRange(hsv, (100, 120, 90), (130, 255, 255)),
+        "T": cv2.inRange(hsv, (40, 100, 60), (85, 255, 255)),
+    }
+    markers = []
+    for side, mask in masks.items():
+        count, _labels, stats, centroids = cv2.connectedComponentsWithStats(mask, 8)
+        for index in range(1, count):
+            x, y, width, height, area = stats[index]
+            if min_area <= area <= max_area and min_size <= width <= max_size and min_size <= height <= max_size:
+                markers.append((side, int(centroids[index][0]), int(centroids[index][1])))
+    # A stable order, so the same frame always produces the same signature.
+    return sorted(markers, key=lambda marker: (grid_cell(marker[1], pitch), grid_cell(marker[2], pitch)))
+
+
+def grid_cell(position, pitch=13.5):
+    """Which grid column/row a pixel position belongs to.
+
+    Rounds rather than dividing with floor: markers are one pitch apart, and floor-division put two
+    neighbouring rows in the same bucket whenever the measured pitch was slightly under the cell size
+    — which made a new marker look like no change at all (caught by the tests).
+    """
+    return int(round(float(position) / float(pitch))) if pitch else int(position)
+
+
+class GridWatcher:
+    """Read the result the moment a new marker appears on the history grid.
+
+    Same shape of decision as OcrReader, so the monitor and the modes treat it identically — but with
+    no model call at all. The structural check is that EXACTLY ONE marker appeared: a new shoe (many
+    markers at once) is a baseline, not a result.
+    """
+
+    def __init__(self, capture=None, clock=time.sleep, pitch=13.5):
+        self.capture = capture or capture_region
+        self.clock = clock
+        self.pitch = pitch
+        self.last = None
+        self.last_signature = None
+
+    def _cells(self, markers):
+        return {(grid_cell(x, self.pitch), grid_cell(y, self.pitch)): side for side, x, y in markers}
+
+    def scan(self, region, known_signatures):
+        image = self.capture(region)
+        frame = {"frame": image}
+        current = self._cells(grid_markers(image, pitch=self.pitch))
+        if len(current) < 2:
+            return {"status": "unclear", "signature": None, "result": None,
+                    "note": "no history grid found in the region (%d marker(s))" % len(current), **frame}
+
+        if self.last is None:
+            self.last = current
+            return {"status": "unchanged", "signature": None, "result": None, **frame}
+
+        appeared = [key for key in current if key not in self.last]
+        if not appeared:
+            # Markers can also move (a column scrolls); treat any change that adds nothing as noise.
+            self.last = current
+            return {"status": "unchanged", "signature": None, "result": None, **frame}
+        if len(appeared) > 1:
+            # Many at once: a new shoe, or the grid re-rendered. Re-baseline rather than guess.
+            self.last = current
+            return {"status": "unchanged", "signature": None, "result": None,
+                    "note": "grid re-drawn (%d markers appeared) — baseline reset" % len(appeared), **frame}
+
+        key = appeared[0]
+        side = current[key]
+        signature = "grid-%d-%d-%s-%d" % (key[0], key[1], side, len(current))
+        self.last = current
+        self.last_signature = signature
+        if signature in known_signatures:
+            return {"status": "duplicate", "signature": signature, "result": None, **frame}
+        return {
+            "status": "candidate",
+            "signature": signature,
+            "result": GRID_SIDE_BY_COLOUR.get(side),
+            "confidence": 0.99,
+            "evidence": "a new %s marker appeared on the history grid (column %d, row %d)"
+                        % (side, key[0], key[1]),
+            "reads": [{"result": GRID_SIDE_BY_COLOUR.get(side), "confidence": 0.99}],
+            "singleRead": True,
+            "readMs": 0,
+            **frame,
+        }
+
+
+def find_grid_region(panels_region, capture=None, look_left=340, extra_bottom=60):
+    """Find the white history grid that sits to the left of the betting panels.
+
+    The panels' region is already calibrated, and the grid is immediately left of it, so the grid does
+    not need calibrating separately: look for the largest near-white rectangle there. Returns
+    [x, y, w, h] in screen coordinates, or None.
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image
+    x, y, width, height = [int(value) for value in panels_region]
+    screen = screen_size()
+    left = max(0, x - int(look_left))
+    probe = [left, y, x - left + min(40, width), min(height + int(extra_bottom), screen[1] - y)]
+    if probe[2] <= 20 or probe[3] <= 20:
+        return None
+    image = (capture or capture_region)(probe)
+    with io.BytesIO(image) as buffer:
+        with Image.open(buffer) as opened:
+            rgb = np.array(opened.convert("RGB"))
+    # Near-white, and not the grid's pale blue lines, which are close to white too.
+    gray = cv2.cvtColor(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), cv2.COLOR_BGR2GRAY)
+    white = cv2.inRange(gray, 235, 255)
+    white = cv2.morphologyEx(white, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(white, 8)
+    best = None
+    for index in range(1, count):
+        bx, by, bw, bh, area = stats[index]
+        if bw < 60 or bh < 40:              # too small to be the plate
+            continue
+        if area < 0.35 * bw * bh:           # too sparse to be a solid white box
+            continue
+        if best is None or area > best[4]:
+            best = (bx, by, bw, bh, area)
+    if best is None:
+        return None
+    bx, by, bw, bh, _area = best
+    return [int(left + bx), int(y + by), int(bw), int(bh)]
+
+
+def save_grid_region(profile_path, grid_region, when=None):
+    """Remember where the history grid is, so it is found once and then reused."""
+    if not (isinstance(grid_region, (list, tuple)) and len(grid_region) == 4
+            and all(isinstance(int(value), int) for value in grid_region)):
+        raise OcrError("Refusing to store a malformed grid region: %r" % (grid_region,))
+    if not os.path.isfile(profile_path):
+        raise OcrError("No such profile file: %s" % profile_path)
+    with open(profile_path, "r", encoding="utf-8") as handle:
+        profile = json.load(handle)
+    profile["gridRegion"] = [int(value) for value in grid_region]
+    profile["gridRegionAt"] = when or time.strftime("%Y-%m-%dT%H:%M:%S")
+    with open(profile_path, "w", encoding="utf-8") as handle:
+        json.dump(profile, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+    return profile
+
+
 # --------------------------------------------------------------------------- the reader
 
 
@@ -853,15 +1018,28 @@ class OcrMonitor:
             self.status[field] = self.status.get(field, 0) + amount
 
     # ------------------------------------------------------------------ control
-    def start(self, region, mode, profile_id):
+    def start(self, region, mode, profile_id, grid_region=None):
         if self.is_running():
             return self.snapshot()
         if self.reader is None:
             self.reader = OcrReader(capture=self._capture, read=self._read, config=self.config)
         self._stop.clear()
+        scan_config = self.config.get("scan", DEFAULT_CONFIG["scan"])
+        source = str(scan_config.get("source", "auto")).lower()
+        self.grid_region = grid_region
+        self.grid_reader = None
+        self.source = "model"
+        if source in ("grid", "auto") and grid_region:
+            self.grid_reader = GridWatcher(capture=self._capture, pitch=float(scan_config.get("gridPitch", 13.5)))
+            self.source = "grid"
+        # Polling the grid costs a screenshot, not a model call, so it can be watched much faster.
+        self.interval = float(scan_config.get("gridIntervalSeconds", 0.25)) if self.grid_reader \
+            else float(scan_config.get("intervalSeconds", 0.6))
         self._set(running=True, phase="watching", mode=mode, region=list(region), profile=profile_id,
-                  message="Watching the region for a new hand.", error="", scans=0, candidates=0,
-                  duplicates=0)
+                  gridRegion=list(grid_region) if grid_region else None, source=self.source,
+                  message="Watching the history grid for a new marker." if self.grid_reader
+                          else "Watching the region for a new hand.",
+                  error="", scans=0, candidates=0, duplicates=0)
         self._thread = threading.Thread(target=self._loop, args=(list(region), mode), daemon=True)
         self._thread.start()
         return self.snapshot()
@@ -914,7 +1092,21 @@ class OcrMonitor:
             try:
                 session = self.store.load()
                 known = self._known_signatures(session) if session else set()
-                decision = self.reader.scan(region, known)
+                decision = None
+                used = "model"
+                if self.grid_reader is not None and self.grid_region:
+                    decision = self.grid_reader.scan(self.grid_region, known)
+                    used = "grid"
+                    if decision["status"] == "unclear" and str(self.source) == "grid" \
+                            and str(self.config.get("scan", {}).get("source", "auto")).lower() == "auto":
+                        # The grid could not be read (not calibrated, hidden, re-drawn): fall back to
+                        # reading the panels with the model rather than missing the hand entirely.
+                        decision = self.reader.scan(region, known)
+                        used = "model"
+                if decision is None:
+                    decision = self.reader.scan(region, known)
+                    used = "model"
+                self._set(lastSource=used)
                 self.remember_frame(decision.get("frame"), decision.get("signature"),
                                     decision.get("readMs"), decision.get("singleRead"))
                 self._bump("scans")

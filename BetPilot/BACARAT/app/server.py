@@ -660,7 +660,22 @@ class OcrController:
         STORE.set_mode(mode)
         with self._lock:
             self.pending = None
-        status = self.monitor.start(region, mode, profile_id)
+        # Where is the history grid? The panels' region is already calibrated and the grid sits just to
+        # its left, so it is found automatically and remembered — no second calibration for the user.
+        grid_region = profile.get("gridRegion")
+        wants_grid = str(self.monitor.config.get("scan", {}).get("source", "auto")).lower() in ("grid", "auto")
+        if not grid_region and wants_grid:
+            try:
+                grid_region = ocr.find_grid_region(region)
+            except Exception:  # noqa: BLE001 - the grid is an optimisation, never a requirement
+                grid_region = None
+            if grid_region:
+                try:
+                    ocr.save_grid_region(os.path.join(CONFIG_DIR, profile_id.replace(".json", "") + ".json"),
+                                         grid_region)
+                except Exception:  # noqa: BLE001
+                    pass
+        status = self.monitor.start(region, mode, profile_id, grid_region=grid_region)
         if not profile.get("calibrated"):
             self.monitor.set_status(message="Watching (region is NOT calibrated yet — run app/tools/calibrate.py).")
         self._log({"action": "start", "mode": mode, "profile": profile_id, "region": list(region),
@@ -690,6 +705,9 @@ class OcrController:
             "confidence": decision.get("confidence"),
             "signature": decision.get("signature"),
             "evidence": decision.get("evidence", ""),
+            # Which path read it: the history grid (a colour, no model call) or the vision model. Kept
+            # in the audit log so the accuracy record says how each hand was read.
+            "readBy": ((self.monitor.snapshot().get("lastSource") if self.monitor else None) or "model"),
         }
         session = STORE.load()
         if not session or session.get("status") != "active":
@@ -1124,6 +1142,8 @@ def load_profiles():
                 "calibratedAt": data.get("calibratedAt"),
                 "calibratedFrom": data.get("calibratedFrom"),
                 "matchScore": data.get("matchScore"),
+                # Where the history grid is, when it has been found: the fast reading path.
+                "gridRegion": data.get("gridRegion"),
             })
     return profiles
 

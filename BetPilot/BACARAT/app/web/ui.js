@@ -1029,6 +1029,11 @@
       var average = status.avgReadMs ? " (avg " + (status.avgReadMs / 1000).toFixed(1) + "s)" : "";
       counters.push("last reading took " + last + average + (status.lastSingleRead ? ", one model call" : ""));
     }
+    if (status.lastSource) {
+      counters.push(status.lastSource === "grid"
+        ? "reading the history grid (no model call)"
+        : "reading the panels with the model");
+    }
     if (status.lastScanAt) counters.push("last " + status.lastScanAt);
     el["ocr-counters"].textContent = counters.join(" · ");
 

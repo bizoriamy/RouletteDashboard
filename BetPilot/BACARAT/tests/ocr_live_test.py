@@ -303,6 +303,45 @@ def main():
         check("and it is logged as ignored",
               any(event.get("action") == "ignored" for event in controller.events), controller.events[-1:])
 
+        print("\nLIVE LOOP — THE HISTORY GRID IS READ WITHOUT A MODEL CALL")
+        import importlib.util as _il
+        spec = _il.spec_from_file_location("grid_test_helpers", os.path.join(TESTS_DIR, "grid_test.py"))
+        helpers = _il.module_from_spec(spec)
+        spec.loader.exec_module(helpers)
+        grid_config = {"scan": {"intervalSeconds": 0.05, "confirmDelaySeconds": 0, "stableReads": 2,
+                                "minConfidence": 0.5, "autoMinConfidence": 0.9, "source": "auto",
+                                "gridIntervalSeconds": 0.05, "gridPitch": 13.5}}
+        grid_screen = {"markers": helpers.column(["B", "P", "T"]), "model_calls": 0}
+
+        def grid_capture(region):
+            return helpers.grid_image(grid_screen["markers"])
+
+        def grid_read(image_bytes):
+            grid_screen["model_calls"] += 1
+            return json.dumps({"result": "banker", "confidence": 0.97, "evidence": "model"})
+
+        server.STORE.clear()
+        server.STORE.create({"casino": "grid live", "startingUnits": 100, "unitValueCents": 500,
+                             "provider": "Pragmatic", "layout": "Half Width / Full Length",
+                             "mode": "observe", "force": True})
+        grid_controller = server.OcrController()
+        grid_controller.monitor = ocr.OcrMonitor(server.STORE, grid_controller._on_candidate,
+                                                capture=grid_capture, read=grid_read, interval=0.05,
+                                                config=grid_config)
+        grid_controller.monitor.start([0, 0, 10, 10], "observe", "test-profile",
+                                      grid_region=[0, 0, 250, 165])
+        time.sleep(0.3)
+        check("the reader reports it is reading the grid",
+              grid_controller.monitor.snapshot().get("source") == "grid",
+              grid_controller.monitor.snapshot().get("source"))
+        grid_screen["markers"] = helpers.column(["B", "P", "T", "P"])   # one new marker: Player
+        check("a new marker becomes a hand with no model call",
+              wait_for(lambda: len(hands()) == 1) and grid_screen["model_calls"] == 0,
+              "%d hand(s), %d model call(s)" % (len(hands()), grid_screen["model_calls"]))
+        check("and it read the marker's colour as the result",
+              hands() and hands()[0].get("result") == "player", hands())
+        grid_controller.stop()
+
     finally:
         controller.stop()
         server.ocr.describe_availability = real_availability

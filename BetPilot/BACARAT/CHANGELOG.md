@@ -5,6 +5,70 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.10.0-20260928-Baccarat (2026-09-28) — READ THE HISTORY GRID, NOT THE PANELS (THE USER'S IDEA)
+
+The user's observation: *"the white base box on the left side of the main box normally will show the
+result much earlier than the flashing."* Correct, and it is the best idea of this whole phase: it
+removes the model call, and with it the latency, the cost and most of the ways a reading can go wrong.
+
+### What the grid is
+
+The white box left of the panels is a bead plate: one red/blue/green circle per hand (B, P, T), filled
+**top to bottom within a column, then the next column** — the same order the user asked for in this
+module's own Hand History. Each marker's **colour is the result**: red = Banker, blue = Player,
+green = Tie.
+
+Measured on the live table (a 100-second watch of the real grid, no model calls):
+
+```
+baseline: 17 markers on the grid
++  7.6s  NEW marker: T  at cell (col 4, row 6)
++ 32.2s  NEW marker: P  at cell (col 4, row 7)
++ 53.9s  NEW marker: P  at cell (col 4, row 8)
+```
+
+Same column, one row down each time — the fill order confirmed — and each marker is a hand.
+
+### Added — reading the grid, with no model call
+
+- **`GridWatcher`**: watches the grid and, when exactly **one** new marker appears, reports its colour
+  as the result. Confidence 0.99, `readMs` 0, and it carries a signature for the existing duplicate
+  guard. Many markers at once is a new shoe (or a re-draw) and is treated as a baseline, never a
+  result. A region with no grid refuses rather than guessing.
+- **Marker detection** by colour (HSV masks + connected components), tolerant of the pale grid lines,
+  of the plate's blue tint and of markers touching each other.
+- **The grid's location is found automatically**, from the panels' region that is already calibrated:
+  the largest near-white plate immediately to its left. Found once, then remembered in the profile as
+  `gridRegion`. No second measurement for the user.
+- **`source: auto`** (the new default): read the grid when it can be read — a colour test at 0.25 s
+  polling, no API call — and fall back to the vision model when it cannot (grid hidden or re-drawn), so
+  a hand is never missed for want of the fast path.
+- The panel now says which path is reading: *"reading the history grid (no model call)"* or *"reading
+  the panels with the model"*, and the audit log records `readBy` per hand so the accuracy record shows
+  how each one was read.
+
+### Verified
+
+- **Live, on the user's real table**: the server derived the grid region by itself (`626,829,316,190`),
+  reported `source: grid`, and **read a hand from the grid with no model call**.
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass, now with a new
+  step: **21** history-grid checks (detection, colour→side, one-marker-is-a-hand, new-shoe baseline,
+  no-grid refusal, automatic grid location), plus 45 live-loop checks including a grid hand read with
+  exactly **0** model calls.
+
+### Fixed along the way (found by these tests, not by the user)
+
+- Grid cells were bucketed with floor-division, so markers one pitch apart could land in the same cell
+  and a new hand looked like no change. Now rounded, which tolerates the measured 13–14 px spacing.
+- Two test-helper faults that had made correct production code look wrong: colour tuples passed to
+  `cv2.circle` reversed (blue drawn as red), and a fake capture that ignored the requested area.
+
+### Still open
+
+- A clean accuracy record before Automatic mode is justified.
+
+---
+
 ## v2.9.2-20260928-Baccarat (2026-09-28) — THE ROULETTE LESSON: READ THE SETTLED FRAME, NOT THE TRANSITION
 
 The user asked whether their working roulette monitor's capture method would help. Reading it answered

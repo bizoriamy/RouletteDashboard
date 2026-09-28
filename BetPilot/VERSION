@@ -1,10 +1,10 @@
-BetPilot — v2.9.2-20260928-Baccarat
+BetPilot — v2.10.0-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.9.2-20260928-Baccarat)
-Status:    the reader now waits for the picture to stop moving before reading — the method of the
-           user's working roulette monitor, adopted for the baccarat table
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.10.0-20260928-Baccarat)
+Status:    the reader now reads the HISTORY GRID — a colour test, no model call, ~0.25s — with the
+           vision model as the fallback
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -14,11 +14,14 @@ v2.0.0 rebuilt the Baccarat module as a local Python server application. v2.1.0-
 bet and its own stake, the half-screen layout, PASS recording the table's result, and the OCR
 groundwork. v2.5.x-v2.7.x built and proved the OCR tooling, calibration, the confidence gate and the
 live loop. v2.8.x connected the setup screen to the reader, added one-click and drawn calibration,
-fixed the drawing coordinate bug, and pre-measured the Pragmatic half-width profile.
+fixed the drawing coordinate bug, and pre-measured the Pragmatic half-width profile. v2.9.x fixed the
+reasons the live reader produced nothing and its latency, and adopted the roulette monitor's
+wait-for-stillness method.
 
-v2.9.0 showed the capture region live in the OCR panel and fixed the three reasons the live reader
-produced nothing, then read BANKER from the live screen. v2.9.1 fixed the latency: a clear reading is
-now accepted on one model call. v2.9.2 adopted the roulette monitor's method — poll fast and wait for
-the picture to stop moving before reading — so a half-updated hand is never read.
+v2.10.0 is the user's idea, implemented: the white history grid left of the panels shows a hand's
+result before the panels finish flashing, and each marker's colour IS the result (red Banker, blue
+Player, green Tie). Reading it is a colour test — no model call, no API cost, ~0.25s — with the vision
+model kept as the fallback. The grid's location is found automatically from the already-calibrated
+panels region, so there is no second measurement to make.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

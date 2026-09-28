@@ -1,7 +1,48 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.9.2-20260928-Baccarat
+Version tracking: v2.10.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.10.0-20260928-Baccarat (2026-09-28) — READ THE HISTORY GRID, NOT THE PANELS (THE USER'S IDEA)
+
+The user's observation: *"the white base box on the left side of the main box normally will show the
+result much earlier than the flashing."* Correct, and it is the best idea of this phase: it removes the
+model call, and with it the latency, the cost and most of the ways a reading can go wrong.
+
+### What the grid is
+- A bead plate: one red/blue/green circle per hand (B, P, T), filled **top to bottom within a column,
+  then the next column** — the order the user asked for in this module's own Hand History. Each
+  marker's **colour is the result**: red Banker, blue Player, green Tie.
+- Measured live on the real grid over 100 seconds: three new markers, each in the same column one row
+  down (rows 6 → 7 → 8), each a hand, with no model calls.
+
+### Added
+- **`GridWatcher`**: one new marker = one hand, reported from its colour (confidence 0.99, `readMs` 0,
+  with a signature for the existing duplicate guard). Many markers at once is a new shoe and is treated
+  as a baseline, never a result; a region with no grid refuses rather than guessing.
+- **The grid's location is found automatically** from the already-calibrated panels region — the
+  largest near-white plate to its left — and remembered in the profile as `gridRegion`. No second
+  measurement for the user.
+- **`source: auto`** (new default): read the grid when it can be read (a colour test at 0.25 s polling,
+  no API call), fall back to the vision model when it cannot, so a hand is never missed.
+- The panel shows which path is reading, and the audit log records `readBy` per hand.
+
+### Verified
+- **Live on the user's table**: the grid region was derived automatically (`626,829,316,190`), the
+  reader reported `source: grid`, and it **read a hand from the grid with no model call**.
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **ten** steps pass, with a
+  new step of **21** grid checks and 45 live-loop checks (including a grid hand read with 0 model calls).
+
+### Fixed along the way (found by these tests, not by the user)
+- Grid cells were bucketed with floor-division, so markers one pitch apart could share a cell and a new
+  hand looked like no change. Now rounded, tolerating the measured 13–14 px spacing.
+- Two test-helper faults that had made correct production code look wrong: colour tuples reversed
+  before `cv2.circle` (blue drawn as red) and a fake capture that ignored the requested area.
+
+### Still open
+- A clean accuracy record before Automatic mode is justified.
 
 ---
 

@@ -25,11 +25,14 @@
     "confirmDelaySeconds": 0.4,
     "stableReads": 2,
     "minConfidence": 0.5,
-    "note": "stableSeconds/stablePollSeconds: on a change, wait until the picture has been still for stableSeconds before reading, so a half-updated hand is never read — the roulette monitor's method. confirmDelaySeconds is the gap between the two reads when both are needed (uncertain readings). singleReadConfidence accepts a clear reading on one call.",
+    "note": "source: auto uses the history grid (a colour test, no model call, ~0.25s) and falls back to the vision model when the grid cannot be read. gridPitch is the measured spacing of the grid markers in pixels. intervalSeconds applies when reading the panels with the model; singleReadConfidence accepts a clear model reading on one call; stableSeconds waits for the picture to stop moving before reading it.",
     "autoMinConfidence": 0.9,
     "singleReadConfidence": 0.93,
     "stableSeconds": 0.75,
-    "stablePollSeconds": 0.25
+    "stablePollSeconds": 0.25,
+    "source": "auto",
+    "gridIntervalSeconds": 0.25,
+    "gridPitch": 13.5
   },
   "keysLocation": "casino-tracker/.secrets/ocr.env — never copy a key into this file or any other file in the repository"
 }
