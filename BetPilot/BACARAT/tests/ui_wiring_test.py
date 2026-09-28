@@ -158,6 +158,9 @@ def main():
     check("it only stacks below 640px", "max-width: 640px" in css and "max-width: 900px" not in css)
     check("the secondary panels sit beside the betting column, not below it",
           "history-column" in html and ".history-column" in css and "grid-template-rows: auto auto minmax(0, 1fr)" in css)
+    check("the Bankroll table scrolls sideways instead of clipping its columns",
+          ".table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }" in css,
+          "at half width the P&L and bankroll columns must remain reachable")
 
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     if failed:

@@ -186,12 +186,12 @@ a { color: var(--gold-soft); }
 .session-strip {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 7px 12px;
+  padding: 6px 10px;
   margin-bottom: 8px;
 }
 .strip-item { display: flex; flex-direction: column; gap: 0; }
@@ -267,7 +267,9 @@ a { color: var(--gold-soft); }
 
 /* -------------------------------------------------------------------- history */
 .panel-hands { display: flex; flex-direction: column; min-height: 0; }
-.table-wrap { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* Both axes: in a narrow window the Bankroll table scrolls sideways rather than losing its
+   right-hand columns (P&L and running bankroll). */
+.table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
 table.hands { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
 table.hands th, table.hands td { text-align: left; padding: 4px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 table.hands thead th { position: sticky; top: 0; background: var(--bg-panel); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; z-index: 1; }
