@@ -208,6 +208,45 @@ def main():
         check("undoing it restores the bankroll", body["derived"]["bankrollCents"] == 100000,
               body["derived"]["bankrollCents"])
 
+        print("\nPASS — no bet, but the table's result is still recorded")
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "pass", "stakeUnits": 0})
+        check("a pass opens the hand with nothing at stake",
+              status == 200 and body["session"]["openWagers"][0]["side"] == "pass"
+              and body["session"]["openWagers"][0]["stakeUnits"] == 0, json.dumps(body)[:220])
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "pass", "stakeUnits": 5})
+        check("a pass cannot carry a stake",
+              status == 400 and body.get("code") == "bad-stake", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 1})
+        check("a bet cannot be added to a passed hand",
+              status == 409 and body.get("code") == "pass-open", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "pass", "stakeUnits": 0})
+        check("passing the same hand twice is refused",
+              status == 409 and body.get("code") == "duplicate-wager", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/hand", {"action": "settle", "result": "banker"})
+        passed_derived = body["derived"]
+        check("the passed hand records the table's result",
+              passed_derived["totalHands"] == 1 and passed_derived["hands"][0]["result"] == "banker",
+              json.dumps(passed_derived["hands"][0])[:220])
+        check("the passed hand moves no money",
+              passed_derived["netCents"] == 0 and passed_derived["bankrollCents"] == 100000,
+              json.dumps({key: passed_derived[key] for key in ("netCents", "bankrollCents")}))
+        check("it counts as a no-bet hand, never a win or a wager",
+              passed_derived["voids"] == 1 and passed_derived["wins"] == 0 and passed_derived["wagers"] == 0,
+              json.dumps({key: passed_derived[key] for key in ("voids", "wins", "wagers")}))
+        check("the result feeds the bead plate and the result distribution",
+              passed_derived["sequence"] == ["banker"] and passed_derived["bankerResults"] == 1,
+              json.dumps({key: passed_derived[key] for key in ("sequence", "bankerResults")}))
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "pass", "stakeUnits": 0})
+        check("a new pass can be opened after the last one settled", status == 200)
+        status, body = request("/api/baccarat/hand", {"action": "remove", "side": "pass"})
+        check("removing a pass before the result logs nothing",
+              status == 200 and body["session"]["openWagers"] == []
+              and body["derived"]["totalHands"] == 1, json.dumps(body["session"]["openWagers"]))
+        status, body = request("/api/baccarat/hand", {"action": "undo"})
+        check("the passed hand undoes cleanly",
+              body["derived"]["totalHands"] == 0 and body["derived"]["bankrollCents"] == 100000,
+              json.dumps(body["derived"])[:200])
+
         print("\nSETTLEMENT — outcomes are derived, never submitted")
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 10})
         status, body = request("/api/baccarat/hand", {"action": "settle", "result": "tie"})

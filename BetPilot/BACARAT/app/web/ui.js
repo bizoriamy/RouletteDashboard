@@ -36,7 +36,7 @@
       "stake-units", "stake-hint", "stake-echo", "btn-minus5", "btn-minus1", "btn-plus1", "btn-plus5",
       "btn-double", "btn-halve", "btn-clear",
       "bet-panel", "btn-banker", "btn-player", "btn-tie", "btn-pass", "tie-payout-label",
-      "open-bets", "open-bets-list", "open-bets-total", "btn-res-banker", "btn-res-player",
+      "open-bets", "open-bets-list", "open-bets-total", "open-bet-hint", "btn-res-banker", "btn-res-player",
       "btn-res-tie", "btn-cancel-bets",
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
       "ocr-panel",
@@ -167,6 +167,11 @@
     var max = maxStakeUnits(session, derived);
     var committed = committedUnits(session);
     var remaining = Math.max(0, max - committed);
+    var has = { banker: false, player: false, tie: false, pass: false };
+    openWagers(session).forEach(function (wager) { has[wager.side] = true; });
+    var anyOpen = openWagers(session).length > 0;
+    var passOpen = has.pass;
+
     // The stake controls stay live while a hand is open, so a Tie side bet can be added with its own
     // stake. The ceiling shrinks to whatever the open wagers have not already committed.
     state.stake = Math.max(1, Math.min(state.stake, Math.max(1, remaining || 1)));
@@ -175,7 +180,9 @@
     el["stake-echo"].textContent = state.stake + " unit" + (state.stake === 1 ? "" : "s") +
       " = " + money(state.stake * session.unitValueCents);
 
-    if (remaining < 1) {
+    if (passOpen) {
+      el["stake-hint"].textContent = "PASS on this hand — no money at risk";
+    } else if (remaining < 1) {
       el["stake-hint"].textContent = committed
         ? committed + "u committed — bankroll fully committed"
         : "bankroll exhausted — no bet possible";
@@ -186,18 +193,15 @@
     }
 
     var busy = state.busy;
+    var stakeLocked = busy || remaining < 1 || passOpen;
     ["btn-minus5", "btn-minus1", "btn-plus1", "btn-plus5", "btn-double", "btn-halve", "btn-clear"].forEach(function (id) {
-      el[id].disabled = busy || remaining < 1;
+      el[id].disabled = stakeLocked;
     });
-    el["stake-units"].disabled = busy || remaining < 1;
+    el["stake-units"].disabled = stakeLocked;
 
-    var has = { banker: false, player: false, tie: false };
-    openWagers(session).forEach(function (wager) { has[wager.side] = true; });
-    var anyOpen = openWagers(session).length > 0;
-
-    el["btn-banker"].disabled = busy || remaining < 1 || has.banker || has.player;
-    el["btn-player"].disabled = busy || remaining < 1 || has.player || has.banker;
-    el["btn-tie"].disabled = busy || remaining < 1 || has.tie;
+    el["btn-banker"].disabled = busy || passOpen || remaining < 1 || has.banker || has.player;
+    el["btn-player"].disabled = busy || passOpen || remaining < 1 || has.player || has.banker;
+    el["btn-tie"].disabled = busy || passOpen || remaining < 1 || has.tie;
     el["btn-pass"].disabled = busy || anyOpen || max < 1;
 
     var slot = document.getElementById("bet-panel");
@@ -206,11 +210,17 @@
 
   function renderOpenBets(session, derived) {
     var wagers = openWagers(session);
+    var isPass = wagers.length === 1 && wagers[0].side === "pass";
     el["open-bets"].hidden = wagers.length === 0;
     if (!wagers.length) return;
 
     var totalUnits = committedUnits(session);
-    el["open-bets-total"].textContent = totalUnits + "u committed · " + money(totalUnits * session.unitValueCents);
+    el["open-bets-total"].textContent = isPass
+      ? "no bet — bankroll untouched"
+      : totalUnits + "u committed · " + money(totalUnits * session.unitValueCents);
+    el["open-bet-hint"].textContent = isPass
+      ? "Nothing is at risk on this hand. Record what the table showed and it goes into Hand History; the bankroll will not move and it will never count as a win or a loss."
+      : "Record what the table showed. Banker and Player bets push on a Tie; a Tie bet wins on a Tie and loses on anything else.";
 
     var list = el["open-bets-list"];
     list.textContent = "";
@@ -218,10 +228,12 @@
       var item = document.createElement("li");
       var tag = document.createElement("span");
       tag.className = "tag " + wager.side;
-      tag.textContent = wager.side.toUpperCase();
+      tag.textContent = wager.side === "pass" ? "PASS" : wager.side.toUpperCase();
       var stake = document.createElement("span");
       stake.className = "wager-stake";
-      stake.textContent = wager.stakeUnits + "u (" + money(wager.stakeUnits * session.unitValueCents) + ")";
+      stake.textContent = wager.side === "pass"
+        ? "no money at risk"
+        : wager.stakeUnits + "u (" + money(wager.stakeUnits * session.unitValueCents) + ")";
       var note = document.createElement("span");
       note.className = "wager-note";
       note.textContent = wager.placedAt ? String(wager.placedAt).replace("T", " ") : "";
@@ -491,6 +503,14 @@
 
   function place(side) {
     return act({ action: "place", side: side, stakeUnits: state.stake });
+  }
+
+  /**
+   * PASS opens the hand with nothing at risk so the table's result can still be recorded when it
+   * lands. Nothing is logged until a result is chosen; "remove" or "Cancel all" logs nothing.
+   */
+  function passHand() {
+    return act({ action: "place", side: "pass", stakeUnits: 0 });
   }
 
   function settle(result) {
@@ -818,7 +838,7 @@
       if (key === "b") place("banker");
       else if (key === "p") place("player");
       else if (key === "t") place("tie");
-      else if (key === "n") act({ action: "pass", result: null });
+      else if (key === "n") passHand();
       else if (key === "u") act({ action: "undo" });
       else return;
     }
@@ -848,7 +868,7 @@
     el["btn-banker"].addEventListener("click", function () { place("banker"); });
     el["btn-player"].addEventListener("click", function () { place("player"); });
     el["btn-tie"].addEventListener("click", function () { place("tie"); });
-    el["btn-pass"].addEventListener("click", function () { act({ action: "pass", result: null }); });
+    el["btn-pass"].addEventListener("click", function () { passHand(); });
 
     el["btn-res-banker"].addEventListener("click", function () { settle("banker"); });
     el["btn-res-player"].addEventListener("click", function () { settle("player"); });

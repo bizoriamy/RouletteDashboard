@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.2.1-20260928-Baccarat** (see `VERSION`)
+Version: **v2.3.0-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; OCR implemented and waiting on your calibration**
 
 This is a rebuild of the Baccarat module after the review in
@@ -40,6 +40,12 @@ A hand may carry a **Tie bet alongside Banker or Player**, and the hand's outcom
 wagers: Banker 10u + Tie 1u nets +8.5u when Banker wins (the Tie stake is lost) and +8u when the Tie
 lands (the Banker stake is pushed). The history shows both wagers and their individual outcomes.
 
+**PASS records the table, not your wallet.** Pressing PASS opens the hand with nothing at risk; when
+the hand settles you record what the table showed, and that result goes into Hand History, the
+Banker/Player/Tie distribution and the streaks — while the bankroll stays untouched and the hand is
+never counted as a win, a loss or a wager. Win rate therefore still describes the hands you actually
+bet. A pass and a bet cannot share a hand, and removing the pass logs nothing.
+
 There is no "WIN / LOSE" button anywhere, because a win/loss button is how the old build paid out
 bets that had actually lost. The bankroll is never stored either — it is recalculated from the
 recorded hands on every read, so undo and reload can never leave the totals out of step.
@@ -50,6 +56,7 @@ Guards the server enforces (each one was a defect in the old build):
 * **Banker and Player cannot both be bet on one hand** — they are mutually exclusive, as at a real
   table, but **Tie can be added on top of either** (the common hedge). One result then settles every
   open wager, and the hand's win/loss is the net;
+* **a pass and a bet cannot share a hand** — remove one before placing the other;
 * a hand settles exactly once — a repeat is refused, so a double click cannot pay twice;
 * a stake larger than the bankroll is refused, counting every wager already open, and `×2` cannot
   run away;
@@ -102,12 +109,12 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 
 | Step | What it proves |
 |---|---|
-| `node tests\engine.test.js` | 59 unit tests: one per review defect, plus the multi-wager rules (Tie alongside Banker/Player, duplicate sides, netting, legacy hand shapes) |
+| `node tests\engine.test.js` | 68 unit tests: one per review defect, plus the multi-wager rules and the pass flow (result recorded, no money moved, never a win) |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 38 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box |
+| `python tests\ui_wiring_test.py` | 47 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result |
 | `python tests\ocr_test.py` | 40 checks on the OCR reader and the observe/confirm/auto rules, driven by a fake screen and a fake model |
-| `python tests\server_smoke.py` | 68 checks driving the real server over HTTP — most of them about what must be **refused** |
+| `python tests\server_smoke.py` | 79 checks driving the real server over HTTP — most of them about what must be **refused** |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together |
 | hygiene check | fails the run if a real-looking credential ever appears in the module |
 

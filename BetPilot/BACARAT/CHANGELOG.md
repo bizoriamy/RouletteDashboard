@@ -5,6 +5,51 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.3.0-20260928-Baccarat (2026-09-28) — PASS NOW RECORDS THE TABLE'S RESULT
+
+From your question about sitting a hand out: a pass used to leave the hand invisible to Hand History
+because it was logged with no result at all. A bead plate is a record of the *table*, not of your
+bets, so a hand you sat out should still take its place in it.
+
+### Changed
+
+- **PASS opens the hand with nothing at risk instead of logging it immediately.** Press PASS and the
+  hand waits, exactly like a bet hand, for you to record what the table showed. Pressing
+  Banker / Player / Tie then files the result into Hand History and leaves the bankroll untouched.
+  It works whether you press PASS before or after the result appears.
+- A passed hand **never counts as a win, a loss or a wager**, and win rate stays about the hands you
+  actually bet — while its result *does* feed the bead plate, the Banker/Player/Tie distribution and
+  the streaks, which now follow the real table rather than only your bets.
+- A pass and a bet cannot share one hand: place a bet and you must remove it before passing, and vice
+  versa. The pass can be removed (or "Cancel all") at any point and **nothing is logged**.
+- The open-hand panel says plainly that nothing is at risk, and the stake controls lock while a hand
+  is passed.
+- `recordPass` remains for the OCR observe path, where the result is already known when it is read.
+
+### Added
+
+- Nine engine tests, ten HTTP checks and five UI checks covering the pass flow, including that a
+  passed hand records the result, moves no money, stays out of the win/loss counts, feeds the
+  distribution and streaks, cannot be combined with a bet, cannot carry a stake, and undoes cleanly.
+
+### Fixed
+
+- A flaw in the test harness itself: `tests/server_smoke.py` used a local name that shadowed the
+  passing-check counter, so the summary printed "24 passed" while 79 checks had actually run and
+  passed. The count is now honest.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — 68 engine tests, 47 UI wiring checks,
+79 end-to-end HTTP checks, the settlement agreement and the OCR suite all pass.
+
+### Still open
+
+- Capture-region calibration is still yours to run (all 9 profiles remain `"calibrated": false`).
+- The superseded prototype files, the old 12 configs and `API/` await your archive decision.
+
+---
+
 ## v2.2.1-20260928-Baccarat (2026-09-28) — BEAD SIZE AND FILL ORDER
 
 Two corrections from your first look at v2.2.0.

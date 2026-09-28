@@ -259,11 +259,32 @@ class SessionStore:
         with self._lock:
             session = self._require_active(self._require())
             side = settlement.normalize_side(payload.get("side"))
+            wagers = settlement.open_wagers(session)
+
             if side == "pass":
-                raise StateError("Use the no-bet action for a pass hand.", "use-pass")
+                # PASS opens the hand with nothing at risk so the table's result can still be
+                # recorded when it lands. No stake, no bankroll movement, never a win or a loss.
+                # The request shape is checked before the hand's state so a staked pass says so.
+                stake = payload.get("stakeUnits")
+                if isinstance(stake, bool) or (stake is not None and stake != 0):
+                    raise StateError("A pass has no stake — there is no money at risk.", "bad-stake")
+                if any(wager.get("side") == "pass" for wager in wagers):
+                    raise StateError("This hand is already marked as a pass.", "duplicate-wager", 409)
+                if wagers:
+                    raise StateError("This hand already has a bet on it — remove it before passing.",
+                                     "conflicting-wager", 409)
+                session["openWagers"] = [{
+                    "side": "pass",
+                    "stakeUnits": 0,
+                    "stakeCents": 0,
+                    "placedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                }]
+                return self.save(session)
 
             # One wager per side; Banker and Player are mutually exclusive; Tie is optional.
-            wagers = settlement.open_wagers(session)
+            if any(wager.get("side") == "pass" for wager in wagers):
+                raise StateError("This hand is marked as a pass — remove it before placing a bet.",
+                                 "pass-open", 409)
             if any(wager.get("side") == side for wager in wagers):
                 raise StateError("A %s bet is already on this hand." % side, "duplicate-wager", 409)
             if side in ("banker", "player"):

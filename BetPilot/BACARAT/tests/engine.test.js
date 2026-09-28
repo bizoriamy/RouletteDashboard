@@ -265,6 +265,82 @@ test("A hand record is immutable once created", function () {
   assertEqual(Engine.derive(session).netCents, 5000, "derive() must recompute, not trust the file");
 });
 
+console.log("\nPASS — no bet, but the table's result is still recorded");
+test("PASS opens the hand with a zero-stake wager", function () {
+  var session = Engine.placeBet(fresh(100), "pass", 0);
+  var wagers = Engine.openWagersOf(session);
+  assertEqual(wagers.length, 1);
+  assertEqual(wagers[0].side, "pass");
+  assertEqual(wagers[0].stakeUnits, 0);
+  assertEqual(Engine.openStakeCents(session), 0, "nothing is committed");
+});
+test("A pass cannot carry a stake", function () {
+  assertThrows(function () { Engine.placeBet(fresh(100), "pass", 1); }, "bad-stake");
+  assertThrows(function () { Engine.placeBet(fresh(100), "pass", 10); }, "bad-stake");
+});
+test("A bet and a pass cannot share a hand", function () {
+  var passed = Engine.placeBet(fresh(100), "pass", 0);
+  assertThrows(function () { Engine.placeBet(passed, "banker", 1); }, "pass-open");
+  assertThrows(function () { Engine.placeBet(passed, "tie", 1); }, "pass-open");
+  var bet = Engine.placeBet(fresh(100), "banker", 1);
+  assertThrows(function () { Engine.placeBet(bet, "pass", 0); }, "conflicting-wager");
+});
+test("The same hand cannot be passed twice", function () {
+  var passed = Engine.placeBet(fresh(100), "pass", 0);
+  assertThrows(function () { Engine.placeBet(passed, "pass", 0); }, "duplicate-wager");
+});
+test("A passed hand records the table result with the bankroll untouched", function () {
+  var session = Engine.settleOpenBets(Engine.placeBet(fresh(100), "pass", 0), "banker");
+  var d = Engine.derive(session);
+  assertEqual(d.totalHands, 1);
+  assertEqual(d.voids, 1, "it counts as a no-bet hand");
+  assertEqual(d.netCents, 0, "no money moved");
+  assertEqual(d.bankrollCents, 50000, "bankroll unchanged");
+  assertEqual(d.wins, 0, "a pass is never a win");
+  assertEqual(d.losses, 0);
+  assertEqual(d.pushes, 0);
+  assertEqual(d.hands[0].result, "banker", "the table's result is stored");
+  assertEqual(d.hands[0].isPass, true);
+  assertEqual(d.hands[0].outcome, "void");
+});
+test("A passed hand's result feeds the bead plate, the distribution and streaks", function () {
+  var session = fresh(100);
+  // pass three hands: banker, banker, then a real Player bet that wins
+  session = Engine.settleOpenBets(Engine.placeBet(session, "pass", 0), "banker");
+  session = Engine.settleOpenBets(Engine.placeBet(session, "pass", 0), "banker");
+  session = Engine.settleOpenBets(Engine.placeBet(session, "player", 2), "player");
+  var d = Engine.derive(session);
+  assertEqual(d.sequence.join(","), "banker,banker,player", "the plate shows every hand, bet or not");
+  assertEqual(d.bankerResults, 2, "passed results count in the distribution");
+  assertEqual(d.playerResults, 1);
+  assertEqual(d.streak.result, "player");
+  assertEqual(d.longest.banker, 2, "the streak saw both passed bankers");
+  assertEqual(d.voids, 2);
+  assertEqual(d.wagers, 1, "only the real bet counts as a wager");
+  assertEqual(d.winRate, 100, "win rate stays about the hands actually bet");
+});
+test("An open pass blocks no-bet recording and session end until it is resolved", function () {
+  var passed = Engine.placeBet(fresh(100), "pass", 0);
+  assertThrows(function () { Engine.recordPass(passed, "banker"); }, "bet-already-open");
+  assertThrows(function () { Engine.endSession(passed); }, "bet-already-open");
+  assertEqual(Engine.settleOpenBets(passed, "tie").hands.length, 1);
+});
+test("Removing a pass before the result logs nothing", function () {
+  var session = Engine.removeWager(Engine.placeBet(fresh(100), "pass", 0), "pass");
+  assertEqual(Engine.openWagersOf(session).length, 0);
+  assertEqual(Engine.derive(session).hands.length, 0, "nothing is recorded");
+  assertEqual(Engine.derive(session).bankrollCents, 50000);
+});
+test("A settled pass survives a save and reload with its result", function () {
+  var session = Engine.settleOpenBets(Engine.placeBet(fresh(100), "pass", 0), "tie");
+  var restored = Engine.fromJSON(Engine.toJSON(session));
+  var d = Engine.derive(restored);
+  assertEqual(d.voids, 1);
+  assertEqual(d.tieResults, 1);
+  assertEqual(d.sequence.join(","), "tie");
+  assertEqual(d.netCents, 0);
+});
+
 console.log("\nREGRESSION M2 — stakes are bounded by the bankroll");
 test("A stake larger than the bankroll is refused", function () {
   var session = play(fresh(10), "banker", 10, "player"); // now 0 units
@@ -477,7 +553,10 @@ console.log("\nINPUT VALIDATION");
 test("Unknown sides and results are refused with a code", function () {
   assertThrows(function () { Engine.placeBet(fresh(100), "dragon", 1); }, "bad-side");
   assertThrows(function () { Engine.settle("banker", "super-six", 1, 500); }, "bad-result");
-  assertThrows(function () { Engine.placeBet(fresh(100), "pass", 1); }, "use-pass", "a pass belongs in recordPass");
+  assertThrows(function () { Engine.placeBet(fresh(100), "pass", 1); }, "bad-stake",
+    "a pass carries no stake, so a staked pass is refused");
+  assertEqual(Engine.openWagersOf(Engine.placeBet(fresh(100), "pass", 0))[0].side, "pass",
+    "but a zero-stake pass is the supported way to sit a hand out");
 });
 test("Invalid rule values are refused", function () {
   assertThrows(function () { Engine.createSession({ startingUnits: 10, unitValueCents: 500, rules: { commissionRate: 1.5 } }); }, "bad-rules");

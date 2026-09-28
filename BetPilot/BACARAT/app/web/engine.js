@@ -409,6 +409,9 @@
 
   function assertWagerAllowed(session, side) {
     var existing = openWagersOf(session);
+    if (existing.some(function (wager) { return wager.side === "pass"; })) {
+      throw EngineError("This hand is marked as a pass — remove it before placing a bet", "pass-open");
+    }
     if (existing.some(function (wager) { return wager.side === side; })) {
       throw EngineError("A " + side + " bet is already on this hand", "duplicate-wager");
     }
@@ -425,9 +428,31 @@
     var normalizedSide = normalizeSide(side);
 
     if (!Array.isArray(next.openWagers)) next.openWagers = openWagersOf(next);
+
     if (normalizedSide === "pass") {
-      throw EngineError("Use recordPass() for a no-bet hand", "use-pass");
+      // PASS opens the hand with nothing at risk, so the table's result can still be recorded when
+      // it lands. The result then fills the bead plate and the result statistics; the bankroll does
+      // not move and the hand is never counted as a win or a loss.
+      // Validate the request shape before the hand's state, so a staked pass reports the stake.
+      if (isInt(stakeUnits) && stakeUnits !== 0) {
+        throw EngineError("A pass has no stake — there is no money at risk", "bad-stake");
+      }
+      var open = openWagersOf(next);
+      if (open.some(function (wager) { return wager.side === "pass"; })) {
+        throw EngineError("This hand is already marked as a pass", "duplicate-wager");
+      }
+      if (open.length) {
+        throw EngineError("This hand already has a bet on it — remove it before passing", "conflicting-wager");
+      }
+      next.openWagers = [{
+        side: "pass",
+        stakeUnits: 0,
+        stakeCents: 0,
+        placedAt: new Date().toISOString()
+      }];
+      return next;
     }
+
     assertWagerAllowed(next, normalizedSide);
     if (!isInt(stakeUnits) || stakeUnits < 1) {
       throw EngineError("Stake must be a whole number of 1 unit or more", "bad-stake");

@@ -170,6 +170,15 @@ def main():
           ".table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }" in css,
           "at half width the P&L and bankroll columns must remain reachable")
 
+    print("\nPASS RECORDS THE TABLE RESULT")
+    check("the PASS button opens a zero-stake hand rather than logging a result-less hand",
+          'action: "place", side: "pass", stakeUnits: 0' in ui)
+    check("the keyboard shortcut does the same", 'key === "n") passHand()' in ui)
+    check("the pass panel says no money is at risk", "no money at risk" in ui)
+    check("the stake controls lock while a hand is passed", "remaining < 1 || passOpen" in ui)
+    check("the panel explains the result will still be recorded",
+          "goes into Hand History" in ui and "never count as a win or a loss" in ui)
+
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     if failed:
         for name, detail in failed:
