@@ -178,6 +178,24 @@ def main():
         check("the chosen box really does contain markers",
               len(ocr.grid_markers(two_box_capture(region))) == 4, region)
 
+    print("\nGRID SHOT — cropped to the history and enlarged for the panel")
+    from PIL import Image as _Image
+    full = grid_image(column(["B", "P", "T", "P", "B"], 0), width=250, height=165)
+    shot, count = ocr.grid_shot(full)
+    with _Image.open(io.BytesIO(shot)) as im:
+        check("the shot finds the markers that are there", count == 5, count)
+        check("the shot is enlarged from the full box", im.width > 250 and im.height > 165, im.size)
+    # Markers only in the left columns: the shot should crop off the empty right side.
+    cropped = grid_image(column(["B", "P", "T"], 0) + column(["B", "P", "T"], 1), width=250, height=165)
+    shot, count = ocr.grid_shot(cropped)
+    with _Image.open(io.BytesIO(shot)) as im:
+        check("an empty margin is cropped away so the history fills the panel",
+              im.width < 250 * 4, im.size)
+    empty = grid_image([], width=250, height=165)
+    shot, count = ocr.grid_shot(empty)
+    with _Image.open(io.BytesIO(shot)) as im:
+        check("an empty grid still returns a picture rather than failing", count == 0 and im.width >= 250, im.size)
+
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     for name, detail in failed:
         print("  FAILED: %s  <- %s" % (name, detail))

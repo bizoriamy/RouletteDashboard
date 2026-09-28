@@ -5,6 +5,32 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.10.3-20260928-Baccarat (2026-09-28) — THE HAND HISTORY SNAP NOW FILLS THE PANEL
+
+Reported: *"i think you can max the Hand History snap, there are still many spaces."* Two causes: the
+box was still fixed at the old bead grid's **172 px** width, and the raw screenshot included the empty
+white columns to the right of the filled markers.
+
+### Changed
+
+- The Hand History box now spans the full panel width, not 172 px.
+- The grid snapshot is **cropped to the markers** (the empty white margin is cut away) and **upscaled
+  nearest-neighbour** so the coloured markers stay crisp while the history fills the space. An empty
+  grid still returns a picture rather than failing.
+- The grid endpoint now also reports the marker count it found.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass; the grid step
+  is now **28** checks including the crop and enlarge behaviour.
+
+### Still open
+
+- The six model-read hands from before the grid reader took over remain in the existing session's
+  history; a new session reflects the grid going forward.
+
+---
+
 ## v2.10.2-20260928-Baccarat (2026-09-28) — HAND HISTORY IS NOW THE LIVE CASINO GRID (THE USER'S IDEA)
 
 Reported: *"only the first few hands was not right... maybe you can replace our 'hand history' with the

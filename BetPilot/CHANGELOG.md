@@ -1,7 +1,29 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.10.2-20260928-Baccarat
+Version tracking: v2.10.3-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.10.3-20260928-Baccarat (2026-09-28) — THE HAND HISTORY SNAP NOW FILLS THE PANEL
+
+Reported: *"i think you can max the Hand History snap, there are still many spaces."* Two causes: the
+box was still fixed at the old bead grid's 172 px width, and the raw screenshot included the empty
+white columns to the right of the filled markers.
+
+### Changed
+- The Hand History box now spans the full panel width, not 172 px.
+- The grid snapshot is **cropped to the markers** (empty margin cut away) and **upscaled
+  nearest-neighbour**, so the markers stay crisp while the history fills the space. An empty grid still
+  returns a picture rather than failing.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **ten** steps pass; the
+  grid step is now **28** checks.
+
+### Still open
+- The six model-read hands from before the grid reader took over remain in the existing session's
+  history; a new session reflects the grid going forward.
 
 ---
 

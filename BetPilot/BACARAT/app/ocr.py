@@ -707,6 +707,33 @@ def grid_cell(position, pitch=13.5):
     return int(round(float(position) / float(pitch))) if pitch else int(position)
 
 
+def grid_shot(image_bytes, max_width=640, padding=10):
+    """A zoomed, crisp picture of the filled part of the history grid, for the Hand History panel.
+
+    The full grid box has empty white columns to its right and a thin margin, which showed as dead
+    space in the panel. Cropping to the markers and upscaling nearest-neighbour (the markers are solid
+    colour, so it stays crisp) fills the panel with the actual history instead.
+    """
+    from PIL import Image
+    with io.BytesIO(image_bytes) as buffer:
+        with Image.open(buffer) as opened:
+            image = opened.convert("RGB")
+    markers = grid_markers(image_bytes)
+    if markers:
+        left = max(0, min(m[1] for m in markers) - padding)
+        top = max(0, min(m[2] for m in markers) - padding)
+        right = min(image.width, max(m[1] for m in markers) + padding + 1)
+        bottom = min(image.height, max(m[2] for m in markers) + padding + 1)
+        if right - left >= 24 and bottom - top >= 16:
+            image = image.crop((left, top, right, bottom))
+    if image.width < max_width:
+        factor = min(4, max(2, int(round(float(max_width) / image.width))))
+        image = image.resize((image.width * factor, image.height * factor), Image.NEAREST)
+    out = io.BytesIO()
+    image.save(out, format="PNG")
+    return out.getvalue(), len(markers)
+
+
 class GridWatcher:
     """Read the result the moment a new marker appears on the history grid.
 

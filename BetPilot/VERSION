@@ -1,10 +1,10 @@
-BetPilot — v2.10.2-20260928-Baccarat
+BetPilot — v2.10.3-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.10.2-20260928-Baccarat)
-Status:    the reader reads the HISTORY GRID (no model call, ~0.3s), and the Hand History panel now
-           shows that same live casino grid instead of a redrawn bead plate
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.10.3-20260928-Baccarat)
+Status:    the reader reads the HISTORY GRID (no model call, ~0.3s), the Hand History panel shows that
+           live grid, and the snapshot now fills the panel (cropped to the markers and enlarged)
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -16,13 +16,8 @@ groundwork. v2.5.x-v2.7.x built and proved the OCR tooling, calibration, the con
 live loop. v2.8.x connected the setup screen to the reader, added one-click and drawn calibration,
 fixed the drawing coordinate bug, and pre-measured the Pragmatic half-width profile. v2.9.x fixed the
 reasons the live reader produced nothing and its latency, and adopted the roulette monitor's
-wait-for-stillness method.
-
-v2.10.0 implemented the user's idea — read the white history grid (each marker's colour IS the result)
-with no model call — but its automatic grid location grabbed a chat window; v2.10.1 corrected the
-record, required a candidate box to actually contain markers, and verified four hands read from the
-real grid. v2.10.2, on the user's further idea, replaces the redrawn Hand History with the live
-screenshot of the casino's own grid, removing the mismatch that made the first few (model-read) hands
-look wrong.
+wait-for-stillness method. v2.10.0-2 read the history grid with no model call, corrected the automatic
+grid location, and replaced the Hand History with the live grid; v2.10.3 makes that snapshot fill the
+panel.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

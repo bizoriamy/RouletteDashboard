@@ -971,13 +971,13 @@ class OcrController:
         if wanted_signature and wanted_signature == signature:
             return {"ok": True, "unchanged": True, "signature": signature, "at": at, "source": source}
         try:
-            small, scale = ocr.preview_png(frame, max_width=560)
+            small, markers = ocr.grid_shot(frame)
         except Exception as error:  # noqa: BLE001
             raise StateError("The grid could not be prepared: %s" % error, "preview-failed", 503)
         import base64
         return {"ok": True, "unchanged": False,
                 "image": "data:image/png;base64," + base64.b64encode(small).decode("ascii"),
-                "at": at, "signature": signature, "source": source, "scale": scale}
+                "at": at, "signature": signature, "source": source, "markers": markers}
 
     def preview(self, payload=None):
         """A small picture of what the reader is looking at, for the panel.

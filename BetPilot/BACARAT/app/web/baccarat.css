@@ -1,4 +1,4 @@
-﻿/* BetPilot — Baccarat UI
+/* BetPilot — Baccarat UI
    Theme carried over from the original module (gold / red Banker / blue Player / green Tie).
 
    Layout intent: the whole module fits one window with no vertical page scrolling. The page is a
@@ -239,7 +239,7 @@ a { color: var(--gold-soft); }
    TOP TO BOTTOM first, then left to right: the plate fills down each column before starting the
    next one. Colour only — no letters. Small, fixed cells, and the box neither grows nor scrolls. */
 .bead-box {
-  width: 172px;          /* 10 x 14px cells + 9 x 2px gaps + padding + border */
+  width: 100%;             /* the live grid fills the panel, not the old 172px bead grid */
   max-width: 100%;
   margin: 0 auto;
   padding: 6px;

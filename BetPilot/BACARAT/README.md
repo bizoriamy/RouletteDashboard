@@ -1,6 +1,6 @@
 ﻿# BetPilot — Baccarat (rebuilt)
 
-Version: **v2.10.2-20260928-Baccarat** (see `VERSION`)
+Version: **v2.10.3-20260928-Baccarat** (see `VERSION`)
 Status: **the reader reads the live casino display correctly through a calibrated region (verified on your real table, including a Tie); Automatic still awaits a clean accuracy record**
 
 This is a rebuild of the Baccarat module after the review in
@@ -119,7 +119,7 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `python tests\ui_wiring_test.py` | 78 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
 | `python tests\ocr_test.py` | 132 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, the confidence gate that Automatic must clear, and the handling of truncated, empty and unparseable model replies |
 | `python tests\ocr_live_test.py` | 45 checks running the **real live loop** — monitor thread, controller, store and statistics — against a fake screen and a fake model: a hand confirmed end to end with the right money, duplicates never re-recorded, a wrong reading corrected before it is stored, Automatic settling only what it is sure of and deferring what it is not, observe mode recording no-bet hands, the accuracy readout reflecting what happened, an off-screen region refused at start, and a history-grid hand read with **zero** model calls |
-| `python tests\grid_test.py` | 24 checks on the history-grid reader: colour→side detection, one new marker = one hand, a re-drawn grid treated as a baseline, a region with no grid refusing rather than guessing, and the grid's location found automatically from the panels' region |
+| `python tests\grid_test.py` | 28 checks on the history-grid reader: colour→side detection, one new marker = one hand, a re-drawn grid treated as a baseline, a region with no grid refusing rather than guessing, and the grid's location found automatically from the panels' region |
 | `python tests\server_smoke.py` | 109 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
