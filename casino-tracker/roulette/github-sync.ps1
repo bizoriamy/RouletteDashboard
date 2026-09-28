@@ -111,6 +111,27 @@ try {
     )
     Invoke-LocalGit add --all -- @syncPaths | Out-Null
     $staged = @(Invoke-LocalGit diff --cached --name-only)
+
+    # Images and PDFs are how personal material leaks into a PUBLIC repository. On 2026-09-28 a GitHub
+    # billing receipt (email address, transaction id, card last four) was saved as a screenshot into
+    # BetPilot\SOURCE\OCR\ and synced automatically. Only the project's own assets may travel; keep
+    # private pictures under BetPilot\BACARAT\data\, which is never synced.
+    $permittedImages = @(
+        'casino-tracker/roulette/live-dashboard-icon.png',
+        'casino-tracker/roulette/test_sample.jpeg',
+        'experiments/roulette-bank-chart.png',
+        'experiments/roulette-pl-chart.png'
+    )
+    $stagedImages = @($staged | Where-Object {
+        $_ -match '\.(png|jpe?g|gif|bmp|webp|tiff?|pdf|heic|svg)$' -and $permittedImages -notcontains $_
+    })
+    if ($stagedImages.Count -gt 0) {
+        Fail ("Image or PDF files were staged for sync:`n" + ($stagedImages -join [Environment]::NewLine) +
+              "`n`nScreenshots and captures belong under BetPilot\BACARAT\data\ (never synced). If one of these is a" +
+              "`ngenuine project asset, add its exact repo-relative path to `$permittedImages in" +
+              "`ncasino-tracker\roulette\github-sync.ps1.") 32
+    }
+
     $forbidden = @($staged | Where-Object {
         $_ -match '(^|/)(\.secrets|backup-before-[^/]*|__pycache__|\.pending)(/|$)' -or
         $_ -match '\.(pyc|log|tmp|temp)$' -or
