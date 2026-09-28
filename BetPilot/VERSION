@@ -1,10 +1,10 @@
-BetPilot — v2.9.1-20260928-Baccarat
+BetPilot — v2.9.2-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.9.1-20260928-Baccarat)
-Status:    the reader now answers a clear hand in ONE model call (~2-4s) so the result lands before the
-           next hand; the panel shows the measured reading time
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.9.2-20260928-Baccarat)
+Status:    the reader now waits for the picture to stop moving before reading — the method of the
+           user's working roulette monitor, adopted for the baccarat table
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -17,9 +17,8 @@ live loop. v2.8.x connected the setup screen to the reader, added one-click and 
 fixed the drawing coordinate bug, and pre-measured the Pragmatic half-width profile.
 
 v2.9.0 showed the capture region live in the OCR panel and fixed the three reasons the live reader
-produced nothing (pixel-identical double-read rule, an unreadable reply freezing the loop, a read gap
-straddling the settle), then read BANKER from the live screen. v2.9.1 fixes the latency: a clear
-reading is now accepted on one model call (~2-4s) instead of two (~5-16s), the loop interval is 0.6s,
-the provider timeout is 15s, and the panel shows the measured reading time.
+produced nothing, then read BANKER from the live screen. v2.9.1 fixed the latency: a clear reading is
+now accepted on one model call. v2.9.2 adopted the roulette monitor's method — poll fast and wait for
+the picture to stop moving before reading — so a half-updated hand is never read.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

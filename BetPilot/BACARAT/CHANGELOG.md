@@ -5,6 +5,43 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.9.2-20260928-Baccarat (2026-09-28) — THE ROULETTE LESSON: READ THE SETTLED FRAME, NOT THE TRANSITION
+
+The user asked whether their working roulette monitor's capture method would help. Reading it answered
+the latency problem better than anything tuned so far.
+
+### What the roulette monitor does that the baccarat reader did not
+
+`casino-tracker/roulette` spawns `OCR/dashboard_monitor.py`, which uses the **same DeepSeek vision
+model** — so it is not a faster model. The difference is the loop: it polls fast (0.25 s) and, when the
+history strip changes, **waits 0.75 s for the picture to stop moving before it reads**, so it always
+reads a settled frame, once. It also reads the whole strip and confirms the newest number by checking
+the previous numbers shifted (a sequence-validity check).
+
+The baccarat reader read *immediately* on change — which is how it caught a half-updated hand (the
+totals settle, then cards and amounts keep animating), and why hands were cancelled or arrived late.
+
+### Changed — adopted the stability-wait
+
+- On a change, the reader now polls (0.25 s) and waits until the picture has been still for 0.75 s
+  before reading it. A hand that flips mid-watch is read at its settled state, not at the flip. A
+  frame that never settles still returns promptly (bounded wait) rather than hanging.
+- This, combined with v2.9.1's single confident read, is the roulette recipe: **poll fast, wait for
+  stillness, read once.**
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass, now with
+  **132** OCR checks. New checks: an animating frame is read once after it settles; a frame that never
+  settles returns promptly; a mid-watch flip is read at its settled state, not at the flip.
+
+### Still open
+
+- A clean accuracy record before Automatic mode is justified. A live run is still needed while the
+  table is actually settling hands.
+
+---
+
 ## v2.9.1-20260928-Baccarat (2026-09-28) — THE READING ARRIVES BEFORE THE NEXT HAND
 
 Reported: *"the refresh time is too slow, i watch for 5 hands, all show the result after 10 sec which is

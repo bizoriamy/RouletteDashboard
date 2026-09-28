@@ -1,7 +1,39 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.9.1-20260928-Baccarat
+Version tracking: v2.9.2-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.9.2-20260928-Baccarat (2026-09-28) — THE ROULETTE LESSON: READ THE SETTLED FRAME, NOT THE TRANSITION
+
+The user asked whether their working roulette monitor's capture method would help. Reading it answered
+the latency problem better than anything tuned so far.
+
+### What the roulette monitor does that the baccarat reader did not
+`casino-tracker/roulette` spawns `OCR/dashboard_monitor.py`, which uses the **same DeepSeek vision
+model** — so it is not a faster model. The difference is the loop: it polls fast (0.25 s) and, when the
+history strip changes, **waits 0.75 s for the picture to stop moving before it reads**, so it always
+reads a settled frame, once. It also confirms the newest number by checking the previous numbers
+shifted (sequence validity).
+
+The baccarat reader read *immediately* on change — which is how it caught a half-updated hand, and why
+hands were cancelled or arrived late.
+
+### Changed — adopted the stability-wait
+- On a change, the reader polls (0.25 s) and waits until the picture has been still for 0.75 s before
+  reading it. A hand that flips mid-watch is read at its settled state; a frame that never settles
+  still returns promptly (bounded wait).
+- Combined with v2.9.1's single confident read, this is the roulette recipe: poll fast, wait for
+  stillness, read once.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass
+  (**132** OCR checks). New checks: an animating frame is read once after it settles; a frame that
+  never settles returns promptly; a mid-watch flip is read at its settled state.
+
+### Still open
+- A clean accuracy record before Automatic mode is justified.
 
 ---
 

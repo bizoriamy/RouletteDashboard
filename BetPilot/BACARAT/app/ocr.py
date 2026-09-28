@@ -65,6 +65,11 @@ DEFAULT_CONFIG = {
         # interval costs a screenshot, not an API call — and it is what lets the reader notice a
         # settled hand within a fraction of a second instead of up to 1.5s late.
         "intervalSeconds": 0.6,
+        # On a change, wait until the picture has been still for this long before reading it, so the
+        # reader never reads a half-updated hand. This is the roulette monitor's method: poll fast,
+        # read the settled frame once.
+        "stableSeconds": 0.75,
+        "stablePollSeconds": 0.25,
         # The gap between the two reads, used only when the first read is not certain enough to accept
         # on its own. 1.5s straddled the moment the hand settles on a fast table and cancelled hands.
         "confirmDelaySeconds": 0.4,
@@ -694,6 +699,31 @@ class OcrReader:
         if first_hash == self.last_signature:
             # Fast path: nothing on screen has changed since the last look.
             return {"status": "unchanged", "signature": first_hash, "result": None, **frame}
+
+        # A change was detected. Reading it immediately is how the reader caught a half-updated hand:
+        # the totals settle, then the cards and amounts keep animating, and a read in the middle sees
+        # a transition. The user's roulette monitor already solved this: it polls fast and WAITS for
+        # the picture to stop moving before it reads, so it always reads a settled frame. Adopt that.
+        stable_seconds = float(scan_config.get("stableSeconds", 0.75))
+        stable_poll = float(scan_config.get("stablePollSeconds", 0.25))
+        if stable_seconds > 0:
+            stable_image = first
+            stable_hash = first_hash
+            stable_since = time.monotonic()
+            deadline = time.monotonic() + max(2.5, stable_seconds * 3.0)
+            while time.monotonic() < deadline:
+                self.clock(stable_poll)
+                next_image = self.capture(region)
+                next_hash = region_signature(next_image)
+                if next_hash != stable_hash:
+                    stable_image = next_image
+                    stable_hash = next_hash
+                    stable_since = time.monotonic()
+                elif time.monotonic() - stable_since >= stable_seconds:
+                    break
+            first = stable_image
+            first_hash = stable_hash
+            frame = {"frame": first}
 
         wanted_reads = max(1, int(scan_config.get("stableReads", 2)))
         delay = float(scan_config.get("confirmDelaySeconds", 0.4))

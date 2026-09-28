@@ -149,10 +149,9 @@ def test_scan_decisions():
     check("a red Banker region and a blue Player region have different signatures",
           banker_signature != player_signature, "%s vs %s" % (banker_signature, player_signature))
 
-    # The screen changing between the two reads must still not produce a decision when the readings
-    # disagree — the rule is about the two READINGS agreeing, not about two identical pictures. A
-    # pixel-identical requirement cancelled every reading on a real table (live amounts and timers
-    # always move), which is why it was removed.
+    # A hand that flips mid-watch is not read at the flip — the reader WAITS for the picture to stop
+    # moving and reads the settled state instead (the roulette monitor's method). So a flip from
+    # Banker to Player that then holds should read Player, not the transient Banker.
     reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=SCAN_SETTINGS)
 
     def flip_once(current):
@@ -162,10 +161,8 @@ def test_scan_decisions():
     screen.colour = BANKER
     screen.on_capture = flip_once
     decision = reader.scan((0, 0, 10, 10), set())
-    check("a region that changes mid-read yields no decision",
-          decision["result"] is None and decision["status"] in ("unclear", "unchanged"), decision)
-    check("and says the picture changed under it",
-          "changed" in decision.get("note", ""), decision.get("note"))
+    check("a change that then holds is read at its settled state, not at the flip",
+          decision["status"] == "candidate" and decision["result"] == "player", decision)
     screen.on_capture = None
 
     # Two reads that disagree must not produce a candidate.
@@ -807,6 +804,58 @@ def test_latency():
           shipped["deepseek"].get("timeoutSeconds"))
 
 
+def test_stability_wait():
+    print("\nSTABILITY WAIT: READ THE SETTLED FRAME, NOT A HALF-UPDATED ONE")
+    settings = {"scan": {"intervalSeconds": 0, "confirmDelaySeconds": 0, "stableReads": 2,
+                         "minConfidence": 0.5, "singleReadConfidence": 0.93,
+                         "stableSeconds": 0.3, "stablePollSeconds": 0.05}}
+
+    class SettlingScreen:
+        def __init__(self, result):
+            # three changing frames, then a settled one that repeats
+            self.states = [None, None, None, result, result, result, result]
+            self.captures = 0
+            self.reads = 0
+
+        def capture(self, region):
+            self.captures += 1
+            state = self.states[min(self.captures - 1, len(self.states) - 1)]
+            colour = (10, 20, 30 + self.captures) if state is None else (200, 30, 30)
+            import io as _io
+            from PIL import Image
+            buffer = _io.BytesIO()
+            Image.new("RGB", (40, 24), colour).save(buffer, format="PNG")
+            return buffer.getvalue()
+
+        def read(self, image_bytes):
+            self.reads += 1
+            return json.dumps({"result": "banker", "confidence": 0.97, "evidence": "settled"})
+
+    screen = SettlingScreen("banker")
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("an animating frame is read once, after it settles",
+          decision["status"] == "candidate" and screen.reads == 1, screen.reads)
+    check("and the settled frame is what was captured",
+          decision.get("result") == "banker", decision)
+
+    class NeverSettlingScreen(SettlingScreen):
+        def capture(self, region):
+            self.captures += 1
+            import io as _io
+            from PIL import Image
+            buffer = _io.BytesIO()
+            Image.new("RGB", (40, 24), (10, 20, 30 + self.captures)).save(buffer, format="PNG")
+            return buffer.getvalue()
+
+    screen = NeverSettlingScreen("banker")
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    started = time.time()
+    reader.scan((0, 0, 10, 10), set())
+    check("a frame that never settles still returns promptly, it never hangs",
+          time.time() - started < 5.0, "%.1fs" % (time.time() - started))
+
+
 def main():
     test_scan_decisions()
     test_parsing()
@@ -820,6 +869,7 @@ def main():
     test_region_picking()
     test_changing_frame_still_reads()
     test_latency()
+    test_stability_wait()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))

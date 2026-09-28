@@ -25,9 +25,11 @@
     "confirmDelaySeconds": 0.4,
     "stableReads": 2,
     "minConfidence": 0.5,
-    "note": "A clear reading (confidence at or above singleReadConfidence) is accepted on ONE model call; two calls per hand answered ~10s late, after the next hand had started. The second read is kept for uncertain readings. intervalSeconds is short because a look costs a screenshot, not an API call. confirmDelaySeconds is the gap between the two reads when both are used.",
+    "note": "stableSeconds/stablePollSeconds: on a change, wait until the picture has been still for stableSeconds before reading, so a half-updated hand is never read — the roulette monitor's method. confirmDelaySeconds is the gap between the two reads when both are needed (uncertain readings). singleReadConfidence accepts a clear reading on one call.",
     "autoMinConfidence": 0.9,
-    "singleReadConfidence": 0.93
+    "singleReadConfidence": 0.93,
+    "stableSeconds": 0.75,
+    "stablePollSeconds": 0.25
   },
   "keysLocation": "casino-tracker/.secrets/ocr.env — never copy a key into this file or any other file in the repository"
 }
