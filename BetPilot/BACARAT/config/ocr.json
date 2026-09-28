@@ -20,10 +20,10 @@
   },
   "scan": {
     "intervalSeconds": 1.5,
-    "confirmDelaySeconds": 1.5,
+    "confirmDelaySeconds": 0.4,
     "stableReads": 2,
     "minConfidence": 0.5,
-    "note": "minConfidence is the bar for SHOWING a reading; autoMinConfidence is the higher bar for Automatic mode to settle a bet with nobody looking. A reading below it is handed to you to confirm instead of being acted on.",
+    "note": "confirmDelaySeconds is the gap between the two reads. It was 1.5s, which straddled the moment the hand settles on the user's fast table so the reads disagreed (one saw the hand, the other saw nothing) and every hand was cancelled. 0.4s was measured to read hands live. minConfidence is the bar for SHOWING a reading; autoMinConfidence is the higher bar for Automatic to settle a bet with nobody looking.",
     "autoMinConfidence": 0.9
   },
   "keysLocation": "casino-tracker/.secrets/ocr.env — never copy a key into this file or any other file in the repository"

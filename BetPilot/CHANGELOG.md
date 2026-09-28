@@ -1,7 +1,44 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.8.3-20260928-Baccarat
+Version tracking: v2.9.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.9.0-20260928-Baccarat (2026-09-28) — THE READER NOW READS THE LIVE TABLE (AND YOU CAN SEE WHAT IT SEES)
+
+Asked: *"where do you show the OCR capture? no result"*. Both halves were fair, and the answer to the
+first was "nowhere" — which is why the second stayed a mystery through several rounds.
+
+### Added — the panel shows what the reader is looking at
+- A live picture of the capture region sits in the OCR panel, refreshed with the status and when the
+  panel is opened, captioned with whether it is the reader's last frame or a fresh capture, and when.
+  **This is the answer to "why is there no result?"** — if the picture is not your table's totals and
+  panels, that is why, visible instead of a mystery.
+- Served by `GET /api/baccarat/ocr/preview`; a profile you name must exist or you are told, the same
+  contract as starting the reader.
+
+### Fixed — three more reasons the live reader produced nothing
+1. **The double-read rule cancelled every hand.** It required the two pictures to be pixel-identical
+   1.5 s apart, but a real table's amounts, countdowns and timers move in that gap — 0 candidates in 25
+   scans while direct reads of the same region read hands fine. The rule is now about the two
+   **readings** agreeing; disagreement is still refused, never averaged.
+2. **One unreadable reply froze the reader forever.** A non-JSON reply raised out of the scan, so the
+   frame's signature was never recorded and the same frame was retried indefinitely (scans stuck at 1
+   while the table played on). It is now that frame's answer, reported, and the loop moves on.
+3. **The gap between reads straddled the settle moment.** One read saw the hand, the other saw nothing,
+   so hands were cancelled. Measured at 0.4 s and changed to it.
+- The doubled-budget escalation was dropped: it made a bad frame take ~30 s before the fallback model
+  was tried, by which time the hand was gone. Primary, then fallback, one budget each.
+
+### Verified — the real reader reading the real table
+- A 90-second run of the actual monitor against the actual screen recorded **BANKER** from the live
+  table with two agreeing reads. Scans advanced steadily with no stalls and no errors.
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass
+  (121 OCR, 81 UI wiring, 104 HTTP, 42 live-loop, 19 locator).
+
+### Still open
+- Automatic mode awaits a clean accuracy record; the reader is working in Confirm/Observe now.
 
 ---
 

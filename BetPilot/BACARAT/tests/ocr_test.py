@@ -149,7 +149,10 @@ def test_scan_decisions():
     check("a red Banker region and a blue Player region have different signatures",
           banker_signature != player_signature, "%s vs %s" % (banker_signature, player_signature))
 
-    # The screen changing between the two reads must not produce a decision.
+    # The screen changing between the two reads must still not produce a decision when the readings
+    # disagree — the rule is about the two READINGS agreeing, not about two identical pictures. A
+    # pixel-identical requirement cancelled every reading on a real table (live amounts and timers
+    # always move), which is why it was removed.
     reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=SCAN_SETTINGS)
 
     def flip_once(current):
@@ -160,7 +163,9 @@ def test_scan_decisions():
     screen.on_capture = flip_once
     decision = reader.scan((0, 0, 10, 10), set())
     check("a region that changes mid-read yields no decision",
-          decision["status"] == "unchanged" and "changed" in decision.get("note", ""), decision)
+          decision["result"] is None and decision["status"] in ("unclear", "unchanged"), decision)
+    check("and says the picture changed under it",
+          "changed" in decision.get("note", ""), decision.get("note"))
     screen.on_capture = None
 
     # Two reads that disagree must not produce a candidate.
@@ -192,12 +197,16 @@ def test_scan_decisions():
     reader = ocr.OcrReader(capture=screen.capture, read=lambda _b: "I think it was banker, maybe.",
                            config=SCAN_SETTINGS)
     screen.colour = TIE
-    try:
-        reader.scan((0, 0, 10, 10), set())
-        check("a non-JSON model reply raises", False, "no error raised")
-    except ocr.OcrError as error:
-        check("a non-JSON model reply raises", True)
-        check("the error explains what arrived", "did not return JSON" in str(error), error)
+    # A reply that cannot be read must NOT raise out of scan(): doing so left the reader retrying the
+    # same frame forever (measured live — scans stuck at 1 while the table moved on). It is this
+    # frame's answer, and the loop proceeds.
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("a non-JSON model reply does not stop the scan",
+          decision["status"] == "unclear" and decision["result"] is None, decision)
+    check("and it says the reply could not be read",
+          "could not be read" in (decision.get("note") or ""), decision.get("note"))
+    check("and the frame is remembered so the loop moves on",
+          reader.last_signature is not None, reader.last_signature)
 
 
 def test_parsing():
@@ -677,6 +686,64 @@ def test_region_picking():
     check("the shipped config carries a fallback model",
           len(ocr.model_attempts(shipped_config)) == 2, ocr.model_attempts(shipped_config))
 
+    # The preview: nothing to show when there is no profile to capture and no session to follow.
+    import server as _server
+    _server.STORE.clear()
+    try:
+        _server.OCR_STATE.preview({})
+        check("a preview with no profile and no session is refused", False, "it captured anyway")
+    except _server.StateError as error:
+        check("a preview with no profile and no session is refused",
+              error.code == "no-profile", error.code)
+
+
+def test_changing_frame_still_reads():
+    print("\nA CHANGING PICTURE MUST STILL BE READ (live bet amounts and timers always move)")
+    import server as _server  # noqa: F401  (kept for symmetry with the other helpers)
+    settings = {"scan": {"intervalSeconds": 0, "confirmDelaySeconds": 0, "stableReads": 2,
+                         "minConfidence": 0.5, "autoMinConfidence": 0.9}}
+
+    class MovingScreen:
+        """A frame that differs on every capture, like a table with a live countdown."""
+
+        def __init__(self, results):
+            self.results = list(results)
+            self.captures = 0
+
+        def capture(self, region):
+            self.captures += 1
+            import io as _io
+            from PIL import Image
+            buffer = _io.BytesIO()
+            Image.new("RGB", (40, 24), (10, 20, 30 + self.captures)).save(buffer, format="PNG")
+            return buffer.getvalue()
+
+        def read(self, image_bytes):
+            result = self.results.pop(0) if self.results else None
+            return json.dumps({"result": result, "confidence": 0.95 if result else 0.0,
+                               "evidence": "panel highlighted" if result else "nothing settled"})
+
+    screen = MovingScreen(["banker", "banker"])
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("two agreeing reads on a changing picture make a candidate",
+          decision["status"] == "candidate" and decision["result"] == "banker", decision)
+    check("the picture the reader looked at comes back with the decision",
+          isinstance(decision.get("frame"), bytes) and len(decision["frame"]) > 0, decision.get("frame"))
+
+    screen = MovingScreen(["banker", None])
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("disagreeing reads are still refused", decision["status"] == "unclear", decision)
+    check("and the refusal admits the picture moved",
+          "picture changed" in (decision.get("note") or ""), decision.get("note"))
+
+    screen = MovingScreen(["banker", "player"])
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("two different results are refused, never averaged",
+          decision["status"] == "unclear" and decision["result"] is None, decision)
+
 
 def main():
     test_scan_decisions()
@@ -689,6 +756,7 @@ def main():
     test_auto_confidence_gate()
     test_auto_deferral()
     test_region_picking()
+    test_changing_frame_still_reads()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))

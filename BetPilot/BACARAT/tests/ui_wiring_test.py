@@ -218,6 +218,13 @@ def main():
     check("a box too small to be meant is not accepted", "too small" in ui)
     check("the overlay is modal for the keyboard", 'el["region-picker"].hidden' in ui)
     check("a drag that leaves the picture still finishes", 'window.addEventListener("mouseup"' in ui)
+    check("the panel shows what the reader is looking at",
+          'id="ocr-preview"' in html and 'id="ocr-preview-note"' in html
+          and '"/api/baccarat/ocr/preview' in ui and "refreshPreview" in ui)
+    check("the preview is refreshed with the status and when the panel opens",
+          ui.count("refreshPreview()") >= 3 and 'el["ocr-panel"].addEventListener("toggle"' in ui)
+    check("the preview explains that a wrong picture is why there is no result",
+          "that is why there is no result" in ui)
     check("the panel says whether the chosen profile is calibrated, and how",
           'id="ocr-profile-state"' in html and "renderProfileState" in ui
           and "Calibrated" in ui and "NOT calibrated yet" in ui)

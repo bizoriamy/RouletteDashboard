@@ -77,6 +77,7 @@ OCR_SAMPLE_PATH = OCR_PREFIX + "/sample"
 OCR_LOCATE_PATH = OCR_PREFIX + "/locate"
 OCR_SCREEN_PATH = OCR_PREFIX + "/screen"
 OCR_REGION_PATH = OCR_PREFIX + "/region"
+OCR_PREVIEW_PATH = OCR_PREFIX + "/preview"
 OCR_EVENT_LOG = os.path.join(DATA_DIR, "ocr-events.jsonl")
 
 INSTANCE_KEY = os.environ.get("BACCARAT_INSTANCE_KEY", APP_DIR)
@@ -895,6 +896,61 @@ class OcrController:
                    "profile": profile_id or None, "reading": result["reading"]})
         return result
 
+    def preview(self, payload=None):
+        """A small picture of what the reader is looking at, for the panel.
+
+        While the reader runs this is the last frame it actually looked at — the thing to check when a
+        hand produces no result. When it is not running, the profile's region is captured fresh, so the
+        panel still shows what the reader would see.
+        """
+        if ocr is None:
+            raise StateError("OCR is unavailable: %s" % OCR_IMPORT_ERROR, "ocr-unavailable", 503)
+        payload = payload or {}
+        frame, at, signature = self.monitor.latest_frame() if self.monitor else (None, None, None)
+        source = "the last frame the reader looked at"
+        if not frame:
+            profile_id = str(payload.get("profileId") or "").strip()
+            profiles = {profile["id"]: profile for profile in load_profiles()}
+            profile = profiles.get(profile_id) or profiles.get(profile_id.replace(".json", ""))
+            if profile_id and not profile:
+                # Same contract as starting the reader: a profile you name must exist, or be told so.
+                raise StateError("Unknown calibration profile: %s" % profile_id, "no-profile")
+            if not profile:
+                session = STORE.load() or {}
+                wanted = lambda value: str(value or "").strip().lower()  # noqa: E731
+                for candidate in profiles.values():
+                    if (wanted(candidate.get("provider")) == wanted(session.get("provider"))
+                            and wanted(candidate.get("layout")) == wanted(session.get("layout"))):
+                        profile = candidate
+                        break
+            if not profile:
+                raise StateError("No calibration profile to capture. Choose one in the OCR panel.",
+                                 "no-profile", 409)
+            region = profile.get("region")
+            problem = ocr.validate_region(region)
+            if problem:
+                raise StateError("That profile's region cannot be captured: %s" % problem, "bad-region")
+            try:
+                frame = ocr.capture_region(region)
+            except Exception as error:  # noqa: BLE001
+                raise StateError("Screen capture failed: %s" % error, "capture-failed", 503)
+            signature = ocr.region_signature(frame)
+            at = time.strftime("%Y-%m-%dT%H:%M:%S")
+            source = "a fresh capture of the region (the reader is not running)"
+
+        wanted_signature = str(payload.get("since") or "")
+        if wanted_signature and wanted_signature == signature:
+            # Unchanged since the caller last looked: say so without sending the picture again.
+            return {"ok": True, "unchanged": True, "signature": signature, "at": at, "source": source}
+        try:
+            small, scale = ocr.preview_png(frame, max_width=340)
+        except Exception as error:  # noqa: BLE001
+            raise StateError("The preview could not be prepared: %s" % error, "preview-failed", 503)
+        import base64
+        return {"ok": True, "unchanged": False,
+                "image": "data:image/png;base64," + base64.b64encode(small).decode("ascii"),
+                "at": at, "signature": signature, "source": source, "scale": scale}
+
     def locate_table(self, payload):
         """Find the table on screen from a saved sample and write the region into the profile.
 
@@ -1146,6 +1202,16 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
             return
         if path == OCR_STATUS_PATH:
             self.send_json(200, OCR_STATE.status())
+            return
+        if path == OCR_PREVIEW_PATH:
+            query = urllib.parse.parse_qs(parsed.query)
+            try:
+                self.send_json(200, OCR_STATE.preview({
+                    "profileId": (query.get("profileId") or [""])[0],
+                    "since": (query.get("since") or [""])[0],
+                }))
+            except StateError as error:
+                self.send_json(error.status, {"ok": False, "error": str(error), "code": error.code})
             return
         if path == OCR_EVENTS_PATH:
             self.send_json(200, {"ok": True, "events": OCR_STATE.events_tail()})

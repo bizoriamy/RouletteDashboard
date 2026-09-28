@@ -309,6 +309,19 @@ details.panel[open] > summary { margin-bottom: 8px; }
 #ocr-profile-state[data-state="ready"] { color: var(--green-bright); }
 #ocr-profile-state[data-state="not-ready"] { color: #ffb86b; }
 
+/* What the reader is looking at: the answer to "why is there no result?" */
+.ocr-preview { margin: 0 0 8px; }
+.ocr-preview[hidden] { display: none; }
+.ocr-preview img {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-deep);
+}
+.ocr-preview figcaption { font-size: 0.6rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+
 /* Drawing the capture region: a picture of the screen, and a box dragged on it. */
 .region-picker {
   position: fixed;

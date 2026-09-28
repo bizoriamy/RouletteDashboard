@@ -5,6 +5,61 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.9.0-20260928-Baccarat (2026-09-28) — THE READER NOW READS THE LIVE TABLE (AND YOU CAN SEE WHAT IT SEES)
+
+Asked: *"where do you show the OCR capture? no result"*. Both halves were fair, and the answer to the
+first was "nowhere" — which is why the second was a mystery for so long.
+
+### Added — the panel shows what the reader is looking at
+
+A live picture of the capture region sits in the OCR panel, refreshed with the status and whenever the
+panel is opened, with a caption saying whether it is the last frame the reader looked at or a fresh
+capture, and when. **This is the answer to "why is there no result?"**: if the picture is not your
+table's totals and panels, that is why — visible, instead of a mystery. It is served by
+`GET /api/baccarat/ocr/preview`, which returns the reader's own last frame; when the reader is not
+running it captures the profile's region fresh. The same contract as starting: a profile you name must
+exist, or you are told.
+
+### Fixed — three more reasons the live reader produced nothing
+
+Measured by running the real reader against the real screen, which is how each one surfaced:
+
+1. **The double-read rule cancelled every hand.** It required the two pictures to be *pixel-identical*
+   1.5 s apart. A real table's bet amounts, countdowns and timers move within that gap, so the reader
+   threw away every reading — 0 candidates in 25 scans while direct reads of the same region read the
+   hand fine. The rule is now about the two **readings** agreeing, which is what actually protects the
+   money. Disagreement is still refused, never averaged.
+2. **One unreadable reply froze the reader.** A reply that was not JSON raised out of the scan, so the
+   frame's signature was never recorded and the reader retried the same frame **forever** (scans stuck
+   at 1 while the table played on). Such a reply is now this frame's answer — reported, with the loop
+   moving on.
+3. **The gap between reads straddled the settle moment.** On a fast table, 1.5 s was long enough that
+   one read saw the settled hand and the other saw nothing, so hands were cancelled. Measured at 0.4 s
+   and changed to it: the reader then read hands live.
+
+The escalation to a doubled token budget was also dropped: it made a bad frame take ~30 seconds before
+the fallback model was even tried, by which time the hand was gone. Primary, then fallback, one budget
+each.
+
+### Verified — the real reader reading the real table
+
+A 90-second run of the actual monitor against the actual screen region recorded **BANKER** from the
+live table, with two agreeing reads, as a no-bet hand. Scans advanced steadily (1, 2, 3, 4, 5, 6) with
+no stalls and no errors; before these fixes it sat at 1 scan with an error.
+
+### Also
+
+- The panel labels a reading's note as **"reader's note (may be imprecise)"** — a note can misquote
+  while the result is right (measured: a Tie read correctly with a note saying "5 equals 5" where the
+  boxes read 7 and 7).
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass: **121** OCR
+  checks, **81** UI wiring checks, **104** HTTP checks, 42 live-loop, 19 locator.
+
+---
+
 ## v2.8.3-20260928-Baccarat (2026-09-28) — THE DRAWING BUG WAS MINE, NOT YOURS
 
 The user reported still seeing no OCR result and said the layout is fixed for Pragmatic Half Width /

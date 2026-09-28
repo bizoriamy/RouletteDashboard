@@ -530,8 +530,9 @@ def read_with_deepseek(image_bytes, section, api_key):
     # "length" — a good hand silently lost. Escalate the budget once, then try the fallback model.
     models = model_attempts(section)
     for model in models:
-        budgets = (base_budget, base_budget * 2) if model == models[0] else (base_budget,)
-        for budget in budgets:
+        # One budget per model: escalating the primary's budget as well made a bad frame take ~30
+        # seconds before the fallback was even tried (measured live), by which time the hand was gone.
+        for budget in (base_budget,):
             response = client.chat.completions.create(
                 model=model,
                 messages=[{
@@ -672,50 +673,69 @@ class OcrReader:
         scan_config = self.config.get("scan", DEFAULT_CONFIG["scan"])
         first = self.capture(region)
         first_hash = region_signature(first)
+        # The frame travels with the decision so the panel can show exactly what was looked at. It is
+        # never logged (the server builds its log entries field by field) and never sent to a model
+        # beyond the read itself.
+        frame = {"frame": first}
 
         if first_hash in known_signatures:
             # Durable guard first: a signature already attached to a recorded hand is a duplicate
             # even if this reader has never seen it — after a restart, or from a second window.
             self.last_signature = first_hash
-            return {"status": "duplicate", "signature": first_hash, "result": None}
+            return {"status": "duplicate", "signature": first_hash, "result": None, **frame}
         if first_hash == self.last_signature:
             # Fast path: nothing on screen has changed since the last look.
-            return {"status": "unchanged", "signature": first_hash, "result": None}
+            return {"status": "unchanged", "signature": first_hash, "result": None, **frame}
 
         wanted_reads = max(1, int(scan_config.get("stableReads", 2)))
         delay = float(scan_config.get("confirmDelaySeconds", 1.5))
-        first_read = parse_result_json(self.read(first))
+        try:
+            first_read = parse_result_json(self.read(first))
+        except OcrError as error:
+            # An unreadable reply must not kill the scan: that left the reader retrying the same frame
+            # forever (measured live — scans stuck at 1 while the table moved on). Record it as this
+            # frame's answer and move on; the note is what the panel shows.
+            self.last_signature = first_hash
+            return {"status": "unclear", "signature": first_hash, "result": None,
+                    "note": "the model's reply could not be read: %s" % error, **frame}
         reads = [first_read]
 
         if wanted_reads > 1:
             self.clock(delay)
             second = self.capture(region)
             second_hash = region_signature(second)
-            if second_hash != first_hash:
-                # The display changed under us: the hand is not finished yet, or a new one is
-                # arriving. Do not decide anything on a moving target.
-                self.last_signature = None
-                return {"status": "unchanged", "signature": second_hash, "result": None,
-                        "note": "region changed between reads"}
-            second_read = parse_result_json(self.read(second))
-            reads.append(second_read)
-            if second_read["result"] != first_read["result"]:
+            try:
+                second_read = parse_result_json(self.read(second))
+            except OcrError as error:
+                self.last_signature = first_hash
                 return {"status": "unclear", "signature": first_hash, "result": None,
-                        "note": "the two reads disagreed: %r vs %r"
-                                % (first_read["result"], second_read["result"]), "reads": reads}
+                        "note": "the second read could not be read: %s" % error, "frame": second}
+            reads.append(second_read)
+            moved = second_hash != first_hash
+            if second_read["result"] != first_read["result"]:
+                # The two reads must agree on the RESULT. Requiring the two pictures to be identical
+                # as well looked safer but broke every real table: live bet amounts, countdowns and
+                # timers change within the delay, so a pixel-identical rule cancelled every reading
+                # and the reader silently produced nothing, forever. Measured on the user's table:
+                # 0 candidates in 25 scans while direct reads of the same region read the hand fine.
+                return {"status": "unclear", "signature": first_hash, "result": None,
+                        "note": "the two reads disagreed: %r vs %r%s"
+                                % (first_read["result"], second_read["result"],
+                                   " (and the picture changed between them)" if moved else ""),
+                        "reads": reads, **frame}
 
         decision = reads[-1]
         self.last_signature = first_hash
 
         if not decision["result"]:
             return {"status": "unclear", "signature": first_hash, "result": None,
-                    "note": decision.get("evidence", ""), "reads": reads}
+                    "note": decision.get("evidence", ""), "reads": reads, **frame}
 
         minimum = float(scan_config.get("minConfidence", 0.5))
         if decision["confidence"] < minimum:
             return {"status": "unclear", "signature": first_hash, "result": decision["result"],
                     "note": "confidence %.2f is below the %.2f threshold"
-                            % (decision["confidence"], minimum), "reads": reads}
+                            % (decision["confidence"], minimum), "reads": reads, **frame}
 
         return {
             "status": "candidate",
@@ -724,6 +744,7 @@ class OcrReader:
             "confidence": decision["confidence"],
             "evidence": decision.get("evidence", ""),
             "reads": reads,
+            **frame,
         }
 
 
@@ -761,7 +782,11 @@ class OcrMonitor:
     # ------------------------------------------------------------------ status
     def snapshot(self):
         with self._lock:
-            return dict(self.status)
+            status = dict(self.status)
+        # The last frame is raw PNG bytes: it is served by its own endpoint, never inside the JSON
+        # status payload.
+        status.pop("lastFrame", None)
+        return status
 
     def set_status(self, **fields):
         """Public status update, for callers outside the scan loop (the server controller)."""
@@ -805,12 +830,30 @@ class OcrMonitor:
     def _known_signatures(self, session):
         return {hand.get("signature") for hand in session.get("hands", []) if hand.get("signature")}
 
+    def latest_frame(self):
+        """The most recent picture the reader looked at: (png_bytes, when, signature) or (None, ...).
+
+        The panel shows this so "no result" can be diagnosed by looking, rather than by guessing.
+        """
+        with self._lock:
+            return self.status.get("lastFrame"), self.status.get("lastFrameAt"), \
+                self.status.get("lastFrameSignature")
+
+    def remember_frame(self, frame, signature):
+        if not frame:
+            return
+        with self._lock:
+            self.status["lastFrame"] = frame
+            self.status["lastFrameAt"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            self.status["lastFrameSignature"] = signature
+
     def _loop(self, region, mode):
         while not self._stop.is_set():
             try:
                 session = self.store.load()
                 known = self._known_signatures(session) if session else set()
                 decision = self.reader.scan(region, known)
+                self.remember_frame(decision.get("frame"), decision.get("signature"))
                 self._bump("scans")
                 self._set(lastScanAt=time.strftime("%Y-%m-%dT%H:%M:%S"))
                 if decision["status"] == "unchanged":

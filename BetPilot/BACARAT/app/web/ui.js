@@ -50,7 +50,8 @@
       "btn-ocr-sample", "btn-ocr-locate", "btn-ocr-draw",
       "region-picker", "region-shot", "region-shot-wrap", "region-selection", "region-readout",
       "btn-region-use", "btn-region-cancel",
-      "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
+      "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-preview-box", "ocr-preview", "ocr-preview-note",
+      "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
       "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
       "stat-winrate", "stat-streak", "stat-longest", "stat-drawdown",
@@ -876,6 +877,38 @@
     return true;
   }
 
+  /**
+   * Show what the reader is looking at. This is the answer to "why is there no result?": if the
+   * picture is not the table — or is full of chat, or has no totals in it — it is visible here
+   * instead of being a mystery.
+   */
+  function refreshPreview() {
+    if (!el["ocr-panel"].open) return Promise.resolve();
+    var profile = el["ocr-profile"].value || "";
+    var since = state.previewSignature || "";
+    return api("/api/baccarat/ocr/preview?profileId=" + encodeURIComponent(profile) +
+               "&since=" + encodeURIComponent(since))
+      .then(function (result) {
+        var data = result.data || {};
+        if (!data.ok) {
+          el["ocr-preview-box"].hidden = true;
+          return;
+        }
+        el["ocr-preview-box"].hidden = false;
+        if (data.unchanged) {
+          el["ocr-preview-note"].textContent = "Unchanged since " + (data.at || "").replace("T", " ") +
+            " — " + (data.source || "") + ".";
+          return;
+        }
+        el["ocr-preview"].src = data.image;
+        state.previewSignature = data.signature;
+        el["ocr-preview-note"].textContent = "What the reader sees — " + (data.source || "") +
+          ", " + (data.at || "").replace("T", " ") + ". If this is not your table's totals and panels, "
+          + "that is why there is no result.";
+      })
+      .catch(function () { el["ocr-preview-box"].hidden = true; });
+  }
+
   function renderProfileState() {
     var list = state.profiles || [];
     var chosen = list.filter(function (profile) {
@@ -961,6 +994,8 @@
       if (result.data && result.data.ok) {
         state.ocr = result.data;
         renderOcr();
+        // Keep the picture of what the reader sees current, alongside the counters.
+        refreshPreview();
       }
     }).catch(function () {
       state.busyOcr = false;
@@ -1360,6 +1395,10 @@
     el["input-layout"].addEventListener("change", function () {
       // Show the reader following the setup screen before the session is even started.
       if (!state.session || state.session.status !== "active") syncOcrProfileToSession(true);
+    });
+    el["ocr-panel"].addEventListener("toggle", function () {
+      // Opening the panel should immediately show what the reader is looking at.
+      if (el["ocr-panel"].open) refreshPreview();
     });
   }
 
