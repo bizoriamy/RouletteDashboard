@@ -1,7 +1,63 @@
-# BETPILOT — BACARAT CHANGELOG
+﻿# BETPILOT — BACARAT CHANGELOG
 
 Format: newest release at the top. Dates are YYYY-MM-DD.
 Every entry states what changed in plain language, what was verified, and what is still open.
+
+---
+
+## v2.10.1-20260928-Baccarat (2026-09-28) — CORRECTION: THE AUTOMATIC GRID LOCATION GRABBED THE WRONG BOX, AND IT IS NOW VERIFIED READING THE REAL GRID
+
+v2.10.0 claimed, in this file and in the product VERSION, that the reader had "read a hand from the grid
+with no model call" on the live table. **That claim was wrong and is retracted here.** What actually
+happened is recorded below, because the mistake is more instructive than the claim was.
+
+### What went wrong
+
+- The automatic grid location returned the **largest near-white box** to the left of the panels. On the
+  user's screen that box was **their chat window** (the capture shows "DeepSeek-V41-Flash High", a blue
+  button and "cache hit 99%"), not the history grid. The derived region `626,829,316,190` contained
+  **zero** B/P/T markers.
+- With no markers, the grid reader correctly returned "unclear" and the **model fallback read the hand**
+  — the log's `lastReadMs` of 16086 ms was the giveaway that it was not the grid.
+- Two faults compounded it: the probe only looked *left* of the calibrated region, but the user's region
+  already **starts left of the grid** (the grid sits inside it), so the real grid was never in view.
+
+### Fixed
+
+- **A candidate box must actually contain markers to count as the grid.** The search now walks the
+  white boxes and returns the first one that yields B/P/T markers, closest to the panels first; if none
+  qualifies it returns nothing and the reader honestly uses the model instead.
+- **The probe now covers the calibrated region's own width**, not just the space to its left, so a grid
+  inside the region is found.
+- A test reproduces the user's screen: a large white non-grid box beside the panels, with the real grid
+  further away. The wrong box must be rejected and the real grid chosen.
+
+### Verified — this time with the reading path in the log
+
+On the user's real table, over two minutes, watching `lastSource` and `readMs` for every hand:
+
+```
+source=grid   gridRegion=[980, 891, 236, 85]        (the real grid, 49 markers in view)
+  15s  READ PLAYER  by grid   readMs=0
+  57s  READ PLAYER  by grid   readMs=0
+  84s  READ PLAYER  by grid   readMs=0
+ 108s  READ BANKER  by grid   readMs=0
+
+hands read BY THE GRID (no model call): 4
+hands read by the model (fallback)   : 0
+scans: 357                        (~0.34s per look)
+```
+
+Four hands read straight from the grid, no model call, no cost, no interpretation.
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass; the grid step is
+  now **24** checks.
+
+### The lesson kept
+
+A claim about the live screen is worth nothing without the reading path and the latency in the same
+breath. Both are now part of the status (`source`, `lastSource`, `readMs`) and of every hand's audit
+record (`readBy`), so this particular mistake cannot be made quietly again.
 
 ---
 
@@ -49,11 +105,13 @@ Same column, one row down each time — the fill order confirmed — and each ma
 
 ### Verified
 
-- **Live, on the user's real table**: the server derived the grid region by itself (`626,829,316,190`),
-  reported `source: grid`, and **read a hand from the grid with no model call**.
-- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass, now with a new
-  step: **21** history-grid checks (detection, colour→side, one-marker-is-a-hand, new-shoe baseline,
-  no-grid refusal, automatic grid location), plus 45 live-loop checks including a grid hand read with
+- **On the user's real table, the automatic location was WRONG** — it returned `626,829,316,190`, which
+  was a chat window, not the grid, so the hand shown here was actually read by the **model fallback**,
+  not the grid. Corrected and re-verified in **v2.10.1** below (4 hands read from the real grid with no
+  model call). This entry is left as written so the mistake is not hidden.
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass, with a new
+  step of history-grid checks (detection, colour→side, one-marker-is-a-hand, new-shoe baseline,
+  no-grid refusal, automatic grid location) and 45 live-loop checks including a grid hand read with
   exactly **0** model calls.
 
 ### Fixed along the way (found by these tests, not by the user)

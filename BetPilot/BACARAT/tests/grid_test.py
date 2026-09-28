@@ -157,6 +157,27 @@ def main():
     check("with no plate in view it returns nothing",
           ocr.find_grid_region([360, 80, 200, 120], capture=blank_capture) is None)
 
+    # The user's screen exposed this: a big white box that is NOT a history grid — their chat window —
+    # sat between the panels and the grid. The first version returned it and the reader then found no
+    # markers there. A candidate must actually contain markers to count.
+    decoy = Image.new("RGB", (300, 200), (250, 250, 252))
+    decoy.putpixel((5, 5), (250, 250, 252))
+    screen2 = Image.new("RGB", (900, 400), (60, 60, 90))
+    screen2.paste(decoy, (300, 60))                      # a white chat panel beside the panels
+    screen2.paste(grid_pil(column(["B", "P", "T", "P"]), width=250, height=165), (30, 60))
+
+    def two_box_capture(area):
+        x, y, width, height = [int(value) for value in area]
+        return png(screen2.crop((x, y, x + width, y + height)))
+
+    region = ocr.find_grid_region([640, 60, 200, 120], capture=two_box_capture, look_left=640)
+    check("a white box that is not a grid is rejected", region is not None, region)
+    if region:
+        check("and the real grid is chosen instead",
+              abs(region[0] - 30) <= 8 and region[2] <= 270, region)
+        check("the chosen box really does contain markers",
+              len(ocr.grid_markers(two_box_capture(region))) == 4, region)
+
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     for name, detail in failed:
         print("  FAILED: %s  <- %s" % (name, detail))

@@ -772,9 +772,13 @@ class GridWatcher:
 def find_grid_region(panels_region, capture=None, look_left=340, extra_bottom=60):
     """Find the white history grid that sits to the left of the betting panels.
 
-    The panels' region is already calibrated, and the grid is immediately left of it, so the grid does
-    not need calibrating separately: look for the largest near-white rectangle there. Returns
-    [x, y, w, h] in screen coordinates, or None.
+    The panels' region is already calibrated and the grid is immediately left of it, so the grid does
+    not need calibrating separately — look for near-white rectangles there and take the closest one
+    that ACTUALLY CONTAINS B/P/T markers.
+
+    That verification matters: the first version returned the largest white box, and on the user's
+    screen that was their chat window, not the grid — the reader then found no markers there and
+    silently fell back to the model. A candidate that cannot be read is not the grid.
     """
     import cv2
     import numpy as np
@@ -782,31 +786,38 @@ def find_grid_region(panels_region, capture=None, look_left=340, extra_bottom=60
     x, y, width, height = [int(value) for value in panels_region]
     screen = screen_size()
     left = max(0, x - int(look_left))
-    probe = [left, y, x - left + min(40, width), min(height + int(extra_bottom), screen[1] - y)]
+    # Cover the panels' own width too: on the user's table the grid sits INSIDE the calibrated region's
+    # x range, so a probe that only looked to the left missed it entirely and found a chat window.
+    probe = [left, y, (x + width) - left, min(height + int(extra_bottom), screen[1] - y)]
     if probe[2] <= 20 or probe[3] <= 20:
         return None
     image = (capture or capture_region)(probe)
     with io.BytesIO(image) as buffer:
         with Image.open(buffer) as opened:
             rgb = np.array(opened.convert("RGB"))
-    # Near-white, and not the grid's pale blue lines, which are close to white too.
     gray = cv2.cvtColor(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), cv2.COLOR_BGR2GRAY)
     white = cv2.inRange(gray, 235, 255)
     white = cv2.morphologyEx(white, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(white, 8)
-    best = None
+    candidates = []
     for index in range(1, count):
         bx, by, bw, bh, area = stats[index]
         if bw < 60 or bh < 40:              # too small to be the plate
             continue
         if area < 0.35 * bw * bh:           # too sparse to be a solid white box
             continue
-        if best is None or area > best[4]:
-            best = (bx, by, bw, bh, area)
-    if best is None:
-        return None
-    bx, by, bw, bh, _area = best
-    return [int(left + bx), int(y + by), int(bw), int(bh)]
+        candidates.append((bx, by, bw, bh, area))
+    # Closest to the panels first: the grid sits immediately beside them, a chat panel does not.
+    candidates.sort(key=lambda box: (box[0] + box[2]) - x, reverse=True)
+    grab = capture or capture_region
+    for bx, by, bw, bh, _area in candidates:
+        region = [int(left + bx), int(y + by), int(bw), int(bh)]
+        try:
+            if grid_markers(grab(region)):
+                return region
+        except Exception:  # noqa: BLE001 - a candidate that cannot be read is not the grid
+            continue
+    return None
 
 
 def save_grid_region(profile_path, grid_region, when=None):

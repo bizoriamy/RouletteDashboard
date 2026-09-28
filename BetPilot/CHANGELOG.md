@@ -1,7 +1,48 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.10.0-20260928-Baccarat
+Version tracking: v2.10.1-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.10.1-20260928-Baccarat (2026-09-28) — CORRECTION: THE GRID LOCATION GRABBED THE WRONG BOX, NOW VERIFIED READING THE REAL GRID
+
+v2.10.0 claimed the reader had "read a hand from the grid with no model call" on the live table. **That
+claim was wrong and is retracted here.**
+
+### What went wrong
+- The automatic grid location returned the **largest near-white box** left of the panels. On the user's
+  screen that was their **chat window**, not the history grid — the derived region `626,829,316,190`
+  contained zero B/P/T markers, so the grid reader returned "unclear" and the **model fallback read the
+  hand** (the log's `lastReadMs` of 16086 ms was the tell).
+- The probe only looked *left* of the calibrated region, but the user's region already starts left of
+  the grid, so the real grid was never in view.
+
+### Fixed
+- A candidate box must **actually contain markers** to count as the grid; the search returns the first
+  marker-bearing white box closest to the panels, or nothing (the reader then honestly uses the model).
+- The probe now covers the calibrated region's own width too.
+- A test reproduces the user's screen (a large white non-grid box beside the panels, the real grid
+  further away) and asserts the wrong box is rejected.
+
+### Verified — with the reading path and latency in the log
+On the user's real table, two minutes, watching `lastSource` and `readMs` per hand:
+
+```
+source=grid   gridRegion=[980, 891, 236, 85]
+  15s  READ PLAYER  by grid   readMs=0
+  57s  READ PLAYER  by grid   readMs=0
+  84s  READ PLAYER  by grid   readMs=0
+ 108s  READ BANKER  by grid   readMs=0
+hands read BY THE GRID (no model call): 4     hands read by the model: 0     scans: 357
+```
+
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **ten** steps pass; the
+  grid step is now **24** checks.
+
+### The lesson kept
+A claim about the live screen is worthless without the reading path and latency beside it. Both are now
+in the status (`source`, `lastSource`, `readMs`) and in every hand's audit record (`readBy`).
 
 ---
 

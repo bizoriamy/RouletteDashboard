@@ -1,10 +1,10 @@
-BetPilot — v2.10.0-20260928-Baccarat
+BetPilot — v2.10.1-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.10.0-20260928-Baccarat)
-Status:    the reader now reads the HISTORY GRID — a colour test, no model call, ~0.25s — with the
-           vision model as the fallback
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.10.1-20260928-Baccarat)
+Status:    the reader reads the HISTORY GRID — a colour test, no model call, ~0.3s — verified on the
+           user's real table (4 hands read from the grid, 0 model calls, 0 fallback reads)
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -18,10 +18,11 @@ fixed the drawing coordinate bug, and pre-measured the Pragmatic half-width prof
 reasons the live reader produced nothing and its latency, and adopted the roulette monitor's
 wait-for-stillness method.
 
-v2.10.0 is the user's idea, implemented: the white history grid left of the panels shows a hand's
-result before the panels finish flashing, and each marker's colour IS the result (red Banker, blue
-Player, green Tie). Reading it is a colour test — no model call, no API cost, ~0.25s — with the vision
-model kept as the fallback. The grid's location is found automatically from the already-calibrated
-panels region, so there is no second measurement to make.
+v2.10.0 implemented the user's idea — read the white history grid (each marker's colour IS the result:
+red Banker, blue Player, green Tie), no model call — but its automatic grid location grabbed a chat
+window instead of the grid, and the "read a hand from the grid" claim it made was actually the model
+fallback. v2.10.1 corrects the record, requires a candidate box to actually contain markers before it
+counts as the grid, and is verified on the real table: four hands read from the grid, zero model calls,
+zero fallback reads.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.
