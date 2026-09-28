@@ -17,6 +17,7 @@ import urllib.request
 
 TESTS_DIR = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
 APP_DIR = os.path.normcase(os.path.realpath(os.path.join(TESTS_DIR, "..", "app")))
+CONFIG_DIR = os.path.normcase(os.path.realpath(os.path.join(TESTS_DIR, "..", "config")))
 PORT = int(os.environ.get("BACCARAT_TEST_PORT", "8791"))
 BASE = "http://127.0.0.1:%d" % PORT
 
@@ -411,6 +412,19 @@ def main():
         status, body = request("/api/baccarat/ocr/sample", {"profileId": "no-such-profile"})
         check("an unknown calibration profile is refused for a sample",
               status == 400 and body.get("code") == "bad-profile", "%s %s" % (status, body))
+
+        # Locating the table: the refusals matter more than the success (which needs a live table).
+        status, body = request("/api/baccarat/ocr/locate", {"profileId": "no-such-profile"})
+        check("locating the table refuses an unknown profile",
+              status == 400 and body.get("code") == "bad-profile", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/ocr/locate", {"profileId": None, "sample": "not-there.png"})
+        check("locating refuses when there is no sample to look for",
+              status == 409 and body.get("code") == "no-samples", "%s %s" % (status, body))
+        with open(os.path.join(CONFIG_DIR, "baccarat-pragmatic-half-width-full-length.json"),
+                  "r", encoding="utf-8") as handle:
+            shipped = json.load(handle)
+        check("a refused locate writes nothing into a profile",
+              shipped.get("calibrated") is False, shipped.get("calibrated"))
 
     finally:
         try:

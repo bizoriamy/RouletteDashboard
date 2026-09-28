@@ -230,6 +230,119 @@ def capture_full_screen():
     return capture_region([0, 0, width, height])
 
 
+# --------------------------------------------------------------------------- finding the table
+
+
+def _to_bgr(image_bytes):
+    import cv2
+    import numpy as np
+    from PIL import Image
+    with io.BytesIO(image_bytes) as buffer:
+        with Image.open(buffer) as image:
+            rgb = np.array(image.convert("RGB"))
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+
+def _scales_between(low=0.55, high=1.5, step=0.05):
+    count = int(round((high - low) / step))
+    return [round(low + step * index, 2) for index in range(count + 1)]
+
+
+def locate_sample(screen_bytes, sample_paths, scales=None, min_score=0.60):
+    """Find which sample (a saved table screenshot) is on the screen now, and where.
+
+    The sample defines WHAT to read: whatever was snipped is what the module will capture. Returns
+    {"found": bool, "score": float, "region": [x, y, w, h], "sample": name, "scale": float, "reason": str}
+    and never invents a region — an unconvincing match comes back with found=False.
+    """
+    try:
+        import cv2  # noqa: F401
+    except Exception as error:  # noqa: BLE001
+        raise OcrError("Finding the table needs OpenCV, which is not available: %s" % error)
+
+    import cv2
+    import numpy as np
+
+    screen = _to_bgr(screen_bytes)
+    screen_height, screen_width = screen.shape[:2]
+    scales = scales or _scales_between()
+
+    best = {"found": False, "score": 0.0, "region": None, "sample": None, "scale": None,
+            "reason": "No sample screenshots to look for."}
+    for path in sample_paths:
+        if not os.path.isfile(path):
+            continue
+        with open(path, "rb") as handle:
+            template = _to_bgr(handle.read())
+        flat = float(np.std(template))
+        for scale in scales:
+            width = max(8, int(round(template.shape[1] * scale)))
+            height = max(8, int(round(template.shape[0] * scale)))
+            if width >= screen_width or height >= screen_height:
+                continue
+            interpolation = cv2.INTER_AREA if scale < 1 else cv2.INTER_LINEAR
+            resized = cv2.resize(template, (width, height), interpolation=interpolation)
+            result = cv2.matchTemplate(screen, resized, cv2.TM_CCOEFF_NORMED)
+            _, max_value, _, max_location = cv2.minMaxLoc(result)
+            if max_value > best["score"]:
+                best = {
+                    "found": bool(max_value >= min_score),
+                    "score": float(max_value),
+                    "region": [int(max_location[0]), int(max_location[1]), width, height],
+                    "sample": os.path.basename(path),
+                    "scale": float(scale),
+                    "flat": flat < 12.0,
+                    "reason": "",
+                }
+
+    if best["region"] is None:
+        best["reason"] = ("No usable sample screenshot was found to look for. Save one with the "
+                          "sample button first.")
+    elif not best["found"]:
+        best["reason"] = ("The table does not appear to be on screen (best match %.2f against %s, "
+                          "needs %.2f). Open the Baccarat table so the hand result is visible, and "
+                          "make sure the window is the same size as when the sample was taken."
+                          % (best["score"], best["sample"], min_score))
+    return best
+
+
+def crop_from_screen(screen_bytes, region):
+    """PNG bytes of one region of a captured screen — used to show what a located region contains."""
+    import cv2
+    screen = _to_bgr(screen_bytes)
+    x, y, width, height = [int(value) for value in region]
+    x = max(0, min(x, screen.shape[1] - 1))
+    y = max(0, min(y, screen.shape[0] - 1))
+    width = max(1, min(width, screen.shape[1] - x))
+    height = max(1, min(height, screen.shape[0] - y))
+    ok, buffer = cv2.imencode(".png", screen[y:y + height, x:x + width])
+    if not ok:
+        raise OcrError("Could not encode the cropped region.")
+    return buffer.tobytes()
+
+
+def apply_region_to_profile(profile_path, region, sample=None, score=None, when=None):
+    """Write a located region into a calibration profile and mark it calibrated."""
+    if not (isinstance(region, list) and len(region) == 4
+            and all(isinstance(value, int) for value in region)):
+        raise OcrError("Refusing to write a malformed region: %r" % (region,))
+    if not os.path.isfile(profile_path):
+        raise OcrError("No such profile file: %s" % profile_path)
+    with open(profile_path, "r", encoding="utf-8") as handle:
+        profile = json.load(handle)
+    profile["region"] = region
+    profile["calibrated"] = True
+    profile["calibratedAt"] = when or time.strftime("%Y-%m-%dT%H:%M:%S")
+    if sample:
+        profile["calibratedFrom"] = os.path.basename(sample)
+    if score is not None:
+        profile["matchScore"] = round(float(score), 3)
+    with open(profile_path, "w", encoding="utf-8") as handle:
+        json.dump(profile, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+    return profile
+
+
 # --------------------------------------------------------------------------- providers
 
 

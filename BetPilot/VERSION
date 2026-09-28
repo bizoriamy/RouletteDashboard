@@ -1,10 +1,10 @@
-BetPilot — v2.6.0-20260928-Baccarat
+BetPilot — v2.7.0-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.6.0-20260928-Baccarat)
-Status:    core complete and verified; the screen reader reads the user's REAL table correctly
-           (4 of 4 screenshots, every run), but the capture region is not yet calibrated
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.7.0-20260928-Baccarat)
+Status:    core complete and verified; the screen reader reads the user's REAL table correctly and the
+           capture region can now be located with one button — but no profile is calibrated yet
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -18,18 +18,14 @@ removed page scrolling. v2.2.x put the panels beside the betting column for half
 bead plate a fixed 10 x 10 box of small colour-only hands and renamed the panels. v2.3.0 made PASS
 record the table's result. v2.4.0 gave the Tie insurance its own stake.
 
-v2.5.0 added the OCR spot-check tool, an accuracy readout built from the audit log and a working
-Gemini model id (gemini-3.8-flash). v2.5.1 proved the reading prompt against synthetic displays and
-made that check gradable. v2.5.2 added a "Save a screenshot sample" button so a capture region can be
-judged without a terminal.
-
-v2.6.0 is where the reader met the real table: all four of the user's real screenshots read correctly,
-and the exercise exposed three defects synthetic images had hidden — truncated replies discarded as
-unparseable, a reasoning model returning nothing on a cluttered image, and empty replies not retried.
-It also uncovered a private file accidentally synced to the public repository, which was removed and
-now cannot happen again (the sync refuses images).
-
-IMPORTANT: the capture region has not been calibrated (all 9 profiles are "calibrated": false), so the
-module is not yet reading the live screen end to end. Gemini returns HTTP 503 for this key.
+v2.5.0 added the OCR spot-check tool, an accuracy readout and a working Gemini model id. v2.5.1 proved
+the reading prompt against synthetic displays and made that check gradable. v2.5.2 added a
+"Save a screenshot sample" button. v2.6.0 is where the reader met the real table: all four real
+screenshots read correctly, and three defects surfaced that synthetic images had hidden (truncated
+replies discarded, a reasoning model returning nothing on a cluttered image, empty replies not
+retried). It also removed a private file that had been synced to the public repository, and the sync
+now refuses images outright. v2.7.0 adds one-click calibration: the module finds the user's saved
+table screenshot on the live screen, reports the match score and writes the region into the profile —
+refusing rather than guessing when the match is poor.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

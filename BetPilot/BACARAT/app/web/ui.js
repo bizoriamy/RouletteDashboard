@@ -44,7 +44,7 @@
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
       "ocr-panel",
       "ocr-availability", "ocr-mode", "ocr-profile", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
-      "btn-ocr-sample",
+      "btn-ocr-sample", "btn-ocr-locate",
       "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
       "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
@@ -958,6 +958,32 @@
     el["btn-ocr-start"].addEventListener("click", startOcr);
     el["btn-ocr-stop"].addEventListener("click", stopOcr);
     el["btn-ocr-refresh"].addEventListener("click", function () { ocrStatus(); refreshQuiet(); });
+    el["btn-ocr-locate"].addEventListener("click", function () {
+      // Calibration without dragging a box: match a saved sample against the live screen and write
+      // the region into the profile. A poor match is refused rather than guessed.
+      el["btn-ocr-locate"].disabled = true;
+      el["ocr-note"].textContent = "Looking for the table on screen…";
+      api("/api/baccarat/ocr/locate", { profileId: el["ocr-profile"].value || null })
+        .then(function (result) {
+          var data = result.data || {};
+          if (data.found) {
+            toast("Table found at " + data.region.join(",") + " (match " + data.score.toFixed(2) + ")", "good");
+            el["ocr-note"].textContent = "Found the table using " + data.sample + " — region " +
+              data.region.join(",") + ", match " + data.score.toFixed(2) +
+              (data.profileId ? ", written into " + data.profileId : ", but no profile was selected so nothing was saved") +
+              (data.cropPath ? ". The matched area was saved to " + data.cropPath + " — open it and check it shows the hand result." : ".");
+            loadProfiles();
+          } else {
+            toast(data.reason || "The table was not found on screen.", "error");
+            el["ocr-note"].textContent = data.reason ||
+              "The table was not found. Open the Baccarat table so the result is visible and try again.";
+          }
+        })
+        .catch(function (error) {
+          toast("Could not look for the table: " + error.message, "error");
+        })
+        .then(function () { el["btn-ocr-locate"].disabled = false; });
+    });
     el["btn-ocr-sample"].addEventListener("click", function () {
       // Captures what the reader would see and saves it, WITHOUT calling the model. Costs nothing,
       // records nothing, and is the picture to look at before trusting a calibration region.

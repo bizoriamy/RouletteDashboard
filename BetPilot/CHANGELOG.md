@@ -1,7 +1,42 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.6.0-20260928-Baccarat
+Version tracking: v2.7.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.7.0-20260928-Baccarat (2026-09-28) — CALIBRATION WITHOUT DRAGGING A BOX
+
+The last unmeasured step was the capture region: where on the screen to look. That needed a
+hand-dragged box or a terminal command, so it is now a button.
+
+### Added
+- **"Find my table" in the OCR panel.** Using a screenshot the user already saved, the module finds
+  that exact patch on the live screen, reports the region, the match score and the scale, and writes
+  the region into the selected profile — marked calibrated with the sample it came from and the score.
+  The matched area is saved to `data/calibration/` so it can be checked by eye first.
+- **`BACARAT/app/tools/locate_region.py`** — the same matching from the command line, with `--all` to
+  try every sample in `data\samples\`.
+- Matching is scale-aware (0.55–1.6), so it still finds the table after the window has been resized
+  since the sample was taken.
+
+### Safety
+- **A poor match is refused, never written.** Below a 0.60 score it reports that the table does not
+  appear to be on screen, says what it actually scored, and writes nothing. Malformed regions are
+  refused outright, and a flat single-colour sample is flagged as unusable.
+- Nothing is written if no profile is selected; the region is still reported.
+
+### Verified
+- New suite step: **19 offline checks** on the locator — recovers a table's position from its
+  screenshot alone at the same scale and at 80% scale, refuses an absent table, refuses with no
+  samples, refuses malformed regions, and round-trips a region into a profile with provenance.
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **eight** steps pass.
+
+### Still open
+- **The region is locatable but not yet written**: when tried, the table was not on screen and the
+  locator correctly refused all four samples (scores 0.23–0.42 against the 0.60 bar). Opening the table
+  and pressing the button finishes the calibration.
+- No real **Tie** has been seen on this table yet.
 
 ---
 

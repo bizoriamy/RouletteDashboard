@@ -5,6 +5,52 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.7.0-20260928-Baccarat (2026-09-28) — CALIBRATION WITHOUT DRAGGING A BOX
+
+The last unmeasured step was the capture region: where on the screen to look. That needed either a
+hand-dragged box or a terminal command, so it is now a button instead.
+
+### Added
+
+- **"Find my table" in the OCR panel.** Using a screenshot you already saved (the sample button, or any
+  snip in `data\samples\`), the module finds that exact patch on the live screen, reports the region,
+  its match score and the scale it matched at, and **writes the region into the selected profile** —
+  marking it calibrated with the sample it came from and the score. The matched area is saved to
+  `data\calibration\` so it can be checked by eye before anything is trusted.
+- **`app/tools/locate_region.py`** — the same matching from the command line, against the live screen
+  or a saved screenshot, with `--all` to try every sample in `data\samples\`.
+- Matching is scale-aware (0.55–1.6), so it still finds the table after the window has been resized
+  since the sample was taken, and it reports the scale it found.
+
+### Safety
+
+- **A poor match is refused, never written.** Below a 0.60 score the tool says the table does not
+  appear to be on screen, reports what it actually scored, and writes nothing — because a wrong region
+  makes the reader read the wrong thing. A malformed region is refused outright, and a flat, nearly
+  single-colour sample is flagged as unusable before it is trusted.
+- Nothing is written when no profile is selected; the region is still reported.
+
+### Verified
+
+- New suite step: **19 checks** on the locator, offline and deterministic — it recovers a table's
+  position from its screenshot alone at the same scale and at 80% scale, refuses an absent table,
+  refuses with no samples, refuses malformed regions, and confirms a located region round-trips into a
+  profile with its provenance.
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **eight** steps pass (72 engine,
+  58 UI wiring, 72 OCR, 19 locator, 93 HTTP, the settlement agreement and the credential scan).
+- HTTP: an unknown profile and a missing sample are both refused by name, and a refused locate is
+  confirmed to write nothing into a shipped profile.
+
+### Still open
+
+- **The region is located but not yet written**, because the table was not on screen when I tried: the
+  locator scored 0.23–0.42 against the 0.60 bar and correctly refused all four samples rather than
+  guessing. Open the Baccarat table so the result is visible and press **"Find my table"** with a
+  Pragmatic profile selected.
+- No real **Tie** has been seen on this table yet.
+
+---
+
 ## v2.6.0-20260928-Baccarat (2026-09-28) — THE READER MEETS THE REAL TABLE
 
 The user supplied four real screenshots of their casino table. **The reader got every one of them

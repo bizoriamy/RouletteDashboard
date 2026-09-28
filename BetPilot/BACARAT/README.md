@@ -1,7 +1,7 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.6.0-20260928-Baccarat** (see `VERSION`)
-Status: **core complete and verified; the reader is correct on real screenshots of the user's table, but the capture region is not yet calibrated**
+Version: **v2.7.0-20260928-Baccarat** (see `VERSION`)
+Status: **core complete and verified; the reader is correct on real screenshots of the user's table, and the region can now be located with one button**
 
 This is a rebuild of the Baccarat module after the review in
 [REVIEW_Baccarat_v1.0.0-20260928.md](REVIEW_Baccarat_v1.0.0-20260928.md). The old module was five
@@ -116,11 +116,12 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 56 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line and the sample button |
+| `python tests\ui_wiring_test.py` | 58 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button and the find-my-table button |
 | `python tests\ocr_test.py` | 72 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, and the handling of truncated, empty and unparseable model replies |
-| `python tests\server_smoke.py` | 90 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample |
+| `python tests\server_smoke.py` | 93 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
+| `python tests\locate_region_test.py` | 19 checks that the table can be found on screen from a saved sample: the right position at the same scale and at 80% scale, a refusal when it is absent, and the region round-tripping into a profile with its provenance |
 | hygiene check | fails the run if a real-looking credential ever appears in the module |
 
 The rules exist twice on purpose (browser and server). The vector test is what stops the two copies
@@ -135,15 +136,22 @@ the same two inputs you would otherwise type — the bet side still comes from y
 
 **Before it can run, two things must be true:**
 
-1. **You calibrate the region.** No shipped region is measured; all nine profiles say
-   `"calibrated": false` and the module repeats that. Calibration depends on your resolution, your
-   Windows display scale and where your casino window sits:
+1. **You calibrate the region — but you no longer have to drag a box.** In the OCR panel, save a
+   sample of your table, then press **"Find my table"**: the module finds your saved screenshot on the
+   live screen, reports the match score, and writes the region into the selected profile. It refuses
+   rather than guesses — below a 0.60 match it says the table does not appear to be on screen and
+   writes nothing, and it saves the matched area to `data\calibration\` so you can check it by eye.
+   If you prefer to do it by hand, calibration still works the old way:
    ```
    python app\tools\calibrate.py --list
    python app\tools\calibrate.py --profile baccarat-pragmatic-half-width-full-length
    ```
    Drag a box around the part of the screen showing the hand result, press ENTER, then **open the
    preview PNG it saves** (`data/calibration/…-preview.png`) and confirm it clearly shows the result.
+   The same search from the command line:
+   ```
+   python app\tools\locate_region.py --all --write-profile baccarat-pragmatic-half-width-full-length
+   ```
 2. **A key must be present** in `casino-tracker/.secrets/ocr.env`. The provider is chosen in
    `config/ocr.json` (default `deepseek`). The module reports honestly what is missing instead of
    pretending to read.

@@ -191,6 +191,10 @@ def main():
           "corrected " in ui and "rejected " in ui and "needed no correction" in ui)
     check("a screenshot sample can be captured from the module itself",
           'id="btn-ocr-sample"' in html and '"/api/baccarat/ocr/sample"' in ui)
+    check("the table can be located on screen with one click",
+          'id="btn-ocr-locate"' in html and '"/api/baccarat/ocr/locate"' in ui)
+    check("the located region is reported back with its match score",
+          "data.region.join" in ui and "data.score.toFixed" in ui)
 
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",

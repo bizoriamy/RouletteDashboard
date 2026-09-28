@@ -74,6 +74,7 @@ OCR_CONFIRM_PATH = OCR_PREFIX + "/confirm"
 OCR_REJECT_PATH = OCR_PREFIX + "/reject"
 OCR_EVENTS_PATH = OCR_PREFIX + "/events"
 OCR_SAMPLE_PATH = OCR_PREFIX + "/sample"
+OCR_LOCATE_PATH = OCR_PREFIX + "/locate"
 OCR_EVENT_LOG = os.path.join(DATA_DIR, "ocr-events.jsonl")
 
 INSTANCE_KEY = os.environ.get("BACCARAT_INSTANCE_KEY", APP_DIR)
@@ -724,6 +725,66 @@ class OcrController:
         with self._lock:
             return self.events[-limit:]
 
+    def locate_table(self, payload):
+        """Find the table on screen from a saved sample and write the region into the profile.
+
+        This is calibration without dragging a box: the sample says WHAT to read, and matching it
+        against the live screen says WHERE it is. An unconvincing match is refused, never written,
+        because a wrong region makes the reader read the wrong thing.
+        """
+        if ocr is None:
+            raise StateError("OCR is unavailable: %s" % OCR_IMPORT_ERROR, "ocr-unavailable", 503)
+
+        profile_id = str(payload.get("profileId") or "").strip()
+        profile_path = None
+        if profile_id:
+            known = {profile["id"]: profile for profile in load_profiles()}
+            if profile_id.replace(".json", "") not in known:
+                raise StateError("Unknown calibration profile: %s" % profile_id, "bad-profile")
+            profile_path = os.path.join(CONFIG_DIR, profile_id.replace(".json", "") + ".json")
+
+        sample_dir = os.path.join(DATA_DIR, "samples")
+        wanted = str(payload.get("sample") or "").strip()
+        if wanted:
+            paths = [os.path.join(sample_dir, os.path.basename(wanted))]
+        elif os.path.isdir(sample_dir):
+            paths = sorted(os.path.join(sample_dir, name) for name in os.listdir(sample_dir)
+                           if name.lower().endswith(".png"))
+        else:
+            paths = []
+        if not paths or not any(os.path.isfile(path) for path in paths):
+            raise StateError(
+                "No sample screenshots to look for yet — press \"Save a screenshot sample\" while the "
+                "table is visible, then try again.", "no-samples", 409)
+
+        try:
+            screen = ocr.capture_full_screen()
+        except Exception as error:  # noqa: BLE001
+            raise StateError("Screen capture failed: %s: %s" % (type(error).__name__, error),
+                             "capture-failed", 503)
+
+        try:
+            result = ocr.locate_sample(screen, paths, min_score=float(payload.get("minScore") or 0.60))
+        except ocr.OcrError as error:
+            raise StateError(str(error), "locate-failed", 503)
+
+        if result["found"] and profile_path:
+            ocr.apply_region_to_profile(profile_path, result["region"], result["sample"], result["score"])
+            result["profileId"] = profile_id
+            try:
+                folder = os.path.join(DATA_DIR, "calibration")
+                os.makedirs(folder, exist_ok=True)
+                crop_path = os.path.join(folder, "found-%s.png" % time.strftime("%Y%m%d-%H%M%S"))
+                with open(crop_path, "wb") as handle:
+                    handle.write(ocr.crop_from_screen(screen, result["region"]))
+                result["cropPath"] = crop_path
+            except Exception:  # noqa: BLE001 - the crop is a convenience, not the answer
+                result["cropPath"] = None
+        self._log({"action": "locate", "found": result["found"], "score": round(result["score"], 3),
+                   "sample": result["sample"], "profile": profile_id or None,
+                   "region": result["region"]})
+        return result
+
     def save_sample(self, payload):
         """Capture the region now and save it as a sample, WITHOUT calling the model.
 
@@ -927,6 +988,7 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
             OCR_CONFIRM_PATH: lambda: OCR_STATE.confirm(self._json_body_()),
             OCR_REJECT_PATH: lambda: OCR_STATE.confirm({"accept": False}),
             OCR_SAMPLE_PATH: lambda: OCR_STATE.save_sample(self._json_body_()),
+            OCR_LOCATE_PATH: lambda: OCR_STATE.locate_table(self._json_body_()),
         }
         handler = handlers.get(path)
         if not handler:
