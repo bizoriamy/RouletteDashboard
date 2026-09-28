@@ -61,9 +61,17 @@ DEFAULT_CONFIG = {
         "temperature": 0,
     },
     "scan": {
-        "intervalSeconds": 1.5,
-        "confirmDelaySeconds": 1.5,
+        # How often the reader looks. It only calls the model when the picture changed, so a short
+        # interval costs a screenshot, not an API call — and it is what lets the reader notice a
+        # settled hand within a fraction of a second instead of up to 1.5s late.
+        "intervalSeconds": 0.6,
+        # The gap between the two reads, used only when the first read is not certain enough to accept
+        # on its own. 1.5s straddled the moment the hand settles on a fast table and cancelled hands.
+        "confirmDelaySeconds": 0.4,
         "stableReads": 2,
+        # A reading at or above this confidence is accepted on ONE model call, which is the difference
+        # between answering while the hand is still on screen and answering after the next one started.
+        "singleReadConfidence": 0.93,
         "minConfidence": 0.5,
         # Automatic mode settles a bet with no human looking, so it demands more certainty than a
         # reading that is only shown for confirmation. A reading below this is handed to the user.
@@ -688,7 +696,13 @@ class OcrReader:
             return {"status": "unchanged", "signature": first_hash, "result": None, **frame}
 
         wanted_reads = max(1, int(scan_config.get("stableReads", 2)))
-        delay = float(scan_config.get("confirmDelaySeconds", 1.5))
+        delay = float(scan_config.get("confirmDelaySeconds", 0.4))
+        # A clear reading is accepted on ONE model call: two calls per hand put the answer ~5-16s
+        # after the hand settled, by which time the user had already watched the next hand start
+        # (measured on their table). The second read is kept for readings that are not certain, which
+        # is where the agreement check earns its latency.
+        single_read_bar = float(scan_config.get("singleReadConfidence", 0.93))
+        started = time.time()
         try:
             first_read = parse_result_json(self.read(first))
         except OcrError as error:
@@ -697,10 +711,12 @@ class OcrReader:
             # frame's answer and move on; the note is what the panel shows.
             self.last_signature = first_hash
             return {"status": "unclear", "signature": first_hash, "result": None,
-                    "note": "the model's reply could not be read: %s" % error, **frame}
+                    "note": "the model's reply could not be read: %s" % error,
+                    "readMs": int((time.time() - started) * 1000), **frame}
         reads = [first_read]
+        decisive = bool(first_read["result"]) and first_read["confidence"] >= single_read_bar
 
-        if wanted_reads > 1:
+        if wanted_reads > 1 and not decisive:
             self.clock(delay)
             second = self.capture(region)
             second_hash = region_signature(second)
@@ -709,7 +725,8 @@ class OcrReader:
             except OcrError as error:
                 self.last_signature = first_hash
                 return {"status": "unclear", "signature": first_hash, "result": None,
-                        "note": "the second read could not be read: %s" % error, "frame": second}
+                        "note": "the second read could not be read: %s" % error,
+                        "readMs": int((time.time() - started) * 1000), "frame": second}
             reads.append(second_read)
             moved = second_hash != first_hash
             if second_read["result"] != first_read["result"]:
@@ -726,16 +743,19 @@ class OcrReader:
 
         decision = reads[-1]
         self.last_signature = first_hash
+        elapsed_ms = int((time.time() - started) * 1000)
 
         if not decision["result"]:
             return {"status": "unclear", "signature": first_hash, "result": None,
-                    "note": decision.get("evidence", ""), "reads": reads, **frame}
+                    "note": decision.get("evidence", ""), "reads": reads,
+                    "readMs": elapsed_ms, **frame}
 
         minimum = float(scan_config.get("minConfidence", 0.5))
         if decision["confidence"] < minimum:
             return {"status": "unclear", "signature": first_hash, "result": decision["result"],
                     "note": "confidence %.2f is below the %.2f threshold"
-                            % (decision["confidence"], minimum), "reads": reads, **frame}
+                            % (decision["confidence"], minimum), "reads": reads,
+                    "readMs": elapsed_ms, **frame}
 
         return {
             "status": "candidate",
@@ -744,6 +764,8 @@ class OcrReader:
             "confidence": decision["confidence"],
             "evidence": decision.get("evidence", ""),
             "reads": reads,
+            "readMs": elapsed_ms,
+            "singleRead": bool(decisive),
             **frame,
         }
 
@@ -839,13 +861,23 @@ class OcrMonitor:
             return self.status.get("lastFrame"), self.status.get("lastFrameAt"), \
                 self.status.get("lastFrameSignature")
 
-    def remember_frame(self, frame, signature):
+    def remember_frame(self, frame, signature, read_ms=None, single=None):
         if not frame:
             return
         with self._lock:
             self.status["lastFrame"] = frame
             self.status["lastFrameAt"] = time.strftime("%Y-%m-%dT%H:%M:%S")
             self.status["lastFrameSignature"] = signature
+            if read_ms is not None:
+                self.status["lastReadMs"] = read_ms
+                # A rolling average over the last few reads: the number that says whether the reader is
+                # fast enough for the table it is watching.
+                history = list(self.status.get("readHistory") or [])[-9:]
+                history.append(read_ms)
+                self.status["readHistory"] = history
+                self.status["avgReadMs"] = int(sum(history) / len(history))
+            if single is not None:
+                self.status["lastSingleRead"] = bool(single)
 
     def _loop(self, region, mode):
         while not self._stop.is_set():
@@ -853,7 +885,8 @@ class OcrMonitor:
                 session = self.store.load()
                 known = self._known_signatures(session) if session else set()
                 decision = self.reader.scan(region, known)
-                self.remember_frame(decision.get("frame"), decision.get("signature"))
+                self.remember_frame(decision.get("frame"), decision.get("signature"),
+                                    decision.get("readMs"), decision.get("singleRead"))
                 self._bump("scans")
                 self._set(lastScanAt=time.strftime("%Y-%m-%dT%H:%M:%S"))
                 if decision["status"] == "unchanged":

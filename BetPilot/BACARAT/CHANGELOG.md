@@ -5,6 +5,50 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.9.1-20260928-Baccarat (2026-09-28) — THE READING ARRIVES BEFORE THE NEXT HAND
+
+Reported: *"the refresh time is too slow, i watch for 5 hands, all show the result after 10 sec which is
+next hand already started"*. Correct. The reader made two model calls per hand, so the answer landed
+~5–16 seconds after the hand settled — on a table that clears fast, that is after the next one had
+started.
+
+### Fixed — a clear reading now costs one model call, not two
+
+The agreement check stays, but only where it earns its latency:
+
+- **At 0.93 confidence or above, the first reading is accepted on its own** — one model call, ~2–4 s
+  instead of ~5–16 s. Below that, the second confirming read still happens, because that is where an
+  independent check protects the money.
+- The loop interval went **1.5 s → 0.6 s** (a look is a screenshot, not an API call, so it costs
+  nothing and notices the settle sooner).
+- The provider timeout went **30 s → 15 s**: a read slower than that cannot help a live hand anyway,
+  and the next scan retries.
+- A doubled-token-budget escalation was already dropped in v2.9.0; the fallback model is tried once
+  after the primary fails, one budget each.
+
+### Added — the panel shows how long a reading takes
+
+The OCR counters now include *"last reading took 3.2s (avg 2.9s), one model call"* — the number that
+says whether the reader is keeping up with the table. A reading that arrives after the next hand has
+started is not useful, and now that is visible instead of guessed.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass, now with
+  **130** OCR checks. The new latency checks pin the behaviour: a confident reading is one model call
+  and is flagged `singleRead`; an uncertain one is still checked twice; disagreement is still refused,
+  never averaged.
+- A two-minute live run caught no hands **because the table was between hands the whole time** (172
+  scans, one model read, and a direct read said "no clear result" in 1.9 s) — the reader was watching
+  correctly; there was simply nothing to read. The earlier live proof (BANKER recorded from the live
+  screen) stands.
+
+### Still open
+
+- A clean accuracy record before Automatic mode is justified.
+
+---
+
 ## v2.9.0-20260928-Baccarat (2026-09-28) — THE READER NOW READS THE LIVE TABLE (AND YOU CAN SEE WHAT IT SEES)
 
 Asked: *"where do you show the OCR capture? no result"*. Both halves were fair, and the answer to the

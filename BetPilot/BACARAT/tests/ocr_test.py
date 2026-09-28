@@ -704,10 +704,15 @@ def test_changing_frame_still_reads():
                          "minConfidence": 0.5, "autoMinConfidence": 0.9}}
 
     class MovingScreen:
-        """A frame that differs on every capture, like a table with a live countdown."""
+        """A frame that differs on every capture, like a table with a live countdown.
 
-        def __init__(self, results):
+        The confidence is deliberately below the single-read bar (0.93) so the second read happens:
+        a confident reading is now accepted on one call, which is the latency fix.
+        """
+
+        def __init__(self, results, confidence=0.80):
             self.results = list(results)
+            self.confidence = confidence
             self.captures = 0
 
         def capture(self, region):
@@ -720,7 +725,7 @@ def test_changing_frame_still_reads():
 
         def read(self, image_bytes):
             result = self.results.pop(0) if self.results else None
-            return json.dumps({"result": result, "confidence": 0.95 if result else 0.0,
+            return json.dumps({"result": result, "confidence": self.confidence if result else 0.0,
                                "evidence": "panel highlighted" if result else "nothing settled"})
 
     screen = MovingScreen(["banker", "banker"])
@@ -745,6 +750,63 @@ def test_changing_frame_still_reads():
           decision["status"] == "unclear" and decision["result"] is None, decision)
 
 
+def test_latency():
+    print("\nLATENCY: A CLEAR READING COSTS ONE MODEL CALL, NOT TWO")
+    settings = {"scan": {"intervalSeconds": 0, "confirmDelaySeconds": 0, "stableReads": 2,
+                         "minConfidence": 0.5, "singleReadConfidence": 0.93}}
+
+    class Screen:
+        def __init__(self, confidences):
+            self.confidences = list(confidences)
+            self.calls = 0
+            self.captures = 0
+
+        def capture(self, region):
+            self.captures += 1
+            import io as _io
+            from PIL import Image
+            buffer = _io.BytesIO()
+            Image.new("RGB", (40, 24), (10, 20, 30 + self.captures)).save(buffer, format="PNG")
+            return buffer.getvalue()
+
+        def read(self, image_bytes):
+            self.calls += 1
+            confidence = self.confidences.pop(0) if self.confidences else 0.0
+            return json.dumps({"result": "banker" if confidence else None, "confidence": confidence,
+                               "evidence": "panel highlighted"})
+
+    screen = Screen([0.97])
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("a confident reading is accepted on one model call",
+          decision["status"] == "candidate" and screen.calls == 1, screen.calls)
+    check("and it says it was a single read", decision.get("singleRead") is True, decision)
+    check("the reading's duration is reported", "readMs" in decision, decision)
+
+    screen = Screen([0.80, 0.80])
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("an uncertain reading is still checked twice",
+          decision["status"] == "candidate" and screen.calls == 2, screen.calls)
+    check("and does not claim to be a single read", decision.get("singleRead") is False, decision)
+
+    screen = Screen([0.80, None])
+    reader = ocr.OcrReader(capture=screen.capture, read=screen.read, config=settings)
+    decision = reader.scan((0, 0, 10, 10), set())
+    check("an uncertain reading that is not confirmed is refused",
+          decision["status"] == "unclear", decision)
+
+    with open(os.path.join(APP_DIR, "..", "config", "ocr.json"), "r", encoding="utf-8") as handle:
+        shipped = json.load(handle)
+    check("the shipped interval is short enough to notice a settled hand quickly",
+          float(shipped["scan"]["intervalSeconds"]) <= 0.75, shipped["scan"]["intervalSeconds"])
+    check("the shipped single-read bar is high enough to be meaningful",
+          float(shipped["scan"]["singleReadConfidence"]) >= 0.9, shipped["scan"]["singleReadConfidence"])
+    check("the provider timeout cannot stall a hand for half a minute",
+          float(shipped["deepseek"].get("timeoutSeconds", 30)) <= 20,
+          shipped["deepseek"].get("timeoutSeconds"))
+
+
 def main():
     test_scan_decisions()
     test_parsing()
@@ -757,6 +819,7 @@ def main():
     test_auto_deferral()
     test_region_picking()
     test_changing_frame_still_reads()
+    test_latency()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))

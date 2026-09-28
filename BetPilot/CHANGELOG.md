@@ -1,7 +1,39 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.9.0-20260928-Baccarat
+Version tracking: v2.9.1-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.9.1-20260928-Baccarat (2026-09-28) — THE READING ARRIVES BEFORE THE NEXT HAND
+
+Reported: *"the refresh time is too slow, i watch for 5 hands, all show the result after 10 sec which
+is next hand already started."* Correct — the reader made two model calls per hand, so the answer
+landed ~5–16 s after the hand settled, which is after the next one on a fast table.
+
+### Fixed — a clear reading now costs one model call, not two
+- **At 0.93 confidence or above, the first reading is accepted on its own** (~2–4 s). Below that, the
+  second confirming read still happens, because that is where an independent check protects the money.
+- The loop interval went 1.5 s → 0.6 s (a look is a screenshot, not an API call).
+- The provider timeout went 30 s → 15 s: slower than that cannot help a live hand, and the next scan
+  retries.
+- The fallback model is tried once after the primary fails, one budget each (the doubled-budget
+  escalation was already dropped in v2.9.0).
+
+### Added — the panel shows how long a reading takes
+- The OCR counters now include *"last reading took 3.2s (avg 2.9s), one model call"* — the number that
+  says whether the reader is keeping up with the table.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass
+  (**130** OCR checks). The latency checks pin the behaviour: a confident reading is one call and is
+  flagged `singleRead`; an uncertain one is checked twice; disagreement is still refused.
+- A two-minute live run caught no hands because the table was between hands the whole time (172 scans,
+  one model read, a direct read saying "no clear result" in 1.9 s) — the reader watched correctly;
+  there was nothing to read.
+
+### Still open
+- A clean accuracy record before Automatic mode is justified.
 
 ---
 

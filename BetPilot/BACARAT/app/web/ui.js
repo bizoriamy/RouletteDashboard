@@ -1022,6 +1022,13 @@
     if (status.scans) counters.push(status.scans + " scans");
     if (status.candidates) counters.push(status.candidates + " readings");
     if (status.duplicates) counters.push(status.duplicates + " duplicates ignored");
+    // How long a hand takes to come back: the number that says whether the reader is keeping up with
+    // the table. A reading that arrives after the next hand has started is not useful.
+    if (status.lastReadMs) {
+      var last = (status.lastReadMs / 1000).toFixed(1) + "s";
+      var average = status.avgReadMs ? " (avg " + (status.avgReadMs / 1000).toFixed(1) + "s)" : "";
+      counters.push("last reading took " + last + average + (status.lastSingleRead ? ", one model call" : ""));
+    }
     if (status.lastScanAt) counters.push("last " + status.lastScanAt);
     el["ocr-counters"].textContent = counters.join(" · ");
 

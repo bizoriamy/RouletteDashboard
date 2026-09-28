@@ -8,7 +8,9 @@
     "temperature": 0,
     "maxTokens": 800,
     "note": "The fast vision model occasionally spends its whole budget deliberating on a busy frame (a settled hand with cards on it) and returns nothing; fallbackModel is tried once after that, which turned the same frame into a reading. It is only reached after the primary fails.",
-    "fallbackModel": "deepseek-v4-pro"
+    "fallbackModel": "deepseek-v4-pro",
+    "timeoutSeconds": 15,
+    "timeoutNote": "15s: a read slower than this cannot help a live hand anyway, and the next scan retries. Was 30s."
   },
   "gemini": {
     "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
@@ -19,12 +21,13 @@
     "maxTokens": 800
   },
   "scan": {
-    "intervalSeconds": 1.5,
+    "intervalSeconds": 0.6,
     "confirmDelaySeconds": 0.4,
     "stableReads": 2,
     "minConfidence": 0.5,
-    "note": "confirmDelaySeconds is the gap between the two reads. It was 1.5s, which straddled the moment the hand settles on the user's fast table so the reads disagreed (one saw the hand, the other saw nothing) and every hand was cancelled. 0.4s was measured to read hands live. minConfidence is the bar for SHOWING a reading; autoMinConfidence is the higher bar for Automatic to settle a bet with nobody looking.",
-    "autoMinConfidence": 0.9
+    "note": "A clear reading (confidence at or above singleReadConfidence) is accepted on ONE model call; two calls per hand answered ~10s late, after the next hand had started. The second read is kept for uncertain readings. intervalSeconds is short because a look costs a screenshot, not an API call. confirmDelaySeconds is the gap between the two reads when both are used.",
+    "autoMinConfidence": 0.9,
+    "singleReadConfidence": 0.93
   },
   "keysLocation": "casino-tracker/.secrets/ocr.env — never copy a key into this file or any other file in the repository"
 }
