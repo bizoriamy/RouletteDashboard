@@ -612,6 +612,11 @@ class OcrController:
         if not isinstance(region, (list, tuple)) or len(region) != 4:
             raise StateError("Profile %s has no usable region. Run the calibration tool." % profile_id,
                              "bad-region")
+        # A calibrated region is measured against a window that can move. Refuse up front with a clear
+        # reason rather than repeating a capture error every scan while the reader watches nothing.
+        problem = ocr.validate_region(region)
+        if problem:
+            raise StateError("This region cannot be captured: %s" % problem, "bad-region")
 
         session = STORE.load()
         if not session or session.get("status") != "active":

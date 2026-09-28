@@ -1,7 +1,43 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.7.1-20260928-Baccarat
+Version tracking: v2.7.2-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.7.2-20260928-Baccarat (2026-09-28) — THE LIVE LOOP, PROVEN END TO END
+
+The parts were each tested; the loop they form had never been run as a whole. It has now — and the run
+found the window-moved failure mode on the way.
+
+### Added — a real end-to-end run of the live loop
+- `BACARAT/tests/ocr_live_test.py` drives the **real** monitor thread, OCR controller, session store,
+  derived statistics and accuracy readout against a fake screen and a fake model: **42 checks**, no API
+  call, and it runs as part of the suite.
+- It proves in one run: a hand confirmed end to end with the right money; the same screen never
+  recorded twice; a second hand recorded with its own signature and the running total still right; a
+  misread corrected before it is stored; a rejection recording nothing and leaving the bet open;
+  Automatic settling a 0.97 reading but refusing a 0.60 one; Observe mode filing no-bet hands with the
+  money untouched; the accuracy readout reflecting all of it; and a reading with no session ignored.
+
+### Fixed — a region that cannot be captured now says so
+- A region measured against a window that later moved used to produce a capture error every 1.5
+  seconds while the reader watched nothing. It is now validated up front and refused with a plain
+  reason naming the screen size and suggesting **Find my table** again. Malformed, negative and
+  zero-sized regions are refused too, and starting OCR with one returns `bad-region`.
+
+### Documented — bet first, then read
+- A result arriving with no open bet is recorded as a money-neutral no-bet hand (the reader must never
+  invent a bet), so a bet placed *after* the result appeared has nothing left to settle it. The README
+  now says so.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass.
+
+### Still open
+- **The region is locate-able but not yet written**: the table was not on screen when the locator ran,
+  and it refused all four samples (0.23–0.42 against the 0.60 bar) rather than guessing.
+- No real **Tie** has been seen on this table yet.
 
 ---
 

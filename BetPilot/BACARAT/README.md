@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.7.1-20260928-Baccarat** (see `VERSION`)
+Version: **v2.7.2-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; the reader is correct on real screenshots of the user's table, the region can be located with one button, and Automatic mode is gated behind a confidence bar**
 
 This is a rebuild of the Baccarat module after the review in
@@ -118,6 +118,7 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
 | `python tests\ui_wiring_test.py` | 60 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
 | `python tests\ocr_test.py` | 88 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, the confidence gate that Automatic must clear, and the handling of truncated, empty and unparseable model replies |
+| `python tests\ocr_live_test.py` | 42 checks running the **real live loop** — monitor thread, controller, store and statistics — against a fake screen and a fake model: a hand confirmed end to end with the right money, duplicates never re-recorded, a wrong reading corrected before it is stored, Automatic settling only what it is sure of and deferring what it is not, observe mode recording no-bet hands, the accuracy readout reflecting what happened, and an off-screen region refused at start |
 | `python tests\server_smoke.py` | 93 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
@@ -240,6 +241,11 @@ confirm, exactly as Confirm mode would. A reading with no confidence at all is n
 The counters tell you which of these is happening: **duplicates** climbing means the hand was already
 recorded (correct behaviour, not an error); **candidates** climbing means it is reading fine;
 **scans** climbing with neither means it is watching but the region has not changed.
+
+**Place your bet before the hand resolves.** A result that arrives with no open bet is recorded as a
+no-bet hand (money-neutral, and it fills the bead plate) — because the reader must never invent a bet.
+That is the right behaviour, but it does mean a bet placed *after* the result appeared has nothing left
+to settle it, and would sit open until the next hand. Bet first, then read.
 
 ---
 

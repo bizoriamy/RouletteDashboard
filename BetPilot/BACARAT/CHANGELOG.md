@@ -5,6 +5,55 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.7.2-20260928-Baccarat (2026-09-28) — THE LIVE LOOP, PROVEN END TO END
+
+The parts were each tested; the loop they form had never been run as a whole. It has now — and the run
+found the window-moved failure mode on the way.
+
+### Added — a real end-to-end run of the live loop
+
+`tests/ocr_live_test.py` drives the **real** monitor thread, the real OCR controller, the real session
+store, the real derived statistics and the real accuracy readout, against a fake screen and a fake
+vision model. No API call, no casino: **42 checks**, and the whole thing runs in the suite.
+
+It proves, in one run: a hand read and confirmed end to end with the right money ($4.75 profit on a 1u
+Banker bet at $5 after commission); **the same screen never recorded twice**; a second hand on the same
+screen recorded with its own signature and the running total still right; **a misread corrected before
+it is stored** (and logged as corrected); a rejection recording nothing and leaving the bet open;
+**Automatic settling a 0.97 reading by itself but refusing a 0.60 one** and handing it back for
+confirmation; Observe mode filing no-bet hands in the same zero-stake shape manual PASS uses, money
+untouched; the accuracy readout reflecting all of it; and a reading with no session recorded as
+ignored.
+
+### Fixed — a region that cannot be captured now says so
+
+A calibrated region is measured against a window that can later move or be resized. Before, that
+surfaced as a capture error repeating every 1.5 seconds while the reader watched nothing. Now the
+region is validated up front and refused with a plain reason: *"the region 1500,900 900x680 runs past
+the edge of the 1920x1080 screen — the table window has probably moved or been resized since
+calibration, so press Find my table again."* Regions that are malformed, negative, or zero-sized are
+refused too, and starting OCR with one returns `bad-region` rather than an error loop.
+
+### Documented — bet first, then read
+
+The live run surfaced an ordering rule worth stating: a result that arrives with no open bet is
+recorded as a money-neutral no-bet hand, because the reader must never invent a bet — so a bet placed
+*after* the result appeared has nothing left to settle it. The README now says so plainly.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass (72 engine,
+60 UI wiring, 88 OCR, 42 live loop, 19 locator, 93 HTTP, the settlement agreement and the credential
+scan).
+
+### Still open
+
+- **The region is locate-able but not yet written**: the table was not on screen when the locator ran,
+  and it refused all four samples (0.23–0.42 against the 0.60 bar) rather than guessing.
+- No real **Tie** has been seen on this table yet.
+
+---
+
 ## v2.7.1-20260928-Baccarat (2026-09-28) — AUTOMATIC MODE EARNS ITS TRUST
 
 Two changes while the reader waits for its calibration, both about the one path that acts without you

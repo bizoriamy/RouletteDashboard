@@ -209,9 +209,39 @@ def region_signature(image_bytes, size=16):
     return "%s-%s" % (hashlib.sha1(payload).hexdigest()[:16], size)
 
 
+def validate_region(region, screen=None):
+    """Why a region cannot be captured, or None when it is fine.
+
+    A calibrated region is measured against a window that can later be moved or resized. Saying so
+    plainly beats a capture error repeating every scan while the reader watches nothing.
+    """
+    if not isinstance(region, (list, tuple)) or len(region) != 4:
+        return "a region needs four numbers: x, y, width, height"
+    try:
+        x, y, width, height = [int(value) for value in region]
+    except (TypeError, ValueError):
+        return "the region must be whole numbers: x, y, width, height"
+    if width <= 0 or height <= 0:
+        return "the region has no width or height (%dx%d)" % (width, height)
+    try:
+        size = list(screen) if screen else screen_size()
+    except Exception as error:  # noqa: BLE001
+        return "the screen size could not be read: %s" % error
+    if x < 0 or y < 0:
+        return "the region starts off the screen at %d,%d" % (x, y)
+    if x + width > size[0] or y + height > size[1]:
+        return ("the region %d,%d %dx%d runs past the edge of the %dx%d screen — the table window has "
+                "probably moved or been resized since calibration, so press \"Find my table\" again"
+                % (x, y, width, height, size[0], size[1]))
+    return None
+
+
 def capture_region(region):
     """Screenshot a (x, y, width, height) region and return PNG bytes."""
     import pyautogui
+    problem = validate_region(region)
+    if problem:
+        raise OcrError("Cannot capture the region: %s" % problem)
     x, y, width, height = [int(value) for value in region]
     if width <= 0 or height <= 0:
         raise OcrError("Capture region has no area: %r" % (region,))

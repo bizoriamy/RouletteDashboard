@@ -34,6 +34,7 @@ Invoke-Step 'Generate settlement vectors (node)' { node (Join-Path $testsDir 'ge
 Invoke-Step 'Browser/server settlement agreement (python)' { python (Join-Path $testsDir 'settlement_test.py') }
 Invoke-Step 'UI wiring: ids, handlers, classes (python)' { python (Join-Path $testsDir 'ui_wiring_test.py') }
 Invoke-Step 'OCR logic and mode semantics (python)' { python (Join-Path $testsDir 'ocr_test.py') }
+Invoke-Step 'Live OCR loop end to end (python)' { python (Join-Path $testsDir 'ocr_live_test.py') }
 Invoke-Step 'Region locator: finding the table on screen (python)' { python (Join-Path $testsDir 'locate_region_test.py') }
 Invoke-Step 'End-to-end server behaviour (python)' { python (Join-Path $testsDir 'server_smoke.py') }
 
