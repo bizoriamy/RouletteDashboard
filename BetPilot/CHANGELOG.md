@@ -1,7 +1,46 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.5.0-20260928-Baccarat
+Version tracking: v2.5.1-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.5.1-20260928-Baccarat (2026-09-28) — PROMPT GENERALITY, PROVEN AND RE-RUNNABLE
+
+The screen reader is still unvalidated against the real casino display, but its prompt has now been
+tested against nine synthetic presentations of a result, and the open small-text question is answered:
+no preprocessing is needed.
+
+### Added
+- **`BACARAT/tests/make_ocr_fixtures.py`** — draws nine synthetic Baccarat displays into
+  `data/samples-synthetic/`: bold text, 11px text, a single letter in a coloured circle, a strip of
+  past results, a Chinese label (庄), a low-contrast panel, a card-value mock, a plain worded result,
+  and a busy table with six decoy markers plus a small newest one. Filenames end
+  `-expected-BANKER|PLAYER|TIE` so a wrong reading is obvious.
+- **`--grade` on `ocr_check.py`** — compares each reading with the result its filename declares and
+  exits non-zero on any mismatch, turning a prompt change into a one-command regression check.
+
+### Result: 9 of 9 correct
+Including 11px text (PLAYER, 0.95), Chinese 庄 (BANKER, 0.95), a strip where the newest dot must be
+chosen (PLAYER, 0.95) and a busy table with decoys (BANKER, 0.80).
+
+**Decision recorded:** 11px read at 0.95 confidence, so image preprocessing was deliberately not
+added. Two runs gave identical results with slightly different confidences, which is why the
+double-read agreement check compares the result rather than the confidence.
+
+### Fixed
+- **A crash on non-Latin text.** The model quotes what it sees, so a Chinese-labelled table put 庄 in
+  its evidence, and printing that on a CP1252 console raised UnicodeEncodeError — killing the
+  diagnostic tool exactly when it was needed. `ocr_check.py`, `provider_check.py` and the server now
+  replace characters the console cannot encode instead of dying.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass.
+
+### Still open
+- **A real screenshot of the casino display is still needed.** The prompt is general across every
+  presentation tested, but the crop, the real table's animation and the truth about its result display
+  all require the user's screen. All 9 calibration profiles remain unmeasured.
 
 ---
 

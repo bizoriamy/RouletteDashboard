@@ -1,7 +1,7 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.5.0-20260928-Baccarat** (see `VERSION`)
-Status: **core complete and verified; OCR built but NOT yet validated on a real casino display**
+Version: **v2.5.1-20260928-Baccarat** (see `VERSION`)
+Status: **core complete and verified; OCR prompt proven general, but NOT yet validated on a real casino display**
 
 This is a rebuild of the Baccarat module after the review in
 [REVIEW_Baccarat_v1.0.0-20260928.md](REVIEW_Baccarat_v1.0.0-20260928.md). The old module was five
@@ -160,6 +160,19 @@ python app\tools\ocr_check.py --profile <id> --repeat 3 ask the same crop three 
 
 Each run saves the exact crop that was sent to the model, so what the model saw can be compared with
 what you see. Drop screenshots into `data\samples\` and `--all` reads the whole batch at once.
+
+**The prompt is regression-checked against nine synthetic displays** — bold text, 11px text, a single
+letter, a strip of past results, a Chinese label (庄), a low-contrast panel, a card-value mock, and a
+busy table with decoy markers. All nine read correctly:
+
+```
+python tests\make_ocr_fixtures.py
+python app\tools\ocr_check.py --all --samples-dir data\samples-synthetic --grade
+```
+
+Each fixture's filename ends `-expected-BANKER|PLAYER|TIE`, so `--grade` reports CORRECT or WRONG and
+exits non-zero on a regression. An 11px label read at 0.95 confidence, which is why no image
+preprocessing was added: the evidence did not call for it.
 
 **Do not trust Automatic mode until the readout says so.** The module shows an accuracy line built
 from its own audit log: readings taken, accepted, how many you had to correct, rejected, and the

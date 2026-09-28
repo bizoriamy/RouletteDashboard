@@ -5,6 +5,66 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.5.1-20260928-Baccarat (2026-09-28) — PROMPT GENERALITY, PROVEN AND RE-RUNNABLE
+
+The screen reader is still unvalidated against the real casino display, but its prompt has now been
+tested against nine synthetic presentations of a result — and the small-text question the plan left
+open is answered: no preprocessing is needed.
+
+### Added
+
+- **`tests/make_ocr_fixtures.py`** — draws nine synthetic Baccarat result displays into
+  `data/samples-synthetic/`: bold text, 11px text, a single letter in a coloured circle, a strip of
+  past results, a Chinese label (庄), a low-contrast dark-on-dark panel, a card-value mock
+  (B 9 vs P 7), a plain worded result, and a busy table with six decoy markers plus a small newest
+  one. Each filename ends `-expected-BANKER|PLAYER|TIE`, so a wrong reading is visible at a glance.
+- **`--grade` on `ocr_check.py`** — reads a folder of fixtures, compares each reading with the result
+  its filename declares, and exits non-zero on any mismatch. A prompt change can now be regression
+  checked in one command instead of by eye:
+  ```
+  python app\tools\ocr_check.py --all --samples-dir data\samples-synthetic --grade
+  ```
+
+### Result: 9 of 9 correct
+
+| Presentation | Reading | Confidence |
+|---|---|---|
+| Bold "BANKER" on a red panel | BANKER | 0.97 |
+| 11px "PLAYER" on a blue panel | PLAYER | 0.95 |
+| Green circle with a white "T" | TIE | 0.95 |
+| Strip of eight dots, newest last (blue) | PLAYER | 0.95 |
+| Chinese 庄 on a dark panel | BANKER | 0.95 |
+| B 9 against P 7 | BANKER | 0.98 |
+| Low-contrast dark-on-dark "PLAYER" | PLAYER | 0.85 |
+| Plain green "TIE" on black | TIE | 0.98 |
+| Busy table, six decoy dots, small newest red | BANKER | 0.80 |
+
+**Decision recorded:** an 11px label read at 0.95 confidence, so upscaling/preprocessing is *not*
+justified by the evidence and has deliberately not been added. Two runs produced identical results
+with slightly different confidences (0.80–0.98), which is why the double-read agreement check
+compares the *result* rather than the confidence.
+
+### Fixed
+
+- **A crash on non-Latin text.** The model quotes what it sees, so a Chinese-labelled table put 庄 in
+  its evidence — and printing that on a CP1252 Windows console raised UnicodeEncodeError, killing the
+  diagnostic tool exactly when it was needed. `ocr_check.py`, `provider_check.py` and the server now
+  replace characters the console cannot encode instead of dying. Found by running the Chinese fixture.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all seven steps pass (72 engine tests,
+55 UI wiring checks, 86 HTTP checks, 55 OCR checks, the settlement agreement and the credential scan).
+
+### Still open
+
+- **A real screenshot of the casino display is still needed.** The prompt is general across every
+  presentation tested, but the crop, the animation on the real table and the truth about how the
+  result is displayed there all require the user's screen. All 9 calibration profiles remain
+  unmeasured.
+
+---
+
 ## v2.5.0-20260928-Baccarat (2026-09-28) — OCR EVIDENCE AND A WORKING SPOT-CHECK TOOL
 
 Groundwork for the screen-reading phase. Nothing here claims the reader works on a real casino

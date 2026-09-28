@@ -16,6 +16,14 @@ import sys
 TESTS_DIR = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.normcase(os.path.realpath(os.path.join(TESTS_DIR, "..", "app"))))
 
+# Model replies can contain non-Latin text (a Chinese-labelled table, for one). Never let the console
+# encoding turn a diagnostic run into a UnicodeEncodeError.
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 import ocr  # noqa: E402
 
 

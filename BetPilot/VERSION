@@ -1,31 +1,30 @@
-BetPilot — v2.5.0-20260928-Baccarat
+BetPilot — v2.5.1-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.5.0-20260928-Baccarat)
-Status:    core complete and verified; OCR BUILT BUT NOT YET VALIDATED on a real casino display
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.5.1-20260928-Baccarat)
+Status:    core complete and verified; OCR prompt proven general across nine synthetic displays,
+           but NOT yet validated on the user's real casino display
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
 All visible labels, launcher, and window titles must match this version.
 
 v2.0.0 rebuilt the Baccarat module as a local Python server application, replacing a five-file
-browser prototype that was reviewed on 2026-09-28 and found not releasable (eight reproduced
-functional defects plus a credential published in a document).
+browser prototype that was reviewed on 2026-09-28 and found not releasable.
 
 v2.1.0 added a Tie bet alongside Banker or Player, moved the disclaimer to the foot of the window and
-removed page scrolling. v2.2.0 put Hand History, Statistics and Bankroll beside the betting column for
-half-screen use, gave the bead plate a fixed 10 x 10 box of 100 colour-only hands and renamed the two
-table panels; v2.2.1 shrank the dots and corrected the fill order. v2.3.0 made PASS record the
-table's result. v2.4.0 gave the Tie insurance its own stake.
+removed page scrolling. v2.2.x put the panels beside the betting column for half-screen use, gave the
+bead plate a fixed 10 x 10 box of small colour-only hands and renamed the panels. v2.3.0 made PASS
+record the table's result. v2.4.0 gave the Tie insurance its own stake.
 
-v2.5.0 is OCR groundwork: a spot-check tool (app/tools/ocr_check.py) for judging a capture region,
-an accuracy readout built from the audit log that refuses to flatter, a retired Gemini model id
-replaced with gemini-3.8-flash, and a phantom "stop" event removed from the audit log.
+v2.5.0 added the OCR spot-check tool, an accuracy readout built from the audit log, a working Gemini
+model id (gemini-3.8-flash) and removed a phantom "stop" event from that log. v2.5.1 proved the
+reading prompt against nine synthetic result displays (all nine correct, including 11px text, a
+Chinese label and a busy table with decoy markers), made that check re-runnable with grading, and
+fixed a crash when the model's quoted evidence contained non-Latin characters.
 
-IMPORTANT: the screen reader has still only been tested against synthetic images and a roulette
-screenshot. It has never read the user's casino display, and no calibration region has been measured.
-Do not treat OCR as working until a real screenshot of the table reads correctly.
+IMPORTANT: the screen reader has never read the user's casino display and no calibration region has
+been measured. Do not treat OCR as working until a real screenshot of the table reads correctly.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.
-The review that prompted the rebuild is BACARAT/REVIEW_Baccarat_v1.0.0-20260928.md.

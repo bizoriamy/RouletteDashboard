@@ -30,6 +30,15 @@ MODULE_DIR = os.path.normcase(os.path.realpath(os.path.join(APP_DIR, "..", "..")
 CONFIG_DIR = os.path.join(MODULE_DIR, "config")
 SAMPLE_DIR = os.path.join(MODULE_DIR, "data", "samples")
 
+# A casino may label its result in Chinese (庄 / 闲 / 和) and the model quotes what it sees. The
+# Windows console is often CP1252, so an unprintable character would otherwise crash the tool with
+# UnicodeEncodeError — exactly when you most want the diagnosis.
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 sys.path.insert(0, os.path.normcase(os.path.realpath(os.path.join(APP_DIR, ".."))))
 
 import ocr  # noqa: E402
@@ -105,6 +114,16 @@ def build_reader(args):
         return None, config
 
 
+def expected_from_name(name):
+    """A fixture named '...-expected-BANKER.png' states what the model should read."""
+    stem = os.path.splitext(name)[0]
+    marker = "expected-"
+    if marker not in stem:
+        return None
+    value = stem.split(marker)[-1].strip().lower()
+    return value if value in ("banker", "player", "tie") else None
+
+
 def run_folder(args):
     """Read every PNG in data/samples — the batch view for judging a set of real screenshots."""
     folder = args.samples_dir or SAMPLE_DIR
@@ -123,11 +142,14 @@ def run_folder(args):
 
     usable = 0
     failed = 0
+    graded = 0
+    correct = 0
+    wrong = []
     for name in files:
         path = os.path.join(folder, name)
         image_bytes = load_image(path)
         width, height = crop_size(image_bytes)
-        line = "%-34s %4dx%-5d" % (name[:34], width, height)
+        line = "%-44s %4dx%-5d" % (name[:44], width, height)
         try:
             raw = read(image_bytes)
             parsed = ocr.parse_result_json(raw)
@@ -136,21 +158,39 @@ def run_folder(args):
             print("%s FAILED: %s" % (line, error))
             continue
         usable += 1
-        print("%s %-7s conf %.2f  %s" % (line, str(parsed["result"]).upper(), parsed["confidence"],
-                                         parsed["evidence"][:90]))
+        verdict = ""
+        expected = expected_from_name(name)
+        if args.grade and expected:
+            graded += 1
+            if parsed["result"] == expected:
+                correct += 1
+                verdict = " CORRECT"
+            else:
+                verdict = " WRONG (expected %s)" % expected.upper()
+                wrong.append((name, expected, parsed["result"]))
+        print("%s %-7s conf %.2f  %s%s" % (line, str(parsed["result"]).upper(), parsed["confidence"],
+                                           parsed["evidence"][:80], verdict))
         if args.repeat > 1:
             for attempt in range(2, args.repeat + 1):
                 try:
                     again = ocr.parse_result_json(read(image_bytes))
-                    print("%-34s %4s     repeat %d: %-7s conf %.2f" % ("", "", attempt,
+                    print("%-44s %4s     repeat %d: %-7s conf %.2f" % ("", "", attempt,
                                                                        str(again["result"]).upper(),
                                                                        again["confidence"]))
                 except Exception as error:  # noqa: BLE001
-                    print("%-34s %4s     repeat %d FAILED: %s" % ("", "", attempt, error))
+                    print("%-44s %4s     repeat %d FAILED: %s" % ("", "", attempt, error))
 
     print("\n%d of %d samples read (provider: %s)." % (usable, len(files), config.get("provider")))
     if failed:
         print("%d call(s) failed outright — check the messages above." % failed)
+    if args.grade and graded:
+        print("Graded %d fixture(s): %d correct, %d wrong." % (graded, correct, len(wrong)))
+        for name, expected, got in wrong:
+            print("  WRONG: %s -> read %s, expected %s" % (name, str(got).upper(), expected.upper()))
+        if wrong or failed:
+            return 1
+        print("All fixtures read correctly. The prompt handles every presentation in the set.")
+        return 0
     print("Compare each reading against the sample. Any mismatch means the prompt or the crop "
           "needs work, and I want to see both.")
     return 0 if failed == 0 else 1
@@ -165,6 +205,8 @@ def main():
     source.add_argument("--image", help="read an existing PNG instead of the screen")
     source.add_argument("--all", action="store_true", help="read every PNG in data/samples")
     parser.add_argument("--samples-dir", help="folder for --all (default data/samples)")
+    parser.add_argument("--grade", action="store_true",
+                        help="with --all, grade fixtures whose filename ends in '-expected-BANKER' etc.")
     parser.add_argument("--crop-only", action="store_true", help="capture and save only; do not call the model")
     parser.add_argument("--save", help="where to write the crop (default data/samples/ocr-check-<time>.png)")
     parser.add_argument("--provider", choices=["deepseek", "gemini"], help="override the provider for this run")

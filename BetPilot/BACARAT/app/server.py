@@ -961,6 +961,14 @@ def settlement_csv(session):
 
 
 def main():
+    # Error text and model evidence can contain non-Latin characters (a Chinese-labelled table, for
+    # one). Replace anything the console cannot encode rather than dying mid-diagnosis.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
     mutex = None
     if os.name == "nt":
         mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
