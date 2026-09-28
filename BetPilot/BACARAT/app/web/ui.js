@@ -967,11 +967,23 @@
         .then(function (result) {
           var data = result.data || {};
           if (data.found) {
-            toast("Table found at " + data.region.join(",") + " (match " + data.score.toFixed(2) + ")", "good");
+            var reading = data.reading || {};
+            var verdict;
+            if (reading.error) {
+              verdict = " The test read could not run: " + reading.error;
+            } else if (reading.result) {
+              verdict = " It reads: " + String(reading.result).toUpperCase() +
+                " at " + Number(reading.confidence).toFixed(2) + " confidence.";
+            } else {
+              verdict = " It saw no clear result — check the saved crop before trusting this region.";
+            }
+            toast("Table found at " + data.region.join(",") + " (match " + data.score.toFixed(2) + ")" +
+              (reading.result ? " — reads " + String(reading.result).toUpperCase() : ""), "good");
             el["ocr-note"].textContent = "Found the table using " + data.sample + " — region " +
               data.region.join(",") + ", match " + data.score.toFixed(2) +
               (data.profileId ? ", written into " + data.profileId : ", but no profile was selected so nothing was saved") +
-              (data.cropPath ? ". The matched area was saved to " + data.cropPath + " — open it and check it shows the hand result." : ".");
+              "." + verdict +
+              (data.cropPath ? " The matched area was saved to " + data.cropPath + "." : "");
             loadProfiles();
           } else {
             toast(data.reason || "The table was not found on screen.", "error");

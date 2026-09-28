@@ -65,6 +65,9 @@ DEFAULT_CONFIG = {
         "confirmDelaySeconds": 1.5,
         "stableReads": 2,
         "minConfidence": 0.5,
+        # Automatic mode settles a bet with no human looking, so it demands more certainty than a
+        # reading that is only shown for confirmation. A reading below this is handed to the user.
+        "autoMinConfidence": 0.9,
     },
 }
 
@@ -216,6 +219,24 @@ def capture_region(region):
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def auto_is_confident_enough(confidence, scan_config=None):
+    """Whether Automatic mode may settle on this reading without a human looking.
+
+    Automatic moves money on its own, so it holds a higher bar than a reading merely shown for
+    confirmation. Anything less certain is handed to the user instead of being acted on.
+    """
+    settings = scan_config if isinstance(scan_config, dict) else DEFAULT_CONFIG["scan"]
+    try:
+        minimum = float(settings.get("autoMinConfidence", 0.9))
+    except (TypeError, ValueError):
+        minimum = 0.9
+    try:
+        value = float(confidence or 0.0)
+    except (TypeError, ValueError):
+        value = 0.0
+    return value >= minimum
 
 
 def screen_size():

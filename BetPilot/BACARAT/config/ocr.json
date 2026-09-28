@@ -22,7 +22,8 @@
     "confirmDelaySeconds": 1.5,
     "stableReads": 2,
     "minConfidence": 0.5,
-    "note": "stableReads 2 means every hand is read twice, separated by confirmDelaySeconds, and both reads must agree. Raise minConfidence if you see wrong results; lower it only if real results are being ignored."
+    "note": "minConfidence is the bar for SHOWING a reading; autoMinConfidence is the higher bar for Automatic mode to settle a bet with nobody looking. A reading below it is handed to you to confirm instead of being acted on.",
+    "autoMinConfidence": 0.9
   },
   "keysLocation": "casino-tracker/.secrets/ocr.env — never copy a key into this file or any other file in the repository"
 }

@@ -195,6 +195,10 @@ def main():
           'id="btn-ocr-locate"' in html and '"/api/baccarat/ocr/locate"' in ui)
     check("the located region is reported back with its match score",
           "data.region.join" in ui and "data.score.toFixed" in ui)
+    check("calibration proves itself by reading the located region",
+          "data.reading" in ui and "It reads: " in ui)
+    check("a located region that reads nothing says so",
+          "saw no clear result" in ui)
 
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",

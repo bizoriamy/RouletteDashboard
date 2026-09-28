@@ -1,7 +1,39 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.7.0-20260928-Baccarat
+Version tracking: v2.7.1-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.7.1-20260928-Baccarat (2026-09-28) — AUTOMATIC MODE EARNS ITS TRUST
+
+Two changes while the reader waits for its calibration, both about the one path that acts without the
+user watching.
+
+### Safety — Automatic holds a higher bar than a suggestion
+- Automatic settles a bet with nobody looking, so it demands **0.9 confidence** against the **0.5**
+  that merely shows a reading for confirmation (`autoMinConfidence` in `config/ocr.json`).
+- **Below that bar it does not act**: the reading is put in front of the user to confirm or correct,
+  exactly as Confirm mode would. An uncertain hand costs a click, never a silently wrong settlement.
+- A reading with no confidence, or a nonsense value, is never acted on — the rule fails safe.
+
+### Added — calibration that proves itself
+- After **Find my table** locates the region it reads it once and reports what it saw: *"It reads:
+  BANKER at 0.98 confidence"*. If the test read finds nothing it says so, which is exactly the case
+  where recalibrating is the fix. A failed test read never invalidates the located region.
+- A plain-language operating checklist in `BACARAT/README.md`: don't move the window, run Confirm,
+  confirm or correct each hand, watch the accuracy line, and how to read the counters when nothing
+  appears.
+
+### Verified
+- **88 OCR checks** (up from 72), including the confidence gate's edge cases and an end-to-end proof
+  through the real controller that a 0.62 reading leaves the bet open while a 0.97 reading settles it.
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **eight** steps pass.
+
+### Still open
+- **The region is locate-able but not yet written**: the table was not on screen when the locator ran,
+  and it refused all four samples (0.23–0.42 against the 0.60 bar) rather than guessing.
+- No real **Tie** has been seen on this table yet.
 
 ---
 

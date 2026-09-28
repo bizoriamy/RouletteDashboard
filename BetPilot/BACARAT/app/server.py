@@ -540,6 +540,7 @@ class OcrController:
         self.pending = None
         self.events = []
         self.monitor = None
+        self._verify_reader = None
         if ocr is not None:
             self.monitor = ocr.OcrMonitor(STORE, self._on_candidate)
 
@@ -671,7 +672,25 @@ class OcrController:
             self._log(dict(base, action="pending"))
             return
 
-        # auto: validated signature, double read, not seen before, and an open bet to settle.
+        # auto: validated signature, double read, not seen before, and an open bet to settle. But only
+        # when the reading is certain enough to move money with nobody looking — otherwise the user
+        # gets the same confirm-or-correct prompt they would have had, instead of a silent bet.
+        scan_config = self.monitor.config.get("scan", {}) if self.monitor else {}
+        if not ocr.auto_is_confident_enough(decision.get("confidence"), scan_config):
+            detail = ("auto deferred: confidence %.2f is below the %.2f needed to settle on its own"
+                      % (float(decision.get("confidence") or 0.0),
+                         float(scan_config.get("autoMinConfidence", 0.9))))
+            with self._lock:
+                self.pending = dict(base, detectedAt=time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                    action="pending", detail=detail)
+            if self.monitor:
+                self.monitor.set_status(
+                    phase="candidate",
+                    message="%s detected, but only %.2f confidence — confirm it rather than letting "
+                            "Automatic settle it." % (str(result).upper(),
+                                                      float(decision.get("confidence") or 0.0)))
+            self._log(dict(base, action="pending", detail=detail))
+            return
         self._apply(base, "auto-settled", "Settled the open bet from the screen.")
 
     def _apply(self, base, action, message):
@@ -725,6 +744,22 @@ class OcrController:
         with self._lock:
             return self.events[-limit:]
 
+    def _verify_region(self, screen_bytes, region):
+        """Read the located region once, so a calibration proves itself instead of only scoring.
+
+        One call, and only when a region is found. A failure here is reported but never invalidates
+        the region itself: the location is geometry, the reading is the model's opinion.
+        """
+        try:
+            if self._verify_reader is None:
+                self._verify_reader = ocr.make_reader()
+            crop = ocr.crop_from_screen(screen_bytes, region)
+            parsed = ocr.parse_result_json(self._verify_reader(crop))
+            return {"result": parsed["result"], "confidence": parsed["confidence"],
+                    "evidence": parsed["evidence"][:160]}
+        except Exception as error:  # noqa: BLE001 - the reading is a bonus, not the answer
+            return {"error": "%s: %s" % (type(error).__name__, error)}
+
     def locate_table(self, payload):
         """Find the table on screen from a saved sample and write the region into the profile.
 
@@ -768,6 +803,8 @@ class OcrController:
         except ocr.OcrError as error:
             raise StateError(str(error), "locate-failed", 503)
 
+        if result["found"]:
+            result["reading"] = self._verify_region(screen, result["region"])
         if result["found"] and profile_path:
             ocr.apply_region_to_profile(profile_path, result["region"], result["sample"], result["score"])
             result["profileId"] = profile_id

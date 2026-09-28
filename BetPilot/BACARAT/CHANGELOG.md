@@ -5,6 +5,52 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.7.1-20260928-Baccarat (2026-09-28) — AUTOMATIC MODE EARNS ITS TRUST
+
+Two changes while the reader waits for its calibration, both about the one path that acts without you
+watching.
+
+### Safety — Automatic now holds a higher bar than a suggestion
+
+- Automatic settles a bet with nobody looking, so it demands **0.9 confidence** against the **0.5** that
+  merely *shows* you a reading to confirm (`autoMinConfidence` in `config/ocr.json`).
+- **Below that bar it does not act.** The reading is put in front of you to confirm or correct, exactly
+  as Confirm mode would — so an uncertain hand costs you a click, never a silently wrong settlement.
+- A reading with no confidence, or a nonsense value, is never acted on: the rule fails safe.
+- The bar is one function (`ocr.auto_is_confident_enough`) rather than logic buried in the controller,
+  which is why it can be tested directly.
+
+### Added — calibration that proves itself
+
+- After **Find my table** locates the region, it now **reads it once** and reports what it saw:
+  *"It reads: BANKER at 0.98 confidence"*. A location is geometry; whether the reader can actually make
+  sense of that crop is the thing you want to know, and now one click answers both.
+- If the test read finds nothing, it says so plainly — "it saw no clear result, check the saved crop" —
+  which is exactly the case where recalibrating is the fix. A failed test read never invalidates the
+  located region; the location and the reading are reported separately.
+
+### Added — a plain-language operating checklist
+
+The README now walks through running it live: open the table and don't move the window, choose
+Confirm, start, confirm or correct each hand, watch the accuracy line, and — the useful part — how to
+read the counters when nothing appears (duplicates climbing means it was already recorded, candidates
+climbing means it is reading fine, scans alone means it is watching an unchanged region).
+
+### Verified
+
+- **88 OCR checks** (up from 72) including the confidence gate's edge cases and an end-to-end proof
+  through the real controller that a 0.62 reading leaves the bet open and a 0.97 reading settles it.
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **eight** steps pass (72 engine,
+  60 UI wiring, 88 OCR, 19 locator, 93 HTTP, the settlement agreement and the credential scan).
+
+### Still open
+
+- **The region is locate-able but not yet written**: the table was not on screen when the locator ran,
+  and it refused all four samples (0.23–0.42 against the 0.60 bar) rather than guessing.
+- No real **Tie** has been seen on this table yet.
+
+---
+
 ## v2.7.0-20260928-Baccarat (2026-09-28) — CALIBRATION WITHOUT DRAGGING A BOX
 
 The last unmeasured step was the capture region: where on the screen to look. That needed either a

@@ -1,7 +1,7 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.7.0-20260928-Baccarat** (see `VERSION`)
-Status: **core complete and verified; the reader is correct on real screenshots of the user's table, and the region can now be located with one button**
+Version: **v2.7.1-20260928-Baccarat** (see `VERSION`)
+Status: **core complete and verified; the reader is correct on real screenshots of the user's table, the region can be located with one button, and Automatic mode is gated behind a confidence bar**
 
 This is a rebuild of the Baccarat module after the review in
 [REVIEW_Baccarat_v1.0.0-20260928.md](REVIEW_Baccarat_v1.0.0-20260928.md). The old module was five
@@ -116,8 +116,8 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 58 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button and the find-my-table button |
-| `python tests\ocr_test.py` | 72 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, and the handling of truncated, empty and unparseable model replies |
+| `python tests\ui_wiring_test.py` | 60 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
+| `python tests\ocr_test.py` | 88 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, the confidence gate that Automatic must clear, and the handling of truncated, empty and unparseable model replies |
 | `python tests\server_smoke.py` | 93 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
@@ -207,13 +207,39 @@ switch and its model id is pinned to `gemini-3.8-flash` (the older ids are no lo
 |---|---|
 | **Observe** | Records every result as a *no-bet* hand: money-neutral, builds the bead plate, never places a bet |
 | **Confirm** | Shows what it read, lets you correct the result, and records nothing until you approve |
-| **Automatic** | Settles your **open bet** from the screen — only for a doubled-read, signature-validated result that has not been seen before |
+| **Automatic** | Settles your **open bet** from the screen — only for a doubled-read, signature-validated result that has not been seen before, **and only at 0.9 confidence or better**; anything less certain is handed to you to confirm |
 
 Duplicate safety is by design, not by luck. Each reading carries a signature of the region, stored
 with the hand, so the same hand cannot be recorded twice — even after a restart. A result arriving
 late (you settled by hand already) finds no open bet and is recorded as a no-bet observation; OCR
 never invents a bet. When OCR is unsure it says so and records nothing: a missed hand is safe, a
 duplicated one is not.
+
+**Automatic mode holds a higher bar than a suggestion.** It settles a bet with nobody looking, so it
+demands 0.9 confidence (`autoMinConfidence` in `config/ocr.json`) against the 0.5 that merely shows a
+reading for confirmation. Below that bar it does not act — it puts the reading in front of you to
+confirm, exactly as Confirm mode would. A reading with no confidence at all is never acted on.
+
+### Running it live, step by step
+
+1. Open your Baccarat table and leave the window where it was when you calibrated. Moving or resizing
+   it invalidates the region — press **Find my table** again, or re-run `calibrate.py`.
+2. In the module's **OCR panel**, pick your profile and set the mode to **Confirm** (not Automatic —
+   not yet).
+3. Press **Start reading**. The panel shows scans, candidates and duplicates as they happen.
+4. When a hand is read, the panel shows what it saw. Press **Confirm** (or Enter) if it matches the
+   table; correct the result from the dropdown first if it does not; **Reject** (Backspace) if it is
+   wrong. Nothing is recorded until you decide.
+5. Watch the **accuracy line**. Under 20 readings it says "too few to judge". Once it has a clean
+   record, Automatic becomes a reasonable choice — and even then it will hand you anything it is not
+   sure about.
+6. If nothing is ever detected: check the profile says calibrated, press **Save a screenshot sample**
+   and open the picture it saves. If the picture does not clearly show the hand result, the region is
+   wrong and no prompt can save it — recalibrate.
+
+The counters tell you which of these is happening: **duplicates** climbing means the hand was already
+recorded (correct behaviour, not an error); **candidates** climbing means it is reading fine;
+**scans** climbing with neither means it is watching but the region has not changed.
 
 ---
 

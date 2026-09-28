@@ -518,6 +518,71 @@ def test_retry():
               "connection reset" in str(error), error)
 
 
+def test_auto_confidence_gate():
+    print("\nAUTOMATIC MODE HOLDS A HIGHER BAR THAN A SUGGESTION")
+    check("a reading at the default bar may settle automatically",
+          ocr.auto_is_confident_enough(0.90) is True, "0.90 was refused")
+    check("anything less certain must be confirmed by the user",
+          all(ocr.auto_is_confident_enough(value) is False for value in (0.0, 0.5, 0.85, 0.89)),
+          "a low-confidence reading would have settled a bet on its own")
+    check("the automatic bar is higher than the confirmation bar",
+          float(ocr.DEFAULT_CONFIG["scan"]["autoMinConfidence"]) >
+          float(ocr.DEFAULT_CONFIG["scan"]["minConfidence"]),
+          ocr.DEFAULT_CONFIG["scan"])
+    check("a missing confidence never settles automatically",
+          ocr.auto_is_confident_enough(None) is False, "None was treated as certain")
+    check("a nonsense confidence never settles automatically",
+          ocr.auto_is_confident_enough("banana") is False, "a string was treated as certain")
+    check("a custom bar is honoured",
+          ocr.auto_is_confident_enough(0.75, {"autoMinConfidence": 0.7}) is True, "0.75 < a 0.7 bar")
+    check("a broken bar falls back to the default",
+          ocr.auto_is_confident_enough(0.85, {"autoMinConfidence": "wide"}) is False,
+          "a broken setting relaxed the bar")
+    with open(os.path.join(APP_DIR, "..", "config", "ocr.json"), "r", encoding="utf-8") as handle:
+        stored = json.load(handle)
+    check("the shipped config carries the automatic bar",
+          float(stored["scan"]["autoMinConfidence"]) > float(stored["scan"]["minConfidence"]),
+          stored["scan"])
+
+
+def test_auto_deferral():
+    print("\nAUTO MODE HANDS AN UNCERTAIN READING TO THE USER INSTEAD OF BETTING ON IT")
+    import server
+    server.STORE.clear()
+    fresh_session()
+    server.STORE.place({"side": "player", "stakeUnits": 1})
+    controller = server.OcrController()
+    controller.pending = None
+
+    def open_wagers():
+        session = server.STORE.load() or {}
+        return session.get("openWagers", [])
+
+    check("the session starts with an open bet", len(open_wagers()) == 1, open_wagers())
+
+    controller._on_candidate({"result": "player", "confidence": 0.62, "signature": "low",
+                              "evidence": "blue panel"}, "auto")
+    check("a 0.62 reading does not settle the bet by itself", len(open_wagers()) == 1, open_wagers())
+    check("it is offered for confirmation instead", controller.pending is not None, controller.pending)
+    check("the reason is recorded with it",
+          "auto deferred" in (controller.pending or {}).get("detail", ""),
+          (controller.pending or {}).get("detail"))
+    check("and the user is told to confirm it",
+          "confirm it" in (controller.monitor.snapshot().get("message") or ""),
+          controller.monitor.snapshot().get("message"))
+
+    controller._on_candidate({"result": "banker", "confidence": 0.97, "signature": "high",
+                              "evidence": "red totals 8 over blue 7"}, "auto")
+    session = server.STORE.load() or {}
+    hands = session.get("hands", [])
+    check("a 0.97 reading settles it", len(hands) == 1 and hands[-1]["result"] == "banker",
+          hands)
+    check("and the bet is no longer open", open_wagers() == [], open_wagers())
+    check("the settled hand kept the screen signature",
+          hands and hands[-1].get("signature") == "high", hands)
+    server.STORE.clear()
+
+
 def main():
     test_scan_decisions()
     test_parsing()
@@ -526,6 +591,8 @@ def main():
     test_event_stats()
     test_truncated_replies()
     test_retry()
+    test_auto_confidence_gate()
+    test_auto_deferral()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
