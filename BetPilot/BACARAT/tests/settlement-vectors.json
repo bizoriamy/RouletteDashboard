@@ -11821,41 +11821,42 @@
     "playerPayout": 1,
     "tiePayout": 8
    },
+   "openWagers": [],
    "hands": [
     {
      "side": "banker",
-     "result": "banker",
      "stakeUnits": 2,
+     "result": "banker",
      "outcome": "lose"
     },
     {
      "side": "banker",
-     "result": "tie",
      "stakeUnits": 5,
+     "result": "tie",
      "outcome": null
     },
     {
      "side": "tie",
-     "result": "tie",
      "stakeUnits": 1,
+     "result": "tie",
      "outcome": null
     },
     {
      "side": "pass",
-     "result": "banker",
      "stakeUnits": 0,
+     "result": "banker",
      "outcome": null
     },
     {
      "side": "player",
-     "result": "player",
      "stakeUnits": 3,
+     "result": "player",
      "outcome": null
     },
     {
      "side": "banker",
-     "result": "player",
      "stakeUnits": 4,
+     "result": "player",
      "outcome": null
     }
    ],
@@ -11864,6 +11865,7 @@
     "netCents": 4450,
     "commissionCents": 50,
     "stakedUnits": 15,
+    "wagers": 5,
     "bets": 5,
     "totalHands": 6,
     "wins": 3,
@@ -11911,23 +11913,24 @@
     "playerPayout": 1,
     "tiePayout": 9
    },
+   "openWagers": [],
    "hands": [
     {
      "side": "pass",
-     "result": "tie",
      "stakeUnits": 0,
+     "result": "tie",
      "outcome": null
     },
     {
      "side": "banker",
-     "result": "tie",
      "stakeUnits": 1,
+     "result": "tie",
      "outcome": null
     },
     {
      "side": "player",
-     "result": "tie",
      "stakeUnits": 1,
+     "result": "tie",
      "outcome": null
     }
    ],
@@ -11936,6 +11939,7 @@
     "netCents": 0,
     "commissionCents": 0,
     "stakedUnits": 2,
+    "wagers": 2,
     "bets": 2,
     "totalHands": 3,
     "wins": 0,
@@ -11977,35 +11981,36 @@
     "playerPayout": 1,
     "tiePayout": 8
    },
+   "openWagers": [],
    "hands": [
     {
      "side": "banker",
-     "result": "banker",
      "stakeUnits": 1,
+     "result": "banker",
      "outcome": null
     },
     {
      "side": "banker",
-     "result": "banker",
      "stakeUnits": 1,
+     "result": "banker",
      "outcome": null
     },
     {
      "side": "tie",
-     "result": "tie",
      "stakeUnits": 1,
+     "result": "tie",
      "outcome": null
     },
     {
      "side": "player",
+     "stakeUnits": 2,
      "result": "banker",
-     "stakeUnits": 2,
      "outcome": null
     },
     {
      "side": "player",
-     "result": "player",
      "stakeUnits": 2,
+     "result": "player",
      "outcome": null
     }
    ],
@@ -12014,6 +12019,7 @@
     "netCents": 24500,
     "commissionCents": 500,
     "stakedUnits": 7,
+    "wagers": 5,
     "bets": 5,
     "totalHands": 5,
     "wins": 4,
@@ -12046,6 +12052,137 @@
     "longest": {
      "banker": 2,
      "player": 1,
+     "tie": 1
+    }
+   }
+  },
+  {
+   "casino": "Vector D (hedged hands)",
+   "startingUnits": 80,
+   "unitValueCents": 500,
+   "rules": {
+    "commissionRate": 0.05,
+    "playerPayout": 1,
+    "tiePayout": 8
+   },
+   "openWagers": [
+    {
+     "side": "banker",
+     "stakeUnits": 3
+    }
+   ],
+   "hands": [
+    {
+     "wagers": [
+      {
+       "side": "banker",
+       "stakeUnits": 10
+      },
+      {
+       "side": "tie",
+       "stakeUnits": 1
+      }
+     ],
+     "result": "banker"
+    },
+    {
+     "wagers": [
+      {
+       "side": "banker",
+       "stakeUnits": 10
+      },
+      {
+       "side": "tie",
+       "stakeUnits": 1
+      }
+     ],
+     "result": "tie"
+    },
+    {
+     "wagers": [
+      {
+       "side": "player",
+       "stakeUnits": 4
+      },
+      {
+       "side": "tie",
+       "stakeUnits": 2
+      }
+     ],
+     "result": "player"
+    },
+    {
+     "wagers": [
+      {
+       "side": "banker",
+       "stakeUnits": 5
+      },
+      {
+       "side": "tie",
+       "stakeUnits": 1
+      }
+     ],
+     "result": "player"
+    },
+    {
+     "wagers": [
+      {
+       "side": "tie",
+       "stakeUnits": 3
+      }
+     ],
+     "result": "tie"
+    },
+    {
+     "wagers": [
+      {
+       "side": "pass",
+       "stakeUnits": 0
+      }
+     ],
+     "result": "banker"
+    }
+   ],
+   "derived": {
+    "bankrollCents": 58250,
+    "netCents": 18250,
+    "commissionCents": 250,
+    "stakedUnits": 37,
+    "wagers": 9,
+    "bets": 9,
+    "totalHands": 6,
+    "wins": 4,
+    "losses": 1,
+    "pushes": 0,
+    "voids": 1,
+    "bankerResults": 2,
+    "playerResults": 2,
+    "tieResults": 2,
+    "winRate": 80,
+    "maxDrawdownCents": 3000,
+    "sequence": [
+     "banker",
+     "tie",
+     "player",
+     "player",
+     "tie",
+     "banker"
+    ],
+    "last20": [
+     "banker",
+     "tie",
+     "player",
+     "player",
+     "tie",
+     "banker"
+    ],
+    "streak": {
+     "result": "banker",
+     "length": 1
+    },
+    "longest": {
+     "banker": 1,
+     "player": 2,
      "tie": 1
     }
    }

@@ -154,6 +154,25 @@ def longest_streaks(sequence):
     return longest
 
 
+def open_wagers(session):
+    """The wagers waiting on a result. Accepts the v2 single openBet shape as well."""
+    if not session:
+        return []
+    wagers = session.get("openWagers")
+    if isinstance(wagers, list):
+        return wagers
+    open_bet = session.get("openBet")
+    return [open_bet] if open_bet else []
+
+
+def hand_wagers(hand):
+    """A stored hand as a list of wagers, accepting the v2 single-wager shape."""
+    wagers = hand.get("wagers")
+    if isinstance(wagers, list) and wagers:
+        return [{"side": w.get("side"), "stakeUnits": w.get("stakeUnits")} for w in wagers]
+    return [{"side": hand.get("side"), "stakeUnits": hand.get("stakeUnits")}]
+
+
 def derive(session):
     """Recompute every figure from the recorded inputs. Stored derived values are never trusted."""
     rules = normalize_rules(session.get("rules"))
@@ -161,7 +180,7 @@ def derive(session):
     starting_units = session.get("startingUnits") if isinstance(session.get("startingUnits"), int) else 0
 
     totals = {
-        "hands": 0, "bets": 0, "wins": 0, "losses": 0, "pushes": 0, "voids": 0,
+        "hands": 0, "wagers": 0, "bets": 0, "wins": 0, "losses": 0, "pushes": 0, "voids": 0,
         "stakedUnits": 0, "netCents": 0, "commissionCents": 0,
         "bankerResults": 0, "playerResults": 0, "tieResults": 0,
     }
@@ -172,27 +191,64 @@ def derive(session):
     max_drawdown_cents = 0
 
     for index, hand in enumerate(session.get("hands", [])):
-        settled = settle(hand.get("side"), hand.get("result"), hand.get("stakeUnits"), unit_value_cents, rules)
-        enriched = dict(settled)
-        enriched["n"] = index + 1
-        enriched["at"] = hand.get("at")
-        enriched["source"] = "ocr" if hand.get("source") == "ocr" else "manual"
-        enriched["recordedOutcome"] = hand.get("outcome")
-        enriched["outcomeMismatch"] = bool(hand.get("outcome") and hand.get("outcome") != settled["outcome"])
+        settled_wagers = []
+        for wager in hand_wagers(hand):
+            settled = settle(wager.get("side"), hand.get("result"), wager.get("stakeUnits"),
+                             unit_value_cents, rules)
+            settled_wagers.append({
+                "side": settled["side"],
+                "stakeUnits": settled["stakeUnits"],
+                "stakeCents": settled["stakeCents"],
+                "outcome": settled["outcome"],
+                "profitCents": settled["profitCents"],
+                "commissionCents": settled["commissionCents"],
+            })
+
+        stake_units = sum(wager["stakeUnits"] for wager in settled_wagers)
+        stake_cents = sum(wager["stakeCents"] for wager in settled_wagers)
+        commission_cents = sum(wager["commissionCents"] for wager in settled_wagers)
+        profit_cents = sum(wager["profitCents"] for wager in settled_wagers)
+        is_pass = len(settled_wagers) == 1 and settled_wagers[0]["side"] == "pass"
+        # The hand's outcome is the NET of its wagers.
+        if is_pass:
+            outcome = "void"
+        elif profit_cents > 0:
+            outcome = "win"
+        elif profit_cents < 0:
+            outcome = "lose"
+        else:
+            outcome = "push"
+
+        enriched = {
+            "n": index + 1,
+            "at": hand.get("at"),
+            "source": "ocr" if hand.get("source") == "ocr" else "manual",
+            "wagers": settled_wagers,
+            "result": normalize_result(hand.get("result")),
+            "outcome": outcome,
+            "isPass": is_pass,
+            "stakeUnits": stake_units,
+            "stakeCents": stake_cents,
+            "profitCents": profit_cents,
+            "commissionCents": commission_cents,
+            "side": "pass" if is_pass else ("+".join(wager["side"] for wager in settled_wagers)),
+            "recordedOutcome": hand.get("outcome"),
+            "outcomeMismatch": bool(hand.get("outcome") and hand.get("outcome") != outcome),
+        }
 
         totals["hands"] += 1
-        totals["commissionCents"] += enriched["commissionCents"]
-        if enriched["side"] == "pass":
+        totals["commissionCents"] += commission_cents
+        if is_pass:
             totals["voids"] += 1
         else:
-            totals["bets"] += 1
-            totals["stakedUnits"] += enriched["stakeUnits"]
+            totals["wagers"] += len(settled_wagers)
+            totals["stakedUnits"] += stake_units
 
-        if enriched["outcome"] == "win":
+        if outcome == "win":
             totals["wins"] += 1
-        elif enriched["outcome"] == "lose":
+        elif outcome == "lose":
             totals["losses"] += 1
-        elif enriched["outcome"] == "push":
+        elif outcome == "push":
             totals["pushes"] += 1
 
         if enriched["result"] == "banker":
@@ -212,7 +268,7 @@ def derive(session):
         hands.append(enriched)
 
     bankroll_cents = starting_units * unit_value_cents + totals["netCents"]
-    settled_bets = totals["wins"] + totals["losses"] + totals["pushes"]
+    settled_hands = totals["wins"] + totals["losses"] + totals["pushes"]
 
     return {
         "hands": hands,
@@ -224,7 +280,8 @@ def derive(session):
         "netUnits": round(totals["netCents"] / unit_value_cents, 2) if unit_value_cents else 0,
         "commissionCents": totals["commissionCents"],
         "stakedUnits": totals["stakedUnits"],
-        "bets": totals["bets"],
+        "wagers": totals["wagers"],
+        "bets": totals["wagers"],
         "totalHands": totals["hands"],
         "wins": totals["wins"],
         "losses": totals["losses"],
@@ -233,7 +290,7 @@ def derive(session):
         "bankerResults": totals["bankerResults"],
         "playerResults": totals["playerResults"],
         "tieResults": totals["tieResults"],
-        "winRate": round((totals["wins"] / settled_bets) * 100, 2) if settled_bets else 0,
+        "winRate": round((totals["wins"] / settled_hands) * 100, 2) if settled_hands else 0,
         "maxDrawdownCents": max_drawdown_cents,
         "last20": sequence[-20:],
         "streak": current_streak(sequence),

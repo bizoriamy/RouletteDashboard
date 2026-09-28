@@ -153,12 +153,28 @@ def main():
 
         print("\nBETTING — the guards that did not exist before")
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 10})
-        check("a Banker bet of 10u is accepted", status == 200 and body["session"]["openBet"]["side"] == "banker")
+        check("a Banker bet of 10u is accepted",
+              status == 200 and body["session"]["openWagers"][0]["side"] == "banker", json.dumps(body)[:200])
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 5})
+        check("the same side cannot be bet twice on one hand",
+              status == 409 and body.get("code") == "duplicate-wager", "%s %s" % (status, body))
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "player", "stakeUnits": 10})
-        check("a second bet while one is open is refused (H7)",
-              status == 409 and body.get("code") == "bet-already-open", "%s %s" % (status, body))
+        check("Banker and Player cannot both be bet on one hand",
+              status == 409 and body.get("code") == "conflicting-wager", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "tie", "stakeUnits": 1})
+        check("a Tie bet CAN be added alongside Banker",
+              status == 200 and len(body["session"]["openWagers"]) == 2,
+              json.dumps(body.get("session", {}).get("openWagers"))[:200])
+        status, body = request("/api/baccarat/hand", {"action": "remove", "side": "tie"})
+        check("a single wager can be taken off the hand",
+              status == 200 and len(body["session"]["openWagers"]) == 1, json.dumps(body)[:200])
+        status, body = request("/api/baccarat/hand", {"action": "remove", "side": "tie"})
+        check("removing a wager that is not open is refused",
+              status == 409 and body.get("code") == "no-open-wager", "%s %s" % (status, body))
+        # Clear the hand so the stake-validation checks below are not masked by the wager guards.
         status, body = request("/api/baccarat/hand", {"action": "cancel"})
-        check("the open bet can be cancelled", status == 200 and body["session"]["openBet"] is None)
+        check("cancelling clears the open hand", status == 200 and body["session"]["openWagers"] == [],
+              json.dumps(body)[:200])
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 500})
         check("a stake larger than the bankroll is refused (M2)",
               status == 400 and body.get("code") == "stake-over-bankroll", "%s %s" % (status, body))
@@ -168,7 +184,29 @@ def main():
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 0})
         check("a zero stake is refused", status == 400 and body.get("code") == "bad-stake", "%s %s" % (status, body))
         status, state_body = request("/api/baccarat/state")
-        check("a refused bet leaves no open bet behind", state_body["session"]["openBet"] is None)
+        check("a refused bet leaves no open wager behind", state_body["session"]["openWagers"] == [])
+
+        print("\nHEDGED HANDS — a Tie bet alongside Banker or Player")
+        request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 10})
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "tie", "stakeUnits": 1})
+        check("both wagers are committed", len(body["session"]["openWagers"]) == 2)
+        status, body = request("/api/baccarat/hand", {"action": "settle", "result": "tie"})
+        hedged = body["derived"]
+        check("one result settles both wagers",
+              hedged["hands"][0]["wagers"][0]["outcome"] == "push"
+              and hedged["hands"][0]["wagers"][1]["outcome"] == "win",
+              json.dumps(hedged["hands"][0])[:220])
+        check("the hedged hand nets the Tie win (8:1 on 1u at $5)",
+              hedged["netCents"] == 4000, hedged["netCents"])
+        check("it counts as one hand with two wagers",
+              hedged["totalHands"] == 1 and hedged["wagers"] == 2,
+              json.dumps({key: hedged[key] for key in ("totalHands", "wagers")}))
+        check("the hand is a win for the statistics", hedged["wins"] == 1 and hedged["pushes"] == 0,
+              json.dumps({key: hedged[key] for key in ("wins", "pushes")}))
+        status, body = request("/api/baccarat/hand", {"action": "undo"})
+        check("the hedged hand undoes in one step", body["derived"]["totalHands"] == 0, json.dumps(body)[:200])
+        check("undoing it restores the bankroll", body["derived"]["bankrollCents"] == 100000,
+              body["derived"]["bankrollCents"])
 
         print("\nSETTLEMENT — outcomes are derived, never submitted")
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 10})
@@ -218,12 +256,15 @@ def main():
             csv = response.read().decode("utf-8")
         lines = [line for line in csv.strip().split("\n") if line]
         check("CSV export has a header and one row per hand", len(lines) == 5, "lines=%d" % len(lines))
+        check("CSV export carries the wager breakdown column", lines[0].strip().endswith("wagers"), lines[0])
         check("CSV export shows the derived outcome", ",win," in csv or ",lose," in csv, csv[:200])
         check("CSV export never contains a key or a path outside the module", "sk-" not in csv and "PawWork" not in csv)
         with urllib.request.urlopen(BASE + "/api/baccarat/export?format=json", timeout=5) as response:
             exported = json.loads(response.read().decode("utf-8"))
         check("JSON export round-trips the recorded inputs",
-              exported["hands"][0]["side"] == "banker" and exported["hands"][0]["result"] == "tie")
+              exported["hands"][0]["wagers"][0]["side"] == "banker"
+              and exported["hands"][0]["result"] == "tie",
+              json.dumps(exported["hands"][0])[:200])
 
         print("\nPERSISTENCE ACROSS A RESTART")
         restarted = subprocess.Popen(

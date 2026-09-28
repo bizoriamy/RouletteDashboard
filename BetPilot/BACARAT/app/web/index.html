@@ -1,21 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BetPilot Baccarat — v2.0.0-20260928-Baccarat</title>
+<title>BetPilot Baccarat — v2.1.0-20260928-Baccarat</title>
 <link rel="stylesheet" href="baccarat.css">
 <meta name="description" content="BetPilot Baccarat — bet assistance and record keeping. No win guarantee. Check local gambling laws. 18+.">
 </head>
 <body>
-
-<!-- Required disclaimer: always visible, never removable (DISCLAIMER.md, Disclaimer 1 + 2) -->
-<div class="disclaimer-bar" role="note" aria-label="Required disclaimer">
-  <strong>DISCLAIMER:</strong> BetPilot is a bet-assistance and record-keeping tool. It does NOT predict
-  outcomes, guarantee winnings, or provide betting advice. Every casino game has random outcomes and a
-  house edge. Only bet what you can afford to lose. Check your local gambling laws. You must be 18+ (or
-  the legal gambling age where you are). <strong>Responsible gambling.</strong>
-</div>
 
 <header class="top-bar">
   <div class="brand">
@@ -66,7 +58,7 @@
       <label class="field">
         <span class="field-label">Table provider / layout</span>
         <select id="input-layout"></select>
-        <span class="field-hint">Used to pick the capture region once OCR is connected.</span>
+        <span class="field-hint">Used to pick the capture region once OCR is calibrated.</span>
       </label>
 
       <label class="field">
@@ -96,7 +88,7 @@
 </main>
 
 <!-- ============================== TABLE (session active) ============================== -->
-<main class="screen" id="table-screen" hidden aria-label="Baccarat table">
+<main class="screen table-screen" id="table-screen" hidden aria-label="Baccarat table">
   <section class="session-strip" aria-label="Session">
     <div class="strip-item">
       <span class="strip-label">Casino</span>
@@ -142,7 +134,7 @@
         <div class="stake-row">
           <button type="button" class="btn btn-unit" id="btn-double">×2</button>
           <button type="button" class="btn btn-unit" id="btn-halve">÷2</button>
-          <button type="button" class="btn btn-unit" id="btn-clear">Clear (back to 1u)</button>
+          <button type="button" class="btn btn-unit btn-clear" id="btn-clear">Clear (1u)</button>
         </div>
         <p class="stake-echo" id="stake-echo">1 unit = $5.00</p>
       </div>
@@ -150,7 +142,7 @@
       <div class="panel" id="bet-panel">
         <div class="panel-head">
           <h2>Place a bet</h2>
-          <span class="panel-hint">The result you record afterwards decides win, lose or push.</span>
+          <span class="panel-hint">Add Tie on top of Banker or Player if you like.</span>
         </div>
         <div class="bet-buttons">
           <button type="button" class="btn btn-banker" id="btn-banker">
@@ -166,35 +158,36 @@
         <button type="button" class="btn btn-pass" id="btn-pass">PASS — no bet this hand</button>
       </div>
 
-      <div class="panel open-bet" id="open-bet" hidden>
+      <div class="panel open-bets" id="open-bets" hidden>
         <div class="panel-head">
-          <h2>Open bet — waiting for the result</h2>
+          <h2>Open hand — waiting for the result</h2>
+          <span class="panel-hint" id="open-bets-total">—</span>
         </div>
-        <p class="open-bet-line" id="open-bet-text">—</p>
+        <ul class="wager-list" id="open-bets-list"></ul>
         <p class="open-bet-hint">
-          Record what the table actually showed. Banker and Player bets <strong>push</strong> on a Tie;
+          Record what the table showed. Banker and Player bets <strong>push</strong> on a Tie;
           a Tie bet wins on a Tie and loses on anything else.
         </p>
         <div class="result-buttons">
           <button type="button" class="btn btn-result r-banker" id="btn-res-banker">Banker</button>
           <button type="button" class="btn btn-result r-player" id="btn-res-player">Player</button>
           <button type="button" class="btn btn-result r-tie" id="btn-res-tie">Tie</button>
-          <button type="button" class="btn btn-ghost" id="btn-cancel-bet">Cancel bet</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel-bets">Cancel all</button>
         </div>
       </div>
 
-      <div class="panel" id="ocr-panel">
-        <div class="panel-head">
-          <h2>Screen reading (OCR)</h2>
+      <details class="panel" id="ocr-panel">
+        <summary>
+          Screen reading (OCR)
           <span class="panel-hint" id="ocr-availability">checking…</span>
-        </div>
+        </summary>
         <div class="ocr-controls">
           <label class="field">
             <span class="field-label">Mode</span>
             <select id="ocr-mode">
               <option value="observe">Observe — record every result, never a bet</option>
               <option value="confirm" selected>Confirm — show me each hand first</option>
-              <option value="auto">Automatic — settle my open bet from the screen</option>
+              <option value="auto">Automatic — settle my open hand from the screen</option>
             </select>
           </label>
           <label class="field">
@@ -232,12 +225,10 @@
           OCR reads the screen and gives you the same two inputs you would type. It never predicts, and it
           never records a hand twice — each reading carries a signature of the screen region.
         </p>
-      </div>
+      </details>
 
       <div class="panel">
-        <div class="panel-head">
-          <h2>Session actions</h2>
-        </div>
+        <div class="panel-head"><h2>Session actions</h2></div>
         <div class="action-row">
           <button type="button" class="btn btn-ghost" id="btn-undo">Undo last hand</button>
           <button type="button" class="btn btn-end" id="btn-end">End session</button>
@@ -251,7 +242,7 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Bead plate</h2>
-          <span class="panel-hint">Oldest to newest, all recorded results</span>
+          <span class="panel-hint">Oldest to newest</span>
         </div>
         <div class="bead-plate" id="bead-plate"></div>
       </div>
@@ -260,21 +251,22 @@
         <div class="panel-head"><h2>Statistics</h2></div>
         <dl class="stats">
           <div><dt>Hands</dt><dd id="stat-hands">0</dd></div>
+          <div><dt>Wagers</dt><dd id="stat-wagers">0</dd></div>
           <div><dt>Wins</dt><dd id="stat-wins">0</dd></div>
           <div><dt>Losses</dt><dd id="stat-losses">0</dd></div>
           <div><dt>Pushes</dt><dd id="stat-pushes">0</dd></div>
           <div><dt>No bet</dt><dd id="stat-voids">0</dd></div>
           <div><dt>Win rate</dt><dd id="stat-winrate">0%</dd></div>
-          <div><dt>Current streak</dt><dd id="stat-streak">—</dd></div>
+          <div><dt>Streak</dt><dd id="stat-streak">—</dd></div>
           <div><dt>Longest B/P/T</dt><dd id="stat-longest">0 / 0 / 0</dd></div>
           <div><dt>Max drawdown</dt><dd id="stat-drawdown">$0.00</dd></div>
         </dl>
         <p class="stats-note">
-          Statistics describe what you recorded. They are not a prediction and cannot predict the next hand.
+          Statistics describe what you recorded. They are not a prediction.
         </p>
       </div>
 
-      <div class="panel">
+      <div class="panel panel-hands">
         <div class="panel-head">
           <h2>Hand history</h2>
           <span class="panel-hint" id="hands-count">0 hands</span>
@@ -306,9 +298,19 @@
   </section>
 </main>
 
-<footer class="foot">
-  <span>Manual entry — nothing is recorded until you record it.</span>
-  <span id="foot-build">BetPilot Baccarat</span>
+<!-- Required disclaimer: always visible at the foot of the page (DISCLAIMER.md).
+     Relocated here at the user's request; it stays visible, never hidden. -->
+<footer class="bottom-bar" role="note" aria-label="Required disclaimer">
+  <div class="disclaimer-text">
+    <strong>DISCLAIMER:</strong> BetPilot is a bet-assistance and record-keeping tool. It does NOT predict
+    outcomes, guarantee winnings, or provide betting advice. Every casino game has random outcomes and a
+    house edge. Only bet what you can afford to lose. Check your local gambling laws. You must be 18+ (or
+    the legal gambling age where you are). <strong>Responsible gambling.</strong>
+  </div>
+  <div class="bottom-meta">
+    <span>Manual or screen-read entry — nothing is recorded until you record it.</span>
+    <span id="foot-build">BetPilot Baccarat</span>
+  </div>
 </footer>
 
 <script src="engine.js"></script>

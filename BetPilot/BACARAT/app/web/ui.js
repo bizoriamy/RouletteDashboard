@@ -36,12 +36,14 @@
       "stake-units", "stake-hint", "stake-echo", "btn-minus5", "btn-minus1", "btn-plus1", "btn-plus5",
       "btn-double", "btn-halve", "btn-clear",
       "bet-panel", "btn-banker", "btn-player", "btn-tie", "btn-pass", "tie-payout-label",
-      "open-bet", "open-bet-text", "btn-res-banker", "btn-res-player", "btn-res-tie", "btn-cancel-bet",
+      "open-bets", "open-bets-list", "open-bets-total", "btn-res-banker", "btn-res-player",
+      "btn-res-tie", "btn-cancel-bets",
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
+      "ocr-panel",
       "ocr-availability", "ocr-mode", "ocr-profile", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
       "ocr-status", "ocr-counters", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
-      "bead-plate", "stat-hands", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
+      "bead-plate", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
       "stat-winrate", "stat-streak", "stat-longest", "stat-drawdown",
       "hands-count", "hands-body",
       "ended-lede", "ended-stats", "btn-new-session", "ended-export-csv", "ended-export-json",
@@ -115,7 +117,7 @@
     show("table");
     renderStrip(session, derived);
     renderStake(session, derived);
-    renderOpenBet(session, derived);
+    renderOpenBets(session, derived);
     renderBeadPlate(derived);
     renderStats(derived);
     renderHands(session, derived);
@@ -151,45 +153,95 @@
     return Math.floor(derived.bankrollCents / session.unitValueCents);
   }
 
+  function openWagers(session) {
+    if (!session) return [];
+    if (Array.isArray(session.openWagers)) return session.openWagers;
+    return session.openBet ? [session.openBet] : [];
+  }
+
+  function committedUnits(session) {
+    return openWagers(session).reduce(function (sum, wager) { return sum + (wager.stakeUnits || 0); }, 0);
+  }
+
   function renderStake(session, derived) {
     var max = maxStakeUnits(session, derived);
-    var open = Boolean(session.openBet);
-    state.stake = Math.max(1, Math.min(state.stake, Math.max(1, max)));
+    var committed = committedUnits(session);
+    var remaining = Math.max(0, max - committed);
+    // The stake controls stay live while a hand is open, so a Tie side bet can be added with its own
+    // stake. The ceiling shrinks to whatever the open wagers have not already committed.
+    state.stake = Math.max(1, Math.min(state.stake, Math.max(1, remaining || 1)));
     el["stake-units"].value = state.stake;
-    el["stake-units"].max = Math.max(1, max);
-    el["stake-echo"].textContent = state.stake + " unit" + (state.stake === 1 ? "" : "s") + " = " + money(state.stake * session.unitValueCents);
+    el["stake-units"].max = Math.max(1, remaining || 1);
+    el["stake-echo"].textContent = state.stake + " unit" + (state.stake === 1 ? "" : "s") +
+      " = " + money(state.stake * session.unitValueCents);
 
-    if (open) {
-      el["stake-hint"].textContent = "locked while a bet is open";
-    } else if (max < 1) {
-      el["stake-hint"].textContent = "bankroll exhausted — no bet possible";
+    if (remaining < 1) {
+      el["stake-hint"].textContent = committed
+        ? committed + "u committed — bankroll fully committed"
+        : "bankroll exhausted — no bet possible";
+    } else if (committed) {
+      el["stake-hint"].textContent = committed + "u committed · " + remaining + "u left";
     } else {
       el["stake-hint"].textContent = "max " + max + "u";
     }
 
-    var stakeLocked = open || max < 1 || state.busy;
+    var busy = state.busy;
     ["btn-minus5", "btn-minus1", "btn-plus1", "btn-plus5", "btn-double", "btn-halve", "btn-clear"].forEach(function (id) {
-      el[id].disabled = stakeLocked;
+      el[id].disabled = busy || remaining < 1;
     });
-    el["stake-units"].disabled = stakeLocked;
-    ["btn-banker", "btn-player", "btn-tie", "btn-pass"].forEach(function (id) {
-      el[id].disabled = open || max < 1 || state.busy;
-    });
+    el["stake-units"].disabled = busy || remaining < 1;
+
+    var has = { banker: false, player: false, tie: false };
+    openWagers(session).forEach(function (wager) { has[wager.side] = true; });
+    var anyOpen = openWagers(session).length > 0;
+
+    el["btn-banker"].disabled = busy || remaining < 1 || has.banker || has.player;
+    el["btn-player"].disabled = busy || remaining < 1 || has.player || has.banker;
+    el["btn-tie"].disabled = busy || remaining < 1 || has.tie;
+    el["btn-pass"].disabled = busy || anyOpen || max < 1;
+
+    var slot = document.getElementById("bet-panel");
+    if (slot) slot.dataset.open = anyOpen ? "true" : "false";
   }
 
-  function renderOpenBet(session, derived) {
-    if (!session.openBet) {
-      el["open-bet"].hidden = true;
-      return;
-    }
-    el["open-bet"].hidden = false;
-    var bet = session.openBet;
-    var cash = bet.stakeUnits * session.unitValueCents;
-    el["open-bet-text"].textContent = bet.side.toUpperCase() + " · " + bet.stakeUnits + "u (" + money(cash) + ") placed " + (bet.placedAt || "");
-    ["btn-res-banker", "btn-res-player", "btn-res-tie", "btn-cancel-bet"].forEach(function (id) {
+  function renderOpenBets(session, derived) {
+    var wagers = openWagers(session);
+    el["open-bets"].hidden = wagers.length === 0;
+    if (!wagers.length) return;
+
+    var totalUnits = committedUnits(session);
+    el["open-bets-total"].textContent = totalUnits + "u committed · " + money(totalUnits * session.unitValueCents);
+
+    var list = el["open-bets-list"];
+    list.textContent = "";
+    wagers.forEach(function (wager) {
+      var item = document.createElement("li");
+      var tag = document.createElement("span");
+      tag.className = "tag " + wager.side;
+      tag.textContent = wager.side.toUpperCase();
+      var stake = document.createElement("span");
+      stake.className = "wager-stake";
+      stake.textContent = wager.stakeUnits + "u (" + money(wager.stakeUnits * session.unitValueCents) + ")";
+      var note = document.createElement("span");
+      note.className = "wager-note";
+      note.textContent = wager.placedAt ? String(wager.placedAt).replace("T", " ") : "";
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn btn-ghost wager-remove";
+      remove.textContent = "remove";
+      remove.setAttribute("aria-label", "Remove the " + wager.side + " bet from this hand");
+      remove.disabled = state.busy;
+      remove.addEventListener("click", function () { removeWager(wager.side); });
+      item.appendChild(tag);
+      item.appendChild(stake);
+      item.appendChild(note);
+      item.appendChild(remove);
+      list.appendChild(item);
+    });
+
+    ["btn-res-banker", "btn-res-player", "btn-res-tie", "btn-cancel-bets"].forEach(function (id) {
       el[id].disabled = state.busy;
     });
-    el["bet-panel"].hidden = false;
   }
 
   function renderBeadPlate(derived) {
@@ -213,6 +265,7 @@
 
   function renderStats(derived) {
     el["stat-hands"].textContent = derived.totalHands;
+    el["stat-wagers"].textContent = derived.wagers;
     el["stat-wins"].textContent = derived.wins;
     el["stat-losses"].textContent = derived.losses;
     el["stat-pushes"].textContent = derived.pushes;
@@ -228,7 +281,8 @@
   function renderHands(session, derived) {
     var body = el["hands-body"];
     body.textContent = "";
-    var open = session.openBet;
+    var wagers = openWagers(session);
+    var open = wagers.length > 0;
 
     // Newest first: the hand you just recorded is the one you want to see.
     var running = derived.startingCents;
@@ -247,10 +301,23 @@
       cells.forEach(function (text, index) {
         var cell = document.createElement("td");
         if (index === 1) {
-          var tag = document.createElement("span");
-          tag.className = "tag " + hand.side;
-          tag.textContent = hand.side === "pass" ? "PASS" : hand.side.charAt(0).toUpperCase();
-          cell.appendChild(tag);
+          var tagRow = document.createElement("span");
+          tagRow.className = "tag-row";
+          hand.wagers.forEach(function (wager) {
+            var tag = document.createElement("span");
+            tag.className = "tag " + wager.side;
+            tag.textContent = wager.side === "pass" ? "PASS" : wager.side.toUpperCase();
+            tagRow.appendChild(tag);
+          });
+          cell.appendChild(tagRow);
+          if (hand.wagers.length > 1) {
+            var breakdown = document.createElement("span");
+            breakdown.className = "wager-detail";
+            breakdown.textContent = hand.wagers.map(function (wager) {
+              return wager.side + " " + wager.stakeUnits + "u " + wager.outcome;
+            }).join(" · ");
+            cell.appendChild(breakdown);
+          }
         } else if (index === 4) {
           var outcome = document.createElement("span");
           outcome.className = "outcome " + hand.outcome;
@@ -281,8 +348,9 @@
       openRow.className = "open-row";
       var label = document.createElement("td");
       label.colSpan = 7;
-      label.textContent = "Hand " + (derived.totalHands + 1) + ": " + open.side.toUpperCase() + " " + open.stakeUnits +
-        "u open — record the result to settle it";
+      label.textContent = "Hand " + (derived.totalHands + 1) + ": " +
+        wagers.map(function (wager) { return wager.side.toUpperCase() + " " + wager.stakeUnits + "u"; }).join(" + ") +
+        " open — record the result to settle";
       openRow.appendChild(label);
       body.appendChild(openRow);
     }
@@ -415,8 +483,8 @@
     return act({ action: "settle", result: result });
   }
 
-  function drawOpenBet() {
-    render();
+  function removeWager(side) {
+    return act({ action: "remove", side: side });
   }
 
   /* --------------------------------------------------------------- setup flow */
@@ -595,6 +663,8 @@
     var pending = ocr.pending;
     el["ocr-pending"].hidden = !pending;
     if (pending) {
+      // A reading waiting on approval must not be hidden behind a collapsed panel.
+      el["ocr-panel"].open = true;
       el["ocr-pending-line"].textContent = "Read: " + String(pending.result || "?").toUpperCase() +
         " (confidence " + (pending.confidence === undefined ? "?" : pending.confidence) + ") — " +
         (pending.evidence || "no evidence given");
@@ -724,7 +794,7 @@
 
     if (!state.session || state.session.status !== "active") return;
     var key = event.key.toLowerCase();
-    if (state.session.openBet) {
+    if (openWagers(state.session).length) {
       if (key === "b") settle("banker");
       else if (key === "p") settle("player");
       else if (key === "t") settle("tie");
@@ -769,7 +839,7 @@
     el["btn-res-banker"].addEventListener("click", function () { settle("banker"); });
     el["btn-res-player"].addEventListener("click", function () { settle("player"); });
     el["btn-res-tie"].addEventListener("click", function () { settle("tie"); });
-    el["btn-cancel-bet"].addEventListener("click", function () { act({ action: "cancel" }); });
+    el["btn-cancel-bets"].addEventListener("click", function () { act({ action: "cancel" }); });
 
     el["btn-undo"].addEventListener("click", function () {
       if (window.confirm("Undo the last recorded hand? The numbers are recalculated from the remaining hands.")) {

@@ -244,9 +244,10 @@ def test_modes():
               wait_for(lambda: len((server.STORE.load() or {}).get("hands", [])) == 1))
         session = server.STORE.load()
         hand = session["hands"][0]
-        check("the observed hand is a no-bet hand", hand["side"] == "pass", hand)
+        check("the observed hand is a no-bet hand",
+              settlement.derive(session)["hands"][0]["isPass"] and hand["wagers"][0]["side"] == "pass", hand)
         check("an observed hand moves no money",
-              settlement.derive(session)["netCents"] == 0 and session["openBet"] is None,
+              settlement.derive(session)["netCents"] == 0 and settlement.open_wagers(session) == [],
               settlement.derive(session)["netCents"])
         controller.stop()
 
@@ -256,7 +257,7 @@ def test_modes():
         screen.colour = BANKER
         controller.start({"mode": "auto", "profileId": profile})
         check("auto mode settles the open bet from the screen",
-              wait_for(lambda: (server.STORE.load() or {}).get("openBet") is None))
+              wait_for(lambda: settlement.open_wagers(server.STORE.load() or {}) == []))
         derived = settlement.derive(server.STORE.load())
         check("auto settlement pays the Banker win correctly (10u x $5 less 5%)",
               derived["netCents"] == 4750, derived["netCents"])
@@ -282,7 +283,8 @@ def test_modes():
         check("with no open bet the result is recorded as a no-bet hand",
               wait_for(lambda: len((server.STORE.load() or {}).get("hands", [])) == 1))
         session = server.STORE.load()
-        check("no bet was invented", session["hands"][0]["side"] == "pass" and session["openBet"] is None,
+        check("no bet was invented",
+              settlement.derive(session)["hands"][0]["isPass"] and settlement.open_wagers(session) == [],
               session["hands"][0])
         check("no money moved", settlement.derive(session)["netCents"] == 0)
         controller.stop()
@@ -295,7 +297,7 @@ def test_modes():
         check("confirm mode raises a pending candidate",
               wait_for(lambda: controller.status()["pending"] is not None))
         check("nothing is recorded before confirmation",
-              len(server.STORE.load()["hands"]) == 0 and server.STORE.load()["openBet"] is not None)
+              len(server.STORE.load()["hands"]) == 0 and settlement.open_wagers(server.STORE.load()))
         pending = controller.status()["pending"]
         check("the candidate shows what was read", pending["result"] == "player", pending)
 
@@ -331,7 +333,7 @@ def test_modes():
         controller.confirm({"accept": False})
         session = server.STORE.load()
         check("rejecting records nothing and leaves the bet open",
-              len(session["hands"]) == 0 and session["openBet"] is not None)
+              len(session["hands"]) == 0 and settlement.open_wagers(session))
         controller.stop()
 
         # ---- guards still apply ---------------------------------------------------------------

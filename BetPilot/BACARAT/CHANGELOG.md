@@ -5,6 +5,59 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.1.0-20260928-Baccarat (2026-09-28) — LAYOUT AND MULTI-WAGER UPDATE
+
+Changes made from your first hands-on review of the module.
+
+### Added
+
+- **A Tie bet can now be placed alongside Banker or Player**, as at a real table. A hand may carry
+  one wager per side; Banker and Player stay mutually exclusive. One result settles every open wager,
+  the hand's outcome is the net of them, and the history shows each wager with its own outcome.
+  Each wager can also be removed on its own before the result is recorded.
+- `stat-wagers` in the statistics block, so wager count is visible separately from hand count.
+- CSV export gained a `wagers` column (`banker:10;tie:1`), so hedged hands are analysable in a
+  spreadsheet. JSON export already carried the full detail.
+- Nine new engine tests, four new HTTP checks, seven new UI checks, and a fourth cross-language
+  session vector covering hedged hands.
+
+### Changed
+
+- **The disclaimer moved to the bottom of the window** at your request. It is still always visible,
+  still the full text, and still carried on a `<footer>` — relocating it did not weaken the
+  compliance requirement in `DISCLAIMER.md`.
+- **The layout now fits one window with no page scrolling.** The page is a three-row flex column
+  (header, content, disclaimer); the betting column and the hand-history table are the only regions
+  that scroll internally when they must, and the launcher opens a taller window (1240×900).
+  The OCR panel is collapsible, and expands by itself whenever a reading is waiting for approval.
+- The stake control stays live while a hand is open, so a Tie side bet can be added at its own stake;
+  the ceiling shrinks to whatever the open wagers have not already committed.
+- Stakes remain whole units with a **1-unit minimum**; derived figures stay fractional and correct
+  (0.95u, 1.5u, 1.75u) — confirmed with you as intended behaviour.
+- The old "one open bet at a time" guard becomes "one wager per side", which is the rule your table
+  actually plays. The orphaned-hand protection is preserved by that rule and by netting.
+- `VERSION` is now `v2.1.0-20260928-Baccarat`; the page title, launcher and health endpoint follow it.
+
+### Fixed
+
+- Nothing was broken in v2.0.0 by this work; the money model was extended, not repaired. The
+  previously fixed defects all still have tests guarding them.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1`, plus a real provider call through
+`tests\provider_check.py`.
+
+### Still open
+
+- Capture-region calibration is still yours to run (all 9 profiles remain `"calibrated": false`).
+- The superseded prototype files, the old 12 configs and `API/` are still awaiting your archive
+  decision.
+- `BetPilot/VERSION`, `BetPilot/CHANGELOG.md` and `BetPilot/README.step-by-step.md` need the same
+  version bump and the new multi-wager instructions.
+
+---
+
 ## v2.0.0-20260928-Baccarat (2026-09-28) — REBUILD
 
 The v1.0.0 module was a five-file browser prototype. An independent review

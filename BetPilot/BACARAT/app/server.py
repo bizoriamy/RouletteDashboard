@@ -237,7 +237,7 @@ class SessionStore:
                 "unitValueCents": unit_value,
                 "seq": 1,
                 "hands": [],
-                "openBet": None,
+                "openWagers": [],
             }
             if existing and existing.get("status") != "active":
                 self.archive(existing)
@@ -261,75 +261,93 @@ class SessionStore:
             side = settlement.normalize_side(payload.get("side"))
             if side == "pass":
                 raise StateError("Use the no-bet action for a pass hand.", "use-pass")
-            if session.get("openBet"):
-                open_bet = session["openBet"]
-                raise StateError(
-                    "A %s bet of %s units is already open. Settle or cancel it first."
-                    % (open_bet.get("side"), open_bet.get("stakeUnits")),
-                    "bet-already-open",
-                    409,
-                )
+
+            # One wager per side; Banker and Player are mutually exclusive; Tie is optional.
+            wagers = settlement.open_wagers(session)
+            if any(wager.get("side") == side for wager in wagers):
+                raise StateError("A %s bet is already on this hand." % side, "duplicate-wager", 409)
+            if side in ("banker", "player"):
+                opposite = "player" if side == "banker" else "banker"
+                if any(wager.get("side") == opposite for wager in wagers):
+                    raise StateError("Banker and Player cannot both be bet on the same hand.",
+                                     "conflicting-wager", 409)
+
             stake_units = payload.get("stakeUnits")
             if isinstance(stake_units, bool) or not isinstance(stake_units, int) or stake_units < 1:
                 raise StateError("Stake must be a whole number of 1 unit or more.", "bad-stake")
             if stake_units > settlement.LIMITS["maxUnits"]:
                 raise StateError("Stake exceeds the %s-unit ceiling." % settlement.LIMITS["maxUnits"], "stake-too-large")
+
             derived = settlement.derive(session)
             stake_cents = stake_units * session["unitValueCents"]
-            if stake_cents > derived["bankrollCents"]:
+            committed = sum((wager.get("stakeUnits") or 0) * session["unitValueCents"] for wager in wagers)
+            if committed + stake_cents > derived["bankrollCents"]:
                 raise StateError(
-                    "Stake of %s (%s) is larger than the bankroll (%s)."
-                    % (stake_units, settlement.format_cents(stake_cents), settlement.format_cents(derived["bankrollCents"])),
+                    "This would commit %s of a %s bankroll (already open: %s)."
+                    % (settlement.format_cents(committed + stake_cents),
+                       settlement.format_cents(derived["bankrollCents"]),
+                       settlement.format_cents(committed)),
                     "stake-over-bankroll",
                 )
-            session["openBet"] = {
+
+            wagers.append({
                 "side": side,
                 "stakeUnits": stake_units,
                 "stakeCents": stake_cents,
                 "placedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            }
+            })
+            session["openWagers"] = wagers
             return self.save(session)
 
     def settle(self, payload):
         with self._lock:
             session = self._require_active(self._require())
-            if not session.get("openBet"):
+            wagers = settlement.open_wagers(session)
+            if not wagers:
                 raise StateError("There is no open bet to settle.", "no-open-bet", 409)
             if len(session.get("hands", [])) >= settlement.LIMITS["maxHands"]:
                 raise StateError("This session has reached its hand limit.", "too-many-hands")
-            open_bet = session["openBet"]
+
             result = settlement.normalize_result(payload.get("result"))
-            settled = settlement.settle(open_bet["side"], result, open_bet["stakeUnits"], session["unitValueCents"], session.get("rules"))
+            if result is None:
+                raise StateError("A result is required to settle this hand.", "missing-result")
+
+            # Every open wager settles from the one result the table showed.
+            settled_wagers = []
+            for wager in wagers:
+                settled = settlement.settle(wager.get("side"), result, wager.get("stakeUnits"),
+                                            session["unitValueCents"], session.get("rules"))
+                settled_wagers.append({
+                    "side": settled["side"],
+                    "stakeUnits": settled["stakeUnits"],
+                    "stakeCents": settled["stakeCents"],
+                    "outcome": settled["outcome"],
+                    "profitCents": settled["profitCents"],
+                    "commissionCents": settled["commissionCents"],
+                })
+
             session.setdefault("hands", []).append({
-                "side": settled["side"],
-                "result": settled["result"],
-                "stakeUnits": settled["stakeUnits"],
-                "outcome": settled["outcome"],
-                "profitCents": settled["profitCents"],
-                "commissionCents": settled["commissionCents"],
+                "wagers": settled_wagers,
+                "result": result,
                 "source": "ocr" if payload.get("source") == "ocr" else "manual",
                 # The screen signature that produced this hand. Stored so the OCR can prove a read
                 # has not already been recorded, even across a restart.
                 "signature": str(payload.get("signature") or "") or None,
                 "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             })
-            session["openBet"] = None
+            session["openWagers"] = []
             session["seq"] = len(session["hands"]) + 1
             return self.save(session)
 
     def record_pass(self, payload):
         with self._lock:
             session = self._require_active(self._require())
-            if session.get("openBet"):
+            if settlement.open_wagers(session):
                 raise StateError("Settle or cancel the open bet before recording a no-bet hand.", "bet-already-open", 409)
             result = settlement.normalize_result(payload.get("result"))
             session.setdefault("hands", []).append({
-                "side": "pass",
+                "wagers": [{"side": "pass", "stakeUnits": 0, "stakeCents": 0}],
                 "result": result,
-                "stakeUnits": 0,
-                "outcome": "void",
-                "profitCents": 0,
-                "commissionCents": 0,
                 "source": "ocr" if payload.get("source") == "ocr" else "manual",
                 "signature": str(payload.get("signature") or "") or None,
                 "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -340,9 +358,21 @@ class SessionStore:
     def cancel(self):
         with self._lock:
             session = self._require_active(self._require())
-            if not session.get("openBet"):
+            if not settlement.open_wagers(session):
                 raise StateError("There is no open bet to cancel.", "no-open-bet", 409)
-            session["openBet"] = None
+            session["openWagers"] = []
+            return self.save(session)
+
+    def remove_wager(self, payload):
+        """Take one wager off the open hand, leaving the rest in place."""
+        with self._lock:
+            session = self._require_active(self._require())
+            side = settlement.normalize_side(payload.get("side"))
+            wagers = settlement.open_wagers(session)
+            remaining = [wager for wager in wagers if wager.get("side") != side]
+            if len(remaining) == len(wagers):
+                raise StateError("There is no open %s bet on this hand." % side, "no-open-wager", 409)
+            session["openWagers"] = remaining
             return self.save(session)
 
     def undo(self):
@@ -357,7 +387,7 @@ class SessionStore:
     def end(self):
         with self._lock:
             session = self._require_active(self._require())
-            if session.get("openBet"):
+            if settlement.open_wagers(session):
                 raise StateError("Settle or cancel the open bet before ending the session.", "bet-already-open", 409)
             session["status"] = "ended"
             session["endedAt"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -514,9 +544,9 @@ class OcrController:
             self.monitor.set_status(message="Result seen, but there is no active session to record it in.")
             return
 
-        if mode == "observe" or not session.get("openBet"):
+        if mode == "observe" or not settlement.open_wagers(session):
             # Observe mode records the observation as a no-bet hand: money-neutral, and it builds the
-            # bead plate. With no open bet the same applies — OCR never invents a bet.
+            # bead plate. With no open wager the same applies — OCR never invents a bet.
             action = "observed" if mode == "observe" else "observed-no-open-bet"
             self._apply(base, action, "Recorded as a no-bet hand.")
             return
@@ -536,9 +566,10 @@ class OcrController:
         session = STORE.load()
         payload = {"result": base["result"], "source": "ocr", "signature": base.get("signature")}
         try:
-            if session and session.get("openBet"):
+            wagers = settlement.open_wagers(session) if session else []
+            if wagers:
                 STORE.settle(payload)
-                detail = "settled the open %s bet" % session["openBet"]["side"]
+                detail = "settled the open %s bet" % "+".join(wager.get("side", "?") for wager in wagers)
             else:
                 STORE.record_pass(payload)
                 detail = "recorded as a no-bet hand"
@@ -765,6 +796,8 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
             return self.state_payload(STORE.settle(payload))
         if action == "pass":
             return self.state_payload(STORE.record_pass(payload))
+        if action == "remove":
+            return self.state_payload(STORE.remove_wager(payload))
         if action == "cancel":
             return self.state_payload(STORE.cancel())
         if action == "undo":
@@ -801,15 +834,19 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
 def settlement_csv(session):
     derived = settlement.derive(session)
     header = ["hand", "at", "source", "side", "stake_units", "result", "outcome",
-              "stake_cents", "commission_cents", "profit_cents", "bankroll_cents"]
+              "stake_cents", "commission_cents", "profit_cents", "bankroll_cents", "wagers"]
     running = derived["startingCents"]
     rows = [",".join(header)]
     for hand in derived["hands"]:
         running += hand["profitCents"]
+        wager_label = ";".join(
+            "%s:%s" % (wager["side"], wager["stakeUnits"])
+            for wager in hand["wagers"] if wager["side"] != "pass"
+        )
         rows.append(",".join(str(value) for value in [
             hand["n"], hand.get("at") or "", hand["source"], hand["side"], hand["stakeUnits"],
             hand.get("result") or "", hand["outcome"], hand["stakeCents"],
-            hand["commissionCents"], hand["profitCents"], running,
+            hand["commissionCents"], hand["profitCents"], running, wager_label,
         ]))
     return "\n".join(rows) + "\n"
 

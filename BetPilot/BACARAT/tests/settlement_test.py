@@ -18,7 +18,7 @@ import settlement  # noqa: E402
 
 VECTORS_PATH = os.path.join(TESTS_DIR, "settlement-vectors.json")
 FIELDS = ["side", "result", "outcome", "stakeUnits", "stakeCents", "profitCents", "commissionCents"]
-DERIVE_FIELDS = ["bankrollCents", "netCents", "commissionCents", "stakedUnits", "bets", "totalHands",
+DERIVE_FIELDS = ["bankrollCents", "netCents", "commissionCents", "stakedUnits", "wagers", "bets", "totalHands",
                  "wins", "losses", "pushes", "voids", "bankerResults", "playerResults", "tieResults",
                  "winRate", "maxDrawdownCents", "sequence", "last20", "streak", "longest"]
 
@@ -71,8 +71,11 @@ def main():
             "startingUnits": session["startingUnits"],
             "unitValueCents": session["unitValueCents"],
             "rules": session["rules"],
-            "hands": [{"side": h["side"], "result": h["result"], "stakeUnits": h["stakeUnits"],
-                       "outcome": h["outcome"]} for h in session["hands"]],
+            "openWagers": session.get("openWagers", []),
+            # Both hand shapes travel through here: v2 (side/stakeUnits) and v3 (wagers).
+            "hands": [{"side": h.get("side"), "result": h.get("result"), "stakeUnits": h.get("stakeUnits"),
+                       "wagers": h.get("wagers"), "outcome": h.get("outcome")}
+                      for h in session["hands"]],
         }
         derived = settlement.derive(rebuilt)
         expected = session["derived"]

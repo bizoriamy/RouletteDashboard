@@ -1,11 +1,51 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.0.0-20260928-Baccarat
+Version tracking: v2.1.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
 
 ---
 
-## v2.0.0-20260928-Baccarat (2026-09-28) — REBUILD (CURRENT)
+## v2.1.0-20260928-Baccarat (2026-09-28) — LAYOUT AND MULTI-WAGER UPDATE
+
+Changes made from the first hands-on review of the rebuilt module.
+
+### Added
+- **A Tie bet can now be placed alongside Banker or Player on the same hand**, as at a real table.
+  One wager per side; Banker and Player remain mutually exclusive. One result settles every open
+  wager, the hand's outcome is the net of them, and the history shows each wager with its own
+  outcome. Individual wagers can be removed before the result is recorded.
+- Wager count in the statistics block, separate from hand count.
+- A `wagers` column in the CSV export (`banker:10;tie:1`) so hedged hands are analysable.
+
+### Changed
+- **The disclaimer moved to the bottom of the window** at the user's request. It remains always
+  visible, full text, on a `<footer>` — the compliance requirement is unchanged.
+- **The layout now fits one window with no page scrolling.** Header, content and a bottom disclaimer
+  bar form a fixed-height column; only the betting column and the hand-history table scroll
+  internally. The launcher opens a taller window (1240×900). The OCR panel is collapsible and opens
+  itself when a reading is waiting for approval.
+- The stake control stays live while a hand is open, so a Tie side bet can be added at its own stake.
+- Stakes remain whole units with a 1-unit minimum; derived figures stay fractional and correct.
+- The "one open bet at a time" guard becomes "one wager per side", matching the table's real rules.
+- `VERSION` is now `v2.1.0-20260928-Baccarat`; module `VERSION`, page title, launcher and health
+  endpoint all agree.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass:
+  59 engine tests, 576 settlement cases and 4 session derivations agreed across both language
+  implementations, 27 UI wiring checks (including "disclaimer is at the bottom" and "the page does
+  not scroll"), 40 OCR checks, 68 end-to-end HTTP checks, and the credential scan.
+- A real provider call through `BACARAT\tests\provider_check.py` confirmed the rotated DeepSeek key
+  reads a synthetic result panel correctly.
+
+### Still open
+- Capture-region calibration remains the user's step; all 9 profiles are still `"calibrated": false`.
+- The superseded prototype files, the old 12 configs and `API/` await an archive decision.
+- The Baccarat module has not yet been used for a full session in the new build.
+
+---
+
+## v2.0.0-20260928-Baccarat (2026-09-28) — REBUILD
 
 The module below is no longer a five-file browser prototype. It is a local Python server
 application. Full detail, including the review item each fix answers, is in

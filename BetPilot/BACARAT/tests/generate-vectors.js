@@ -61,26 +61,13 @@ function buildCases() {
   return cases;
 }
 
-function buildSession(casino, startingUnits, unitValueCents, rules, hands) {
-  var session = Engine.createSession({
-    casino: casino, startingUnits: startingUnits, unitValueCents: unitValueCents, rules: rules
-  });
-  session.hands = hands.map(function (hand, index) {
-    return {
-      side: hand[0], result: hand[1], stakeUnits: hand[2],
-      outcome: hand[3] || null,
-      source: index === 0 ? "ocr" : "manual",
-      at: "2026-09-28T12:0" + index + ":00"
-    };
-  });
-  session.seq = session.hands.length + 1;
-  return session;
-}
-
-var DERIVE_FIELDS = ["bankrollCents", "netCents", "commissionCents", "stakedUnits", "bets", "totalHands",
+var DERIVE_FIELDS = ["bankrollCents", "netCents", "commissionCents", "stakedUnits", "wagers", "bets", "totalHands",
   "wins", "losses", "pushes", "voids", "bankerResults", "playerResults", "tieResults", "winRate",
   "maxDrawdownCents", "sequence", "last20", "streak", "longest"];
 
+/* A hand is described either the v2 way — [side, result, stake, storedOutcome] — or the v3 way,
+   where the wagers are listed: { result, wagers: [[side, stake], ...] }. Both are vectorised so the
+   server's Python copy has to agree on the legacy shape as well as the multi-wager one. */
 function buildSessions() {
   var specs = [
     {
@@ -97,11 +84,47 @@ function buildSessions() {
       casino: "Vector C", startingUnits: 50, unitValueCents: 2500, rules: { commissionRate: 0.1, tiePayout: 8 },
       hands: [["banker", "banker", 1, null], ["banker", "banker", 1, null], ["tie", "tie", 1, null],
               ["player", "banker", 2, null], ["player", "player", 2, null]]
+    },
+    {
+      casino: "Vector D (hedged hands)", startingUnits: 80, unitValueCents: 500,
+      rules: { commissionRate: 0.05, tiePayout: 8 },
+      openWagers: [{ side: "banker", stakeUnits: 3 }],
+      hands: [
+        { result: "banker", wagers: [["banker", 10], ["tie", 1]] },
+        { result: "tie", wagers: [["banker", 10], ["tie", 1]] },
+        { result: "player", wagers: [["player", 4], ["tie", 2]] },
+        { result: "player", wagers: [["banker", 5], ["tie", 1]] },
+        { result: "tie", wagers: [["tie", 3]] },
+        { result: "banker", wagers: [["pass", 0]] }
+      ]
     }
   ];
 
   return specs.map(function (spec) {
-    var session = buildSession(spec.casino, spec.startingUnits, spec.unitValueCents, spec.rules, spec.hands);
+    var session = Engine.createSession({
+      casino: spec.casino, startingUnits: spec.startingUnits, unitValueCents: spec.unitValueCents,
+      rules: spec.rules
+    });
+    session.hands = spec.hands.map(function (hand, index) {
+      var base = {
+        result: hand.result || (Array.isArray(hand) ? hand[1] : null),
+        source: index === 0 ? "ocr" : "manual",
+        at: "2026-09-28T12:0" + index + ":00"
+      };
+      if (!Array.isArray(hand)) {
+        base.wagers = hand.wagers.map(function (wager) { return { side: wager[0], stakeUnits: wager[1] }; });
+      } else {
+        base.side = hand[0];
+        base.stakeUnits = hand[2];
+        base.outcome = hand[3] || null;
+      }
+      return base;
+    });
+    session.seq = session.hands.length + 1;
+    session.openWagers = (spec.openWagers || []).map(function (wager) {
+      return { side: wager.side, stakeUnits: wager.stakeUnits };
+    });
+
     var derived = Engine.derive(session);
     var values = {};
     DERIVE_FIELDS.forEach(function (field) { values[field] = derived[field]; });
@@ -110,8 +133,12 @@ function buildSessions() {
       startingUnits: spec.startingUnits,
       unitValueCents: spec.unitValueCents,
       rules: session.rules,
+      openWagers: session.openWagers,
       hands: session.hands.map(function (hand) {
-        return { side: hand.side, result: hand.result, stakeUnits: hand.stakeUnits, outcome: hand.outcome };
+        return {
+          side: hand.side, stakeUnits: hand.stakeUnits, wagers: hand.wagers,
+          result: hand.result, outcome: hand.outcome
+        };
       }),
       derived: values
     };

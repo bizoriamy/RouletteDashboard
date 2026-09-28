@@ -2,12 +2,16 @@
  * Pure logic: no DOM, no network, no timers. Runs in the browser and in Node.
  *
  * Design rule (this is the whole point of the rebuild):
- *   The user records two INPUTS — the bet side and the casino result.
+ *   The user records two INPUTS — the wager(s) and the casino result.
  *   The outcome (win/lose/push), the commission and every P&L figure are DERIVED.
  *   Nothing derived is ever typed by the user, and no derived value is trusted on load.
  *
- * Money is kept in integer cents. Units are integers. No whole-unit rounding is applied to
- * commission, so a 1-unit Banker bet at $5/unit pays $4.75, not $5.00.
+ * A hand may carry more than one wager, because real tables allow a Tie side bet alongside
+ * Banker or Player. The rules:
+ *   one wager per side; Banker and Player are mutually exclusive; Tie is optional.
+ *
+ * Money is kept in integer cents. Stakes are whole units, minimum 1. Derived figures can be
+ * fractional units (a 1-unit Banker win is +0.95u) and are displayed to two decimals.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -29,12 +33,12 @@
   };
 
   var LIMITS = {
-    maxUnits: 100000,        // hard ceiling per bet
+    maxUnits: 100000,          // hard ceiling per wager
     maxUnitValueCents: 100000, // $1000 per unit
     maxHands: 10000
   };
 
-  var SCHEMA_VERSION = 2;
+  var SCHEMA_VERSION = 3;
 
   function EngineError(message, code) {
     var error = new Error(message);
@@ -97,8 +101,8 @@
   /* ---------------------------------------------------------------- settlement */
 
   /**
-   * The single place where a bet side and a casino result become money.
-   * Baccarat rules: Banker/Player bets PUSH on a Tie; a Tie bet wins only on a Tie.
+   * The single place where one wager and the casino result become money.
+   * Baccarat rules: Banker/Player wagers PUSH on a Tie; a Tie wager wins only on a Tie.
    */
   function settle(side, result, stakeUnits, unitValueCents, rules) {
     var normalizedSide = normalizeSide(side);
@@ -195,7 +199,7 @@
       unitValueCents: unitValueCents,
       seq: 1,
       hands: [],
-      openBet: null
+      openWagers: []
     };
   }
 
@@ -214,6 +218,36 @@
     return session;
   }
 
+  /** The wagers waiting on a result. Accepts the v2 single `openBet` shape as well. */
+  function openWagersOf(session) {
+    if (!session) return [];
+    if (Array.isArray(session.openWagers)) return session.openWagers;
+    if (session.openBet) return [session.openBet];
+    return [];
+  }
+
+  /**
+   * A stored hand as a list of wagers. Handles the v2 single-wager shape
+   * ({side, stakeUnits}) so older session files and the settlement vectors stay valid.
+   */
+  function handWagersOf(hand) {
+    if (hand && Array.isArray(hand.wagers) && hand.wagers.length) {
+      return hand.wagers.map(function (wager) {
+        return { side: wager.side, stakeUnits: wager.stakeUnits };
+      });
+    }
+    return [{ side: hand.side, stakeUnits: hand.stakeUnits }];
+  }
+
+  function openStakeCents(session) {
+    return openWagersOf(session).reduce(function (total, wager) {
+      var units = isInt(wager.stakeUnits) && wager.stakeUnits > 0 ? wager.stakeUnits : 0;
+      return total + units * session.unitValueCents;
+    }, 0);
+  }
+
+  /* ------------------------------------------------------------------- deriving */
+
   function derive(session) {
     assertSession(session);
     var rules = normalizeRules(session.rules);
@@ -221,7 +255,7 @@
     var startingUnits = isInt(session.startingUnits) ? session.startingUnits : 0;
 
     var totals = {
-      hands: 0, bets: 0, wins: 0, losses: 0, pushes: 0, voids: 0,
+      hands: 0, wagers: 0, wins: 0, losses: 0, pushes: 0, voids: 0,
       stakedUnits: 0, netCents: 0, commissionCents: 0,
       bankerResults: 0, playerResults: 0, tieResults: 0
     };
@@ -231,45 +265,68 @@
     var peakCents = 0;
     var maxDrawdownCents = 0;
 
-    // Outcomes are recomputed from the two inputs on every derive() call, so a hand-edited or
+    // Outcomes are recomputed from the recorded inputs on every derive() call, so a hand-edited or
     // legacy state file cannot inject a fake win.
     var hands = session.hands.map(function (hand, index) {
-      var settled = settle(hand.side, hand.result, hand.stakeUnits, unitValueCents, rules);
+      var wagers = handWagersOf(hand).map(function (wager) {
+        var settled = settle(wager.side, hand.result, wager.stakeUnits, unitValueCents, rules);
+        return {
+          side: settled.side,
+          stakeUnits: settled.stakeUnits,
+          stakeCents: settled.stakeCents,
+          outcome: settled.outcome,
+          profitCents: settled.profitCents,
+          commissionCents: settled.commissionCents
+        };
+      });
+
+      var stakeUnits = wagers.reduce(function (sum, wager) { return sum + wager.stakeUnits; }, 0);
+      var stakeCents = wagers.reduce(function (sum, wager) { return sum + wager.stakeCents; }, 0);
+      var commissionCents = wagers.reduce(function (sum, wager) { return sum + wager.commissionCents; }, 0);
+      var profitCents = wagers.reduce(function (sum, wager) { return sum + wager.profitCents; }, 0);
+      var isPass = wagers.length === 1 && wagers[0].side === "pass";
+
+      // The hand's outcome is the NET of its wagers: a Banker win hedged with a losing Tie bet is
+      // still a winning hand, but a smaller one.
+      var outcome = isPass ? "void" : (profitCents > 0 ? "win" : (profitCents < 0 ? "lose" : "push"));
+
       var enriched = {
         n: index + 1,
         at: hand.at || null,
         source: hand.source === "ocr" ? "ocr" : "manual",
-        side: settled.side,
-        result: settled.result,
-        stakeUnits: settled.stakeUnits,
-        stakeCents: settled.stakeCents,
-        outcome: settled.outcome,
-        profitCents: settled.profitCents,
-        commissionCents: settled.commissionCents,
-        note: settled.note,
+        wagers: wagers,
+        result: normalizeResult(hand.result),
+        outcome: outcome,
+        isPass: isPass,
+        stakeUnits: stakeUnits,
+        stakeCents: stakeCents,
+        profitCents: profitCents,
+        commissionCents: commissionCents,
+        // convenience for single-wager displays and CSV
+        side: isPass ? "pass" : (wagers.length === 1 ? wagers[0].side : wagers.map(function (w) { return w.side; }).join("+")),
         // audit only — never used in maths
         recordedOutcome: hand.outcome || null,
-        outcomeMismatch: Boolean(hand.outcome && hand.outcome !== settled.outcome)
+        outcomeMismatch: Boolean(hand.outcome && hand.outcome !== outcome)
       };
 
       totals.hands += 1;
-      totals.commissionCents += enriched.commissionCents;
-      if (enriched.side === "pass") {
+      totals.commissionCents += commissionCents;
+      if (isPass) {
         totals.voids += 1;
       } else {
-        totals.bets += 1;
-        totals.stakedUnits += enriched.stakeUnits;
+        totals.wagers += wagers.length;
+        totals.stakedUnits += stakeUnits;
       }
-      if (enriched.outcome === "win") totals.wins += 1;
-      else if (enriched.outcome === "lose") totals.losses += 1;
-      else if (enriched.outcome === "push") totals.pushes += 1;
+      if (outcome === "win") totals.wins += 1;
+      else if (outcome === "lose") totals.losses += 1;
+      else if (outcome === "push") totals.pushes += 1;
 
       if (enriched.result === "banker") totals.bankerResults += 1;
       else if (enriched.result === "player") totals.playerResults += 1;
       else if (enriched.result === "tie") totals.tieResults += 1;
 
-      totals.netCents += enriched.profitCents;
-      runningCents += enriched.profitCents;
+      totals.netCents += profitCents;
+      runningCents += profitCents;
       equity.push(runningCents);
       if (runningCents > peakCents) peakCents = runningCents;
       var drawdown = peakCents - runningCents;
@@ -280,7 +337,7 @@
     });
 
     var bankrollCents = startingUnits * unitValueCents + totals.netCents;
-    var settledBets = totals.wins + totals.losses + totals.pushes;
+    var settledHands = totals.wins + totals.losses + totals.pushes;
 
     return {
       hands: hands,
@@ -293,7 +350,8 @@
       netUnits: unitValueCents ? round2(totals.netCents / unitValueCents) : 0,
       commissionCents: totals.commissionCents,
       stakedUnits: totals.stakedUnits,
-      bets: totals.bets,
+      wagers: totals.wagers,
+      bets: totals.wagers,
       totalHands: totals.hands,
       wins: totals.wins,
       losses: totals.losses,
@@ -302,7 +360,7 @@
       bankerResults: totals.bankerResults,
       playerResults: totals.playerResults,
       tieResults: totals.tieResults,
-      winRate: settledBets ? round2((totals.wins / settledBets) * 100) : 0,
+      winRate: settledHands ? round2((totals.wins / settledHands) * 100) : 0,
       maxDrawdownCents: maxDrawdownCents,
       peakCents: peakCents,
       last20: sequence.slice(-20),
@@ -349,88 +407,127 @@
    * undo trivially correct and keeps the server's stored state as the single truth.
    */
 
+  function assertWagerAllowed(session, side) {
+    var existing = openWagersOf(session);
+    if (existing.some(function (wager) { return wager.side === side; })) {
+      throw EngineError("A " + side + " bet is already on this hand", "duplicate-wager");
+    }
+    if (side === "banker" || side === "player") {
+      var opposite = side === "banker" ? "player" : "banker";
+      if (existing.some(function (wager) { return wager.side === opposite; })) {
+        throw EngineError("Banker and Player cannot both be bet on the same hand", "conflicting-wager");
+      }
+    }
+  }
+
   function placeBet(session, side, stakeUnits) {
     var next = clone(assertActive(session));
     var normalizedSide = normalizeSide(side);
 
-    if (next.openBet) {
-      throw EngineError("A " + next.openBet.side + " bet of " + next.openBet.stakeUnits + " units is already open — settle or cancel it first", "bet-already-open");
-    }
+    if (!Array.isArray(next.openWagers)) next.openWagers = openWagersOf(next);
     if (normalizedSide === "pass") {
       throw EngineError("Use recordPass() for a no-bet hand", "use-pass");
     }
+    assertWagerAllowed(next, normalizedSide);
     if (!isInt(stakeUnits) || stakeUnits < 1) {
       throw EngineError("Stake must be a whole number of 1 unit or more", "bad-stake");
     }
     if (stakeUnits > LIMITS.maxUnits) {
       throw EngineError("Stake exceeds the " + LIMITS.maxUnits + "-unit ceiling", "stake-too-large");
     }
+
     var available = bankrollCents(next);
     var stakeCents = unitsToCents(stakeUnits, next.unitValueCents);
-    if (stakeCents > available) {
-      throw EngineError("Stake of " + stakeUnits + " units (" + formatCents(stakeCents) + ") is larger than the bankroll (" + formatCents(available) + ")", "stake-over-bankroll");
+    var committed = openStakeCents(next);
+    if (committed + stakeCents > available) {
+      throw EngineError(
+        "This would commit " + formatCents(committed + stakeCents) + " of a " + formatCents(available) +
+        " bankroll (already open: " + formatCents(committed) + ")",
+        "stake-over-bankroll"
+      );
     }
 
-    next.openBet = {
+    next.openWagers.push({
       side: normalizedSide,
       stakeUnits: stakeUnits,
       stakeCents: stakeCents,
       placedAt: new Date().toISOString()
-    };
+    });
     return next;
   }
 
-  function settleOpenBet(session, result, meta) {
+  function removeWager(session, side) {
     var next = clone(assertActive(session));
-    if (!next.openBet) {
+    var normalizedSide = normalizeSide(side);
+    var wagers = openWagersOf(next).filter(function (wager) { return wager.side !== normalizedSide; });
+    if (wagers.length === openWagersOf(next).length) {
+      throw EngineError("There is no open " + normalizedSide + " bet on this hand", "no-open-wager");
+    }
+    next.openWagers = wagers;
+    return next;
+  }
+
+  function cancelOpenBets(session) {
+    var next = clone(assertActive(session));
+    if (!openWagersOf(next).length) {
+      throw EngineError("There is no open bet to cancel", "no-open-bet");
+    }
+    next.openWagers = [];
+    return next;
+  }
+
+  function settleOpenBets(session, result, meta) {
+    var next = clone(assertActive(session));
+    var wagers = openWagersOf(next);
+    if (!wagers.length) {
       throw EngineError("There is no open bet to settle", "no-open-bet");
     }
     if (next.hands.length >= LIMITS.maxHands) {
       throw EngineError("This session has reached its hand limit", "too-many-hands");
     }
-    var settled = settle(next.openBet.side, result, next.openBet.stakeUnits, next.unitValueCents, next.rules);
+    var normalizedResult = normalizeResult(result);
+    if (normalizedResult === null) {
+      throw EngineError("A result is required to settle this hand", "missing-result");
+    }
+
+    // Settle every open wager at once: one hand, one result, one settlement.
+    var settledWagers = wagers.map(function (wager) {
+      var settled = settle(wager.side, normalizedResult, wager.stakeUnits, next.unitValueCents, next.rules);
+      return {
+        side: settled.side,
+        stakeUnits: settled.stakeUnits,
+        stakeCents: settled.stakeCents,
+        outcome: settled.outcome,
+        profitCents: settled.profitCents,
+        commissionCents: settled.commissionCents
+      };
+    });
     var info = meta || {};
     next.hands.push({
-      side: settled.side,
-      result: settled.result,
-      stakeUnits: settled.stakeUnits,
-      outcome: settled.outcome,
-      profitCents: settled.profitCents,
-      commissionCents: settled.commissionCents,
+      wagers: settledWagers,
+      result: normalizedResult,
       source: info.source === "ocr" ? "ocr" : "manual",
       at: info.at || new Date().toISOString()
     });
-    next.openBet = null;
+    next.openWagers = [];
     next.seq += 1;
     return next;
   }
 
   function recordPass(session, result, meta) {
     var next = clone(assertActive(session));
-    if (next.openBet) {
+    if (openWagersOf(next).length) {
       throw EngineError("Settle or cancel the open bet before recording a no-bet hand", "bet-already-open");
     }
     var info = meta || {};
     next.hands.push({
-      side: "pass",
+      wagers: [{ side: "pass", stakeUnits: 0 }],
       result: normalizeResult(result),
-      stakeUnits: 0,
-      outcome: "void",
-      profitCents: 0,
-      commissionCents: 0,
       source: info.source === "ocr" ? "ocr" : "manual",
       at: info.at || new Date().toISOString()
     });
+    next.openWagers = [];
     next.seq += 1;
-    return next;
-  }
-
-  function cancelOpenBet(session) {
-    var next = clone(assertActive(session));
-    if (!next.openBet) {
-      throw EngineError("There is no open bet to cancel", "no-open-bet");
-    }
-    next.openBet = null;
     return next;
   }
 
@@ -440,13 +537,13 @@
       throw EngineError("There is nothing to undo", "nothing-to-undo");
     }
     next.hands.pop();
-    next.seq = Math.max(1, next.seq - 1);
+    next.seq = Math.max(1, next.hands.length + 1);
     return next;
   }
 
   function endSession(session) {
     var next = clone(assertSession(session));
-    if (next.openBet) {
+    if (openWagersOf(next).length) {
       throw EngineError("Settle or cancel the open bet before ending the session", "bet-already-open");
     }
     next.status = "ended";
@@ -478,7 +575,7 @@
       throw EngineError("Stored session has an unrecognised shape", "bad-shape");
     }
     // Rebuild through the public API so every rule is re-applied; derived values in the file
-    // are ignored in favour of recomputation.
+    // are ignored in favour of recomputation. Both hand shapes are accepted.
     var session = createSession({
       id: parsed.id,
       casino: parsed.casino,
@@ -492,23 +589,27 @@
     });
     session.hands = parsed.hands.map(function (hand) {
       return {
-        side: normalizeSide(hand.side),
+        wagers: handWagersOf(hand).map(function (wager) {
+          return {
+            side: normalizeSide(wager.side),
+            stakeUnits: isInt(wager.stakeUnits) ? wager.stakeUnits : 0
+          };
+        }),
         result: normalizeResult(hand.result),
-        stakeUnits: isInt(hand.stakeUnits) ? hand.stakeUnits : 0,
         outcome: hand.outcome || null,
         source: hand.source === "ocr" ? "ocr" : "manual",
         at: hand.at || null
       };
     });
     session.seq = session.hands.length + 1;
-    if (parsed.openBet) {
-      session.openBet = {
-        side: normalizeSide(parsed.openBet.side),
-        stakeUnits: isInt(parsed.openBet.stakeUnits) ? parsed.openBet.stakeUnits : 0,
-        stakeCents: isInt(parsed.openBet.stakeCents) ? parsed.openBet.stakeCents : 0,
-        placedAt: parsed.openBet.placedAt || null
+    session.openWagers = openWagersOf(parsed).map(function (wager) {
+      return {
+        side: normalizeSide(wager.side),
+        stakeUnits: isInt(wager.stakeUnits) ? wager.stakeUnits : 0,
+        stakeCents: isInt(wager.stakeCents) ? wager.stakeCents : 0,
+        placedAt: wager.placedAt || null
       };
-    }
+    });
     if (parsed.status === "ended") {
       session.status = "ended";
       session.endedAt = parsed.endedAt || null;
@@ -533,9 +634,17 @@
     return (units > 0 ? "+" : "") + units + "u";
   }
 
+  function wagerLabel(hand) {
+    return hand.wagers
+      .filter(function (wager) { return wager.side !== "pass"; })
+      .map(function (wager) { return wager.side + ":" + wager.stakeUnits; })
+      .join(";");
+  }
+
   function toCsv(session) {
     var derived = derive(session);
-    var header = ["hand", "at", "source", "side", "stake_units", "result", "outcome", "stake_cents", "commission_cents", "profit_cents", "bankroll_cents"];
+    var header = ["hand", "at", "source", "side", "stake_units", "result", "outcome",
+      "stake_cents", "commission_cents", "profit_cents", "bankroll_cents", "wagers"];
     var running = derived.startingCents;
     var rows = derived.hands.map(function (hand) {
       running += hand.profitCents;
@@ -550,7 +659,8 @@
         hand.stakeCents,
         hand.commissionCents,
         hand.profitCents,
-        running
+        running,
+        wagerLabel(hand)
       ].join(",");
     });
     return header.join(",") + "\n" + rows.join("\n") + (rows.length ? "\n" : "");
@@ -568,6 +678,7 @@
       unitValueCents: session.unitValueCents,
       startingUnits: session.startingUnits,
       hands: derived.totalHands,
+      wagers: derived.wagers,
       bets: derived.bets,
       wins: derived.wins,
       losses: derived.losses,
@@ -600,10 +711,14 @@
     createSession: createSession,
     derive: derive,
     bankrollCents: bankrollCents,
+    openWagersOf: openWagersOf,
+    handWagersOf: handWagersOf,
+    openStakeCents: openStakeCents,
     placeBet: placeBet,
-    settleOpenBet: settleOpenBet,
+    removeWager: removeWager,
+    cancelOpenBets: cancelOpenBets,
+    settleOpenBets: settleOpenBets,
     recordPass: recordPass,
-    cancelOpenBet: cancelOpenBet,
     undoLastHand: undoLastHand,
     endSession: endSession,
     reopenSession: reopenSession,

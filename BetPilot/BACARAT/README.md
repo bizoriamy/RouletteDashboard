@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.0.0-20260928-Baccarat** (see `VERSION`)
+Version: **v2.1.0-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; OCR implemented and waiting on your calibration**
 
 This is a rebuild of the Baccarat module after the review in
@@ -36,18 +36,30 @@ win/lose/push, the 5% Banker commission, the bankroll, the P&L, the statistics.
 | **Tie** | lose | lose | win, pays 8:1 (9:1 configurable) |
 | **Pass** | no money moves | no money moves | no money moves |
 
+A hand may carry a **Tie bet alongside Banker or Player**, and the hand's outcome is the net of its
+wagers: Banker 10u + Tie 1u nets +8.5u when Banker wins (the Tie stake is lost) and +8u when the Tie
+lands (the Banker stake is pushed). The history shows both wagers and their individual outcomes.
+
 There is no "WIN / LOSE" button anywhere, because a win/loss button is how the old build paid out
 bets that had actually lost. The bankroll is never stored either — it is recalculated from the
 recorded hands on every read, so undo and reload can never leave the totals out of step.
 
 Guards the server enforces (each one was a defect in the old build):
 
-* one open bet at a time — a second bet is refused, so no hand can be orphaned;
-* a hand settles exactly once — the panel closes when it settles and a repeat is refused;
-* a stake larger than the bankroll is refused, and `×2` cannot run away;
+* **one wager per side** — you cannot put two Banker bets on one hand;
+* **Banker and Player cannot both be bet on one hand** — they are mutually exclusive, as at a real
+  table, but **Tie can be added on top of either** (the common hedge). One result then settles every
+  open wager, and the hand's win/loss is the net;
+* a hand settles exactly once — a repeat is refused, so a double click cannot pay twice;
+* a stake larger than the bankroll is refused, counting every wager already open, and `×2` cannot
+  run away;
 * Banker and Player bets push on a Tie instead of "winning" the stake twice;
 * the commission is taken to the cent ($4.75 profit on a 1-unit Banker win at $5/unit, not $5.00);
 * an ended session refuses further bets.
+
+The interface fits one window: the module is sized so the whole session, statistics and history are
+visible without scrolling, with the required disclaimer pinned along the bottom of the window. Only
+the hand-history table scrolls internally when it grows long.
 
 ---
 
@@ -86,12 +98,13 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 
 | Step | What it proves |
 |---|---|
-| `node tests\engine.test.js` | 47 unit tests, including one per defect from the review (H2, H3, H4, H7, M1, M2, M3, M15, M16) |
-| `node tests\generate-vectors.js` | emits 576 settlement cases + 3 session derivations from the browser rules |
-| `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree |
-| `python tests\ui_wiring_test.py` | 20 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class |
+| `node tests\engine.test.js` | 59 unit tests: one per review defect, plus the multi-wager rules (Tie alongside Banker/Player, duplicate sides, netting, legacy hand shapes) |
+| `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
+| `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
+| `python tests\ui_wiring_test.py` | 27 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll |
 | `python tests\ocr_test.py` | 40 checks on the OCR reader and the observe/confirm/auto rules, driven by a fake screen and a fake model |
-| `python tests\server_smoke.py` | 54 checks driving the real server over HTTP — most of them about what must be **refused** |
+| `python tests\server_smoke.py` | 68 checks driving the real server over HTTP — most of them about what must be **refused** |
+| `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together |
 | hygiene check | fails the run if a real-looking credential ever appears in the module |
 
 The rules exist twice on purpose (browser and server). The vector test is what stops the two copies

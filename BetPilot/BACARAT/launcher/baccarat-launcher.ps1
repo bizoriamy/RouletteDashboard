@@ -146,7 +146,7 @@ $chromeCandidates = @($chromeCandidates | Where-Object { Test-Path -LiteralPath 
 
 try {
     if ($chromeCandidates.Count -gt 0) {
-        Start-Process -FilePath $chromeCandidates[0] -ArgumentList @("--app=$pageUrl", '--window-size=1040,820')
+        Start-Process -FilePath $chromeCandidates[0] -ArgumentList @("--app=$pageUrl", '--window-size=1240,900')
         Write-Host 'Opened the Baccarat module in Google Chrome (app window).'
     } else {
         Start-Process $pageUrl

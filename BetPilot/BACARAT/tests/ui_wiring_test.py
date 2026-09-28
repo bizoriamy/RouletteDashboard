@@ -118,6 +118,25 @@ def main():
               for name in re.findall(r'(?:src|href)="([^":/]+\.(?:js|css))"', html)),
           re.findall(r'(?:src|href)="([^":/]+\.(?:js|css))"', html))
 
+    print("\nLAYOUT REQUIREMENTS (from user feedback)")
+    disclaimer_at = html.find("DISCLAIMER")
+    table_at = html.find('id="table-screen"')
+    ended_at = html.find('id="ended-screen"')
+    check("the disclaimer is at the BOTTOM of the page, after the screens",
+          disclaimer_at > table_at and disclaimer_at > ended_at,
+          "disclaimer at %d, table at %d, ended at %d" % (disclaimer_at, table_at, ended_at))
+    check("the disclaimer is not hidden or collapsed (compliance)",
+          "bottom-bar" in html and ".bottom-bar" in css and "hidden" not in html[disclaimer_at - 80:disclaimer_at + 40])
+    check("the page itself does not scroll",
+          "overflow: hidden" in css and "height: 100%" in css,
+          "html/body need a fixed viewport with internal scrolling only")
+    check("inner regions are the only things that scroll",
+          css.count("overflow-y: auto") >= 3, css.count("overflow-y: auto"))
+    check("the disclaimer is a footer element", "<footer" in html)
+    check("the stake control stays usable while a hand is open (to add a Tie side bet)",
+          "remaining < 1 || has.banker" in ui or "has.banker" in ui)
+    check("a wager can be removed individually", "removeWager" in ui and "action: \"remove\"" in ui)
+
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     if failed:
         for name, detail in failed:

@@ -1,16 +1,22 @@
-BetPilot — v2.0.0-20260928-Baccarat
+BetPilot — v2.1.0-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
-Module:    Baccarat (rebuilt — local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.0.0-20260928-Baccarat)
+Module:    Baccarat (local server application)
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.1.0-20260928-Baccarat)
 Status:    CORE COMPLETE AND VERIFIED — OCR implemented, awaiting region calibration
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
 All visible labels, launcher, and window titles must match this version.
 
-v1.0.0 was a five-file browser prototype. It was reviewed on 2026-09-28 and found not releasable:
-eight reproduced functional defects plus a credential published in a document. It was replaced by
-v2.0.0, which is a local Python server application with the money rules in one tested place. See
-BACARAT/CHANGELOG.md for the item-by-item record and BACARAT/REVIEW_Baccarat_v1.0.0-20260928.md for
-the review that prompted it.
+v2.0.0 rebuilt the Baccarat module as a local Python server application, replacing a five-file
+browser prototype that was reviewed on 2026-09-28 and found not releasable (eight reproduced
+functional defects plus a credential published in a document).
+
+v2.1.0 adds the changes requested from the first hands-on review: a Tie bet may be placed alongside
+Banker or Player on the same hand (one wager per side, Banker and Player mutually exclusive), the
+disclaimer moved to the bottom of the window, and the layout was rebuilt to fit one window with no
+page scrolling.
+
+See BACARAT/CHANGELOG.md for the item-by-item record and
+BACARAT/REVIEW_Baccarat_v1.0.0-20260928.md for the review that prompted the rebuild.
