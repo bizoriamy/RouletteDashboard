@@ -198,6 +198,18 @@ def capture_region(region):
     return buffer.getvalue()
 
 
+def screen_size():
+    """The capture coordinate space, which is the same space calibrate.py measures in."""
+    import pyautogui
+    width, height = pyautogui.size()
+    return [int(width), int(height)]
+
+
+def capture_full_screen():
+    width, height = screen_size()
+    return capture_region([0, 0, width, height])
+
+
 # --------------------------------------------------------------------------- providers
 
 

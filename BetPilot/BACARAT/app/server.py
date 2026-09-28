@@ -16,6 +16,7 @@ import ctypes
 import functools
 import hashlib
 import http.server
+import io
 import json
 import os
 import re
@@ -72,6 +73,7 @@ OCR_STOP_PATH = OCR_PREFIX + "/stop"
 OCR_CONFIRM_PATH = OCR_PREFIX + "/confirm"
 OCR_REJECT_PATH = OCR_PREFIX + "/reject"
 OCR_EVENTS_PATH = OCR_PREFIX + "/events"
+OCR_SAMPLE_PATH = OCR_PREFIX + "/sample"
 OCR_EVENT_LOG = os.path.join(DATA_DIR, "ocr-events.jsonl")
 
 INSTANCE_KEY = os.environ.get("BACCARAT_INSTANCE_KEY", APP_DIR)
@@ -722,6 +724,62 @@ class OcrController:
         with self._lock:
             return self.events[-limit:]
 
+    def save_sample(self, payload):
+        """Capture the region now and save it as a sample, WITHOUT calling the model.
+
+        This is the one-click equivalent of `ocr_check.py --crop-only`: press it while the table is
+        showing a result and the picture lands in data/samples/ to be looked at before any calibration
+        is trusted. It costs nothing and records nothing in the session.
+        """
+        if ocr is None:
+            raise StateError("OCR is unavailable: %s" % OCR_IMPORT_ERROR, "ocr-unavailable", 503)
+
+        profile_id = str(payload.get("profileId") or "").strip()
+        region = payload.get("region")
+        profile = None
+        if profile_id:
+            profiles = {profile["id"]: profile for profile in load_profiles()}
+            profile = profiles.get(profile_id) or profiles.get(profile_id.replace(".json", ""))
+            if not profile:
+                raise StateError("Unknown calibration profile: %s" % profile_id, "bad-profile")
+            region = region or profile.get("region")
+        if not (isinstance(region, list) and len(region) == 4
+                and all(isinstance(value, int) for value in region)):
+            region = None  # fall back to the whole screen
+
+        try:
+            image_bytes = ocr.capture_region(region) if region else ocr.capture_full_screen()
+        except Exception as error:  # noqa: BLE001 - surface the reason, do not guess
+            raise StateError("Screen capture failed: %s: %s" % (type(error).__name__, error),
+                             "capture-failed", 503)
+
+        folder = os.path.join(DATA_DIR, "samples")
+        os.makedirs(folder, exist_ok=True)
+        name = "sample-%s.png" % time.strftime("%Y%m%d-%H%M%S")
+        path = os.path.join(folder, name)
+        with open(path, "wb") as handle:
+            handle.write(image_bytes)
+
+        try:
+            from PIL import Image
+            with Image.open(io.BytesIO(image_bytes)) as image:
+                image_size = (image.width, image.height)
+        except Exception:  # noqa: BLE001 - the size is informational
+            image_size = (0, 0)
+
+        self._log({"action": "sample", "profile": profile_id or None,
+                   "region": region, "path": path, "bytes": len(image_bytes)})
+        return {
+            "ok": True,
+            "path": path,
+            "bytes": len(image_bytes),
+            "region": region,
+            "signature": ocr.region_signature(image_bytes),
+            "calibrated": bool(profile.get("calibrated")) if profile else False,
+            "width": image_size[0],
+            "height": image_size[1],
+        }
+
 
 OCR_STATE = OcrController()
 
@@ -868,6 +926,7 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
             OCR_STOP_PATH: lambda: OCR_STATE.stop(),
             OCR_CONFIRM_PATH: lambda: OCR_STATE.confirm(self._json_body_()),
             OCR_REJECT_PATH: lambda: OCR_STATE.confirm({"accept": False}),
+            OCR_SAMPLE_PATH: lambda: OCR_STATE.save_sample(self._json_body_()),
         }
         handler = handlers.get(path)
         if not handler:

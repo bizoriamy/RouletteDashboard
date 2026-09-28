@@ -44,6 +44,7 @@
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
       "ocr-panel",
       "ocr-availability", "ocr-mode", "ocr-profile", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
+      "btn-ocr-sample",
       "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
       "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
@@ -957,6 +958,28 @@
     el["btn-ocr-start"].addEventListener("click", startOcr);
     el["btn-ocr-stop"].addEventListener("click", stopOcr);
     el["btn-ocr-refresh"].addEventListener("click", function () { ocrStatus(); refreshQuiet(); });
+    el["btn-ocr-sample"].addEventListener("click", function () {
+      // Captures what the reader would see and saves it, WITHOUT calling the model. Costs nothing,
+      // records nothing, and is the picture to look at before trusting a calibration region.
+      el["btn-ocr-sample"].disabled = true;
+      api("/api/baccarat/ocr/sample", { profileId: el["ocr-profile"].value || null })
+        .then(function (result) {
+          var data = result.data || {};
+          if (data.ok) {
+            toast("Sample saved: " + data.path + "  (" + data.width + "x" + data.height + ")", "good");
+            el["ocr-note"].textContent = "Saved " + data.path +
+              (data.calibrated ? " — from a calibrated profile." : " — this profile is NOT calibrated yet.") +
+              " Open it and check the region shows the hand result clearly.";
+          } else {
+            toast(data.error || "The sample could not be saved.", "error");
+            el["ocr-note"].textContent = data.error || "The sample could not be saved.";
+          }
+        })
+        .catch(function (error) {
+          toast("The sample could not be saved: " + error.message, "error");
+        })
+        .then(function () { el["btn-ocr-sample"].disabled = false; });
+    });
     el["btn-ocr-confirm"].addEventListener("click", function () {
       confirmOcr(true, el["ocr-pending-result"].value);
     });

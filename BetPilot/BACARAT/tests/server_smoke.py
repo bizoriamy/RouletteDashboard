@@ -392,6 +392,26 @@ def main():
                      if hand.get("source") == "ocr"]
         check("no refused OCR start wrote anything into the session", not ocr_hands, ocr_hands)
 
+        # The one-click sample: captures what the reader would see and saves it, calling no model.
+        status, body = request("/api/baccarat/ocr/sample", {"profileId": None})
+        if status == 200 and body.get("ok"):
+            check("a screenshot sample is saved and reported",
+                  os.path.isfile(body["path"]) and body["bytes"] > 0, json.dumps(body)[:220])
+            check("the sample lands in the data directory, not in the module",
+                  os.path.normcase(body["path"]).startswith(os.path.normcase(data_dir)), body.get("path"))
+            check("the sample reports its size and signature",
+                  body["width"] > 0 and body["height"] > 0 and "-" in body["signature"],
+                  json.dumps(body)[:220])
+        else:
+            # A headless or locked session cannot capture; the endpoint must say so plainly rather
+            # than claim it saved something.
+            check("without a capturable screen the sample endpoint refuses clearly",
+                  status in (500, 503) and "capture" in json.dumps(body).lower(),
+                  "%s %s" % (status, json.dumps(body)[:200]))
+        status, body = request("/api/baccarat/ocr/sample", {"profileId": "no-such-profile"})
+        check("an unknown calibration profile is refused for a sample",
+              status == 400 and body.get("code") == "bad-profile", "%s %s" % (status, body))
+
     finally:
         try:
             process.terminate()

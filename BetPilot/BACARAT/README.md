@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.5.1-20260928-Baccarat** (see `VERSION`)
+Version: **v2.5.2-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; OCR prompt proven general, but NOT yet validated on a real casino display**
 
 This is a rebuild of the Baccarat module after the review in
@@ -116,9 +116,9 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 55 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line |
+| `python tests\ui_wiring_test.py` | 56 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line and the sample button |
 | `python tests\ocr_test.py` | 55 checks on the OCR reader, the observe/confirm/auto rules and the accuracy arithmetic, driven by a fake screen and a fake model |
-| `python tests\server_smoke.py` | 86 checks driving the real server over HTTP — most of them about what must be **refused** |
+| `python tests\server_smoke.py` | 90 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
 | hygiene check | fails the run if a real-looking credential ever appears in the module |
@@ -157,6 +157,11 @@ python app\tools\ocr_check.py --profile <id>            read your calibrated reg
 python app\tools\ocr_check.py --image path\to\shot.png  read a saved screenshot
 python app\tools\ocr_check.py --profile <id> --repeat 3 ask the same crop three times
 ```
+
+**Or just press the button.** The OCR panel has **"Save a screenshot sample"**: one click captures what
+the reader would see and drops the picture into `data\samples\`, with no model call and no cost. It
+tells you the saved path and whether the profile it used is calibrated. Open the picture — if it does
+not clearly show the hand result, the region is wrong, and no prompt can save it.
 
 Each run saves the exact crop that was sent to the model, so what the model saw can be compared with
 what you see. Drop screenshots into `data\samples\` and `--all` reads the whole batch at once.

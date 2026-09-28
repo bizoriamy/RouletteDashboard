@@ -1,7 +1,33 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.5.1-20260928-Baccarat
+Version tracking: v2.5.2-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.5.2-20260928-Baccarat (2026-09-28) — CAPTURE A SAMPLE FROM THE MODULE ITSELF
+
+Judging a calibration region needed a terminal command, which is the wrong ask for a non-programmer.
+It is now a button.
+
+### Added
+- **"Save a screenshot sample" in the OCR panel.** One click captures what the reader would see and
+  saves it into `data/samples/`, **without calling the model** — no cost, nothing recorded in the
+  session. It reports the saved path and whether the profile used is calibrated, so the picture can be
+  opened and checked before any calibration is trusted.
+- The endpoint behind it (`POST /api/baccarat/ocr/sample`) takes an optional `profileId` and falls back
+  to the whole screen when no region is known; an unknown profile is refused by name and an
+  uncapturable screen is reported as such rather than as a saved file.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass. The HTTP
+  suite now captures a real sample and checks it lands in the data directory with a size and signature
+  (90 checks, up from 86; 56 UI checks, up from 55).
+
+### Still open
+- **A real screenshot of the casino display is still the missing piece.** The prompt reads every
+  synthetic presentation correctly (9 of 9), but the crop, the real table's animation and the display
+  itself need the user's screen. All 9 calibration profiles remain unmeasured.
 
 ---
 

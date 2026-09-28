@@ -5,6 +5,37 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.5.2-20260928-Baccarat (2026-09-28) — CAPTURE A SAMPLE FROM THE MODULE ITSELF
+
+Judging a calibration region needed a terminal command, which is the wrong ask for a non-programmer.
+It is now a button.
+
+### Added
+
+- **"Save a screenshot sample" in the OCR panel.** One click captures what the reader would see and
+  saves it into `data/samples/` — **without calling the model**, so it costs nothing and records
+  nothing in the session. It reports the saved path in a toast and in the panel note, and says plainly
+  whether the profile it used is calibrated. The path can be opened directly to check that the region
+  really shows the hand result.
+- The endpoint behind it (`POST /api/baccarat/ocr/sample`) accepts an optional `profileId` and falls
+  back to the whole screen when no region is known; an unknown profile is refused by name, and a
+  screen that cannot be captured is reported as such rather than as a saved file.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all seven steps pass. The HTTP suite
+  now captures a real sample in the sandbox and checks that it lands in the data directory with a
+  size and a signature (90 checks, up from 86; 56 UI checks, up from 55).
+
+### Still open
+
+- **A real screenshot of the casino display is still the missing piece.** The prompt reads every
+  synthetic presentation correctly (9 of 9), but the crop, the real table's animation and how the
+  result is actually displayed there need the user's screen. All 9 calibration profiles are still
+  unmeasured.
+
+---
+
 ## v2.5.1-20260928-Baccarat (2026-09-28) — PROMPT GENERALITY, PROVEN AND RE-RUNNABLE
 
 The screen reader is still unvalidated against the real casino display, but its prompt has now been
