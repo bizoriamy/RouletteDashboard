@@ -5,6 +5,48 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.8.3-20260928-Baccarat (2026-09-28) — THE DRAWING BUG WAS MINE, NOT YOURS
+
+The user reported still seeing no OCR result and said the layout is fixed for Pragmatic Half Width /
+Full Length, so calibration should not be needed repeatedly. Both were right, and the cause was a bug
+of mine that I had twice blamed on their drawing.
+
+### The bug
+
+When you drag a box on the drawing screen, the box must be converted from the picture's pixels back to
+screen pixels. It divided by the server's scale factor — which is only correct if the picture is shown
+at its natural size. It never is: the picture is 1100px wide and CSS shrinks it to fit the panel, so
+the conversion moved every box **up and to the left**, roughly onto the chat panel.
+
+Measured by simulating a ~700px-wide module window: a box drawn around the table at
+`1220,840,437x135` was saved as **`754,519,270x83`** — and the user's own logs show
+**`789,527,302x140`**, the same mis-mapping. **They had drawn the table correctly, twice.**
+
+### Fixed
+
+- The conversion now maps by proportion — rendered size to screen size — which needs no scale factor at
+  all and is exact at any window width. Verified by simulation at three window widths; the old method
+  fails two of the three.
+- A suggested box now waits for the picture to finish loading before it is positioned (it was drawn
+  against a zero-sized element, so the dashed box could fail to appear).
+- The Pragmatic Half Width / Full Length profile is **pre-measured** at `1220,840,437x135` for a
+  1920x1080 screen, with the measurement recorded as its provenance. That layout is fixed, so no
+  calibration is needed for it — the region is simply there.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass, with **78**
+  UI wiring checks including four new ones that pin the conversion: it must use the rendered size, and
+  the old divide-by-scale form must not come back.
+
+### Still open
+
+- The reader is pointed at the right place again; the user needs to relaunch, press Stop, then Start
+  reading.
+- Automatic mode awaits a clean accuracy record.
+
+---
+
 ## v2.8.2-20260928-Baccarat (2026-09-28) — SETUP AND READER NOW AGREE, AND DRAWING STARTS FROM THE TABLE
 
 Reported: *"the setting page (1st screen) change to Pragmatic Half width/Full length — when start

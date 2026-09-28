@@ -208,7 +208,13 @@ def main():
           'id="region-picker"' in html and 'id="region-shot"' in html
           and 'id="region-selection"' in html)
     check("display pixels are converted back to screen pixels by the scale",
-          "screenScale" in ui and "/ scale" in ui)
+          "renderedToScreen" in ui and "screenToRendered" in ui)
+    check("the conversion uses the RENDERED size, not the server's scale alone",
+          "rect.width) * state.screenWidth" in ui and "rect.height) * state.screenHeight" in ui)
+    check("the old wrong conversion is gone",
+          "Math.round(left / scale)" not in ui and "left / scale" not in ui)
+    check("a suggested box waits for the picture to load before being drawn",
+          "pendingSuggestion" in ui and '"load"' in ui and "drawSuggested" in ui)
     check("a box too small to be meant is not accepted", "too small" in ui)
     check("the overlay is modal for the keyboard", 'el["region-picker"].hidden' in ui)
     check("a drag that leaves the picture still finishes", 'window.addEventListener("mouseup"' in ui)

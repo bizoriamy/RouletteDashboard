@@ -537,6 +537,36 @@
     state.dragFrom = null;
   }
 
+  function drawSuggested(suggested) {
+    var box = screenToRendered(suggested.region);
+    state.drawnRegion = suggested.region.slice();
+    if (box) {
+      el["region-selection"].style.left = box.left + "px";
+      el["region-selection"].style.top = box.top + "px";
+      el["region-selection"].style.width = box.width + "px";
+      el["region-selection"].style.height = box.height + "px";
+    }
+    el["region-selection"].dataset.suggested = "true";
+    el["region-selection"].hidden = false;
+    el["btn-region-use"].disabled = false;
+    el["region-readout"].textContent = "Found the table from " + suggested.sample + " (match " +
+      suggested.score.toFixed(2) + ") — capturing " + suggested.region.join(",") +
+      ". Press Use this region, or drag to adjust it.";
+    el["ocr-note"].textContent = "The box is already on your table. Press \"Use this region\" if " +
+      "it looks right, or drag a better one.";
+  }
+
+  function showSuggestion(suggested) {
+    if (!suggested || !suggested.region) return;
+    // The picture may not be laid out yet, so the box cannot be positioned until it is.
+    var image = el["region-shot"];
+    if (image.complete && image.naturalWidth) {
+      drawSuggested(suggested);
+      return;
+    }
+    state.pendingSuggestion = suggested;
+  }
+
   function openRegionPicker() {
     el["ocr-note"].textContent = "Taking a picture of the screen…";
     api("/api/baccarat/ocr/screen", {})
@@ -563,57 +593,69 @@
         // If a screenshot the user snipped can be found on screen, start from there: the box is drawn
         // on the table already and they only adjust it. This is what stops a box landing on the chat
         // panel or a blank page.
-        var suggested = data.suggested;
-        if (suggested && suggested.region) {
-          var scale = state.screenScale || 1;
-          var from = { x: suggested.region[0] * scale, y: suggested.region[1] * scale };
-          var to = { x: (suggested.region[0] + suggested.region[2]) * scale,
-                     y: (suggested.region[1] + suggested.region[3]) * scale };
-          state.drawnRegion = suggested.region.slice();
-          el["region-selection"].style.left = Math.min(from.x, to.x) + "px";
-          el["region-selection"].style.top = Math.min(from.y, to.y) + "px";
-          el["region-selection"].style.width = Math.abs(to.x - from.x) + "px";
-          el["region-selection"].style.height = Math.abs(to.y - from.y) + "px";
-          el["region-selection"].dataset.suggested = "true";
-          el["region-selection"].hidden = false;
-          el["btn-region-use"].disabled = false;
-          el["region-readout"].textContent = "Found the table from " + suggested.sample + " (match " +
-            suggested.score.toFixed(2) + ") — capturing " + suggested.region.join(",") +
-            ". Press Use this region, or drag to adjust it.";
-          el["ocr-note"].textContent = "The box is already on your table. Press \"Use this region\" if " +
-            "it looks right, or drag a better one.";
-        }
+        // If a screenshot the user snipped can be found on screen, start from there: the box is drawn
+        // on the table already and they only adjust it.
+        showSuggestion(data.suggested);
       })
       .catch(function (error) {
         toast("The screen could not be captured: " + error.message, "error");
       });
   }
 
-  function imagePoint(event) {
+  // The picture is a scaled-down copy of the screen, and CSS may scale it again to fit the panel. So
+  // a point on the RENDERED image maps to the screen by proportion alone: the ratio of the screen to
+  // the rendered size. Dividing by the server's scale instead was wrong whenever CSS shrank the
+  // picture — which it always does — and it mapped boxes onto the wrong part of the screen.
+  function renderedToScreen(point) {
     var rect = el["region-shot"].getBoundingClientRect();
+    if (!rect.width || !rect.height || !state.screenWidth || !state.screenHeight) return point;
     return {
+      x: (point.x / rect.width) * state.screenWidth,
+      y: (point.y / rect.height) * state.screenHeight
+    };
+  }
+
+  function screenToRendered(region) {
+    var rect = el["region-shot"].getBoundingClientRect();
+    if (!rect.width || !rect.height || !state.screenWidth || !state.screenHeight) return null;
+    return {
+      left: (region[0] / state.screenWidth) * rect.width,
+      top: (region[1] / state.screenHeight) * rect.height,
+      width: (region[2] / state.screenWidth) * rect.width,
+      height: (region[3] / state.screenHeight) * rect.height
+    };
+  }
+
+  function imagePoint(event) {
+    // Straight into screen coordinates: the caller never has to convert again.
+    var rect = el["region-shot"].getBoundingClientRect();
+    var point = {
       x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
       y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
+    };
+    var screen = renderedToScreen(point);
+    return {
+      x: Math.min(Math.max(screen.x, 0), state.screenWidth || screen.x),
+      y: Math.min(Math.max(screen.y, 0), state.screenHeight || screen.y)
     };
   }
 
   function updateSelection(from, to) {
-    var left = Math.min(from.x, to.x);
-    var top = Math.min(from.y, to.y);
-    var width = Math.abs(to.x - from.x);
-    var height = Math.abs(to.y - from.y);
+    // from/to are already screen coordinates; the box drawn on the picture is the inverse mapping.
+    var region = [Math.round(Math.min(from.x, to.x)), Math.round(Math.min(from.y, to.y)),
+      Math.round(Math.abs(to.x - from.x)), Math.round(Math.abs(to.y - from.y))];
+    var box = screenToRendered(region);
+    if (box) {
+      el["region-selection"].style.left = box.left + "px";
+      el["region-selection"].style.top = box.top + "px";
+      el["region-selection"].style.width = box.width + "px";
+      el["region-selection"].style.height = box.height + "px";
+    }
     // Dragging replaces the suggested box, so it stops being marked as a suggestion.
     el["region-selection"].dataset.suggested = "false";
-    el["region-selection"].style.left = left + "px";
-    el["region-selection"].style.top = top + "px";
-    el["region-selection"].style.width = width + "px";
-    el["region-selection"].style.height = height + "px";
     el["region-selection"].hidden = false;
 
-    var scale = state.screenScale || 1;
-    var region = [Math.round(left / scale), Math.round(top / scale),
-      Math.round(width / scale), Math.round(height / scale)];
-    if (width < 12 || height < 10) {
+    if (region[2] < 20 || region[3] < 12) {
       state.drawnRegion = null;
       el["btn-region-use"].disabled = true;
       el["region-readout"].textContent = "That box is too small — drag a wider one.";
@@ -622,7 +664,7 @@
     state.drawnRegion = region;
     el["btn-region-use"].disabled = false;
     el["region-readout"].textContent = "Will capture " + region[2] + "×" + region[3] +
-      " pixels at " + region[0] + "," + region[1] + "  (display scale " + scale.toFixed(2) + ")";
+      " pixels at " + region[0] + "," + region[1];
   }
 
   function useRegion() {
@@ -666,6 +708,12 @@
     el["btn-region-cancel"].addEventListener("click", hideRegionPicker);
     el["btn-region-use"].addEventListener("click", useRegion);
 
+    el["region-shot"].addEventListener("load", function () {
+      if (state.pendingSuggestion) {
+        drawSuggested(state.pendingSuggestion);
+        state.pendingSuggestion = null;
+      }
+    });
     el["region-shot"].addEventListener("mousedown", function (event) {
       event.preventDefault();
       state.dragFrom = imagePoint(event);

@@ -1,10 +1,10 @@
-BetPilot — v2.8.2-20260928-Baccarat
+BetPilot — v2.8.3-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.8.2-20260928-Baccarat)
-Status:    the reader follows the session's provider+layout, draws from a detected table position,
-           reads the live table correctly, and has a fallback model for busy frames
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.8.3-20260928-Baccarat)
+Status:    the drawing coordinate bug is fixed (it was mapping correct boxes onto the wrong part of
+           the screen); the Pragmatic Half Width / Full Length profile is pre-measured
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -13,15 +13,16 @@ All visible labels, launcher, and window titles must match this version.
 v2.0.0 rebuilt the Baccarat module as a local Python server application. v2.1.0-v2.4.0 added the Tie
 bet and its own stake, the half-screen layout, PASS recording the table's result, and the OCR
 groundwork. v2.5.x-v2.7.x built and proved the OCR tooling, calibration, the confidence gate and the
-live loop. v2.8.0 was the milestone: the reader read the user's live casino display correctly, and
+live loop. v2.8.0 was the milestone: the reader read the user's live casino display correctly and
 found that a region containing the history grid and the balance row makes the model burn its whole
-token budget.
+token budget. v2.8.1 refused whole-screen regions and explained a profile changed while running.
+v2.8.2 made the OCR profile follow the session's provider and layout, and made Draw the region start
+from a detected table position.
 
-v2.8.1 closed the "why is no result showing?" traps (a whole-screen region is refused at Start;
-changing the profile while running is explained). v2.8.2 connects the setup screen to the reader — the
-OCR profile now follows the session's provider and layout, so choosing "Pragmatic Half Width / Full
-Length" at setup is the profile the reader uses — and makes Draw the region start from the table's
-detected position instead of a guess, after a hand-drawn box landed on the chat panel twice. A
-fallback model now covers the busy frames that occasionally defeat the fast one.
+v2.8.3 fixes the drawing coordinate conversion, which divided by the server's scale factor and so
+moved every drawn box up and to the left whenever CSS shrank the picture — which it always does. The
+user had been drawing the table correctly; the module was saving the chat panel. The conversion is now
+by proportion, exact at any window width, and the Pragmatic Half Width / Full Length profile is
+pre-measured at 1220,840,437x135 for a 1920x1080 screen so that layout needs no calibration at all.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

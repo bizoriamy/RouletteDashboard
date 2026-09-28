@@ -1,7 +1,41 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.8.2-20260928-Baccarat
+Version tracking: v2.8.3-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.8.3-20260928-Baccarat (2026-09-28) — THE DRAWING BUG WAS MINE, NOT YOURS
+
+The user reported still seeing no OCR result, and said the layout is fixed for Pragmatic Half Width /
+Full Length so calibration should not be needed repeatedly. Both were right, and the cause was a bug
+of mine that I had twice blamed on their drawing.
+
+### The bug
+Converting a drawn box from the picture's pixels back to screen pixels divided by the server's scale
+factor — correct only if the picture is shown at its natural size, which it never is (1100px wide,
+shrunk by CSS to fit the panel). Every box moved **up and to the left**.
+
+Simulated with a ~700px-wide module window: a box drawn around the table at `1220,840,437x135` was
+saved as **`754,519,270x83`**, and the user's logs show **`789,527,302x140`** — the same mis-mapping.
+**They had drawn the table correctly, twice.**
+
+### Fixed
+- The conversion now maps by proportion (rendered size to screen size), which needs no scale factor and
+  is exact at any window width. Verified by simulation at three widths; the old method fails two.
+- A suggested box now waits for the picture to load before being positioned, so the dashed box cannot
+  be lost to a zero-sized element.
+- The **Pragmatic Half Width / Full Length profile is pre-measured** at `1220,840,437x135` for a
+  1920x1080 screen, with that recorded as its provenance. That layout is fixed, so it needs no
+  calibration at all.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass, with
+  **78** UI wiring checks, four of them new and pinning the conversion so the old form cannot return.
+
+### Still open
+- The reader points at the right place again; the user needs to relaunch, then Stop and Start reading.
+- Automatic mode awaits a clean accuracy record.
 
 ---
 
