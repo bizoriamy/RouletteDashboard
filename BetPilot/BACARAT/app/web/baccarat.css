@@ -111,7 +111,10 @@ a { color: var(--gold-soft); }
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(330px, 360px) 1fr;
+  /* The secondary panels stay SIDE BY SIDE with the betting column at narrow widths, so the module
+     can sit at roughly half the screen width next to the casino window with all three panels
+     visible. They only stack below 640px, which is narrower than any usable half-screen width. */
+  grid-template-columns: minmax(292px, 336px) minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
 }
@@ -129,9 +132,8 @@ a { color: var(--gold-soft); }
   gap: 8px;
   min-height: 0;
 }
-@media (max-width: 900px) {
+@media (max-width: 640px) {
   .layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-  .history-column { grid-template-rows: auto auto minmax(0, 1fr); }
 }
 
 .panel {
@@ -228,24 +230,38 @@ a { color: var(--gold-soft); }
 
 .action-row { display: flex; flex-wrap: wrap; gap: 7px; }
 
-/* ------------------------------------------------------------------ bead plate */
-.bead-plate { display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; align-content: flex-start; max-height: 92px; overflow-y: auto; }
+/* ------------------------------- bead box: a fixed 10 x 10 grid = 100 hands ------
+   Left to right, then top to bottom, newest last. Colour only — no letters.
+   The box never grows or scrolls, so the layout stays put for a whole session. */
+.bead-box {
+  width: 281px;          /* 10 x 24px cells + 9 x 3px gaps + padding + border */
+  max-width: 100%;
+  padding: 6px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.bead-plate {
+  display: grid;
+  grid-template-columns: repeat(10, 24px);
+  grid-auto-rows: 24px;
+  gap: 3px;
+  min-height: 267px;     /* ten rows, whether or not they are filled yet */
+}
 .bead {
   width: 24px; height: 24px; border-radius: 50%;
-  display: grid; place-items: center;
-  font-size: 0.6rem; font-weight: 700; color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
 }
 .bead.banker { background: var(--red); }
 .bead.player { background: var(--blue); }
 .bead.tie { background: var(--green); border-radius: 6px; }
-.bead.empty { background: transparent; border-style: dashed; color: var(--text-muted); }
+.bead.empty { background: transparent; border-style: dashed; border-color: var(--border); }
 
 /* ----------------------------------------------------------------- statistics */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 4px 14px; margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(94px, 1fr)); gap: 3px 12px; margin: 0; }
 .stats > div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 2px; }
-.stats dt { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
-.stats dd { margin: 0; font-size: 0.8rem; font-weight: 700; }
+.stats dt { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.stats dd { margin: 0; font-size: 0.78rem; font-weight: 700; }
 .stats-wide { margin-bottom: 14px; }
 .stats-note { font-size: 0.64rem; color: var(--text-muted); margin: 8px 0 0; line-height: 1.4; }
 

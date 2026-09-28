@@ -146,7 +146,9 @@ $chromeCandidates = @($chromeCandidates | Where-Object { Test-Path -LiteralPath 
 
 try {
     if ($chromeCandidates.Count -gt 0) {
-        Start-Process -FilePath $chromeCandidates[0] -ArgumentList @("--app=$pageUrl", '--window-size=1240,900')
+        # Half of a 1920-wide screen and nearly the full height, so the casino window stays visible
+        # beside it. Resize freely: the layout keeps two columns down to 640px.
+        Start-Process -FilePath $chromeCandidates[0] -ArgumentList @("--app=$pageUrl", '--window-size=960,1040')
         Write-Host 'Opened the Baccarat module in Google Chrome (app window).'
     } else {
         Start-Process $pageUrl

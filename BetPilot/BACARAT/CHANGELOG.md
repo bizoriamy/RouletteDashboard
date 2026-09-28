@@ -5,6 +5,49 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.2.0-20260928-Baccarat (2026-09-28) — SIDE-BY-SIDE LAYOUT AND THE 100-HAND GRID
+
+Changes made from the second hands-on review, where the module is run at roughly half screen width
+and full length beside the casino window.
+
+### Changed
+
+- **The secondary panels now sit beside the betting column instead of below it.** They previously
+  stacked at anything under 900px wide, which is exactly the width you use to keep the casino visible,
+  so Hand History, Statistics and Bankroll fell off the bottom of the screen. The two-column layout
+  now holds down to 640px; only a window narrower than that stacks.
+- **The bead plate is renamed "Hand History"**, and the table that holds the running bankroll is
+  renamed **"Bankroll"**. Statistics is unchanged, as you asked.
+- **The bead plate is now a fixed 10 × 10 box holding up to 100 hands**, filled left to right then top
+  to bottom, newest last. Colour only — no letters. The box never grows or scrolls, so the layout
+  stays put for a whole session; once 100 hands are recorded the oldest drop off the front (the
+  Bankroll table still lists every hand, and both exports keep everything).
+- The launcher opens a 960 × 1040 window by default — half of a 1920-wide screen — matching how you
+  actually use it. Resizing is still fine: the layout just needs 640px.
+- Statistics and panel spacing were tightened slightly so three panels plus the strip fit a
+  full-length half-width window.
+
+### Added
+
+- The Hand History panel header shows the recorded hand count, and notes when it is showing only the
+  last 100.
+- Eleven new UI checks, including "the layout keeps two columns at half screen width", "it only
+  stacks below 640px", "the bead grid is a fixed 10-column grid", "beads carry no letters" and
+  "the bead box does not scroll or grow".
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — 38 UI wiring checks now, plus the
+engine, cross-language, OCR and end-to-end suites.
+
+### Still open
+
+- Capture-region calibration is still yours to run (all 9 profiles remain `"calibrated": false`).
+- The superseded prototype files, the old 12 configs and `API/` await your archive decision.
+- Not yet used for a full session in the new build; the first run of v2.2.0 is your visual check.
+
+---
+
 ## v2.1.0-20260928-Baccarat (2026-09-28) — LAYOUT AND MULTI-WAGER UPDATE
 
 Changes made from your first hands-on review of the module.

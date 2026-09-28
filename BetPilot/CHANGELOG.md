@@ -1,7 +1,42 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.1.0-20260928-Baccarat
+Version tracking: v2.2.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.2.0-20260928-Baccarat (2026-09-28) — SIDE-BY-SIDE LAYOUT AND THE 100-HAND GRID
+
+Second round of hands-on feedback, gathered while running the module at roughly half screen width
+and full length beside the casino window.
+
+### Changed
+- **Hand History, Statistics and Bankroll now sit BESIDE the betting column, not below it.** They used
+  to stack below 900px — exactly the width used to keep the casino visible — so the panels fell off
+  the bottom of the screen. Two columns now hold down to 640px.
+- **The bead plate is renamed "Hand History"** and the running-balance table is renamed **"Bankroll"**.
+  Statistics is unchanged.
+- **The bead plate is a fixed 10 × 10 box holding up to 100 hands**, filled left to right then top to
+  bottom, newest last, colour only (red Banker, blue Player, green Tie). It never grows or scrolls;
+  past 100 hands the oldest drop off the front, while the Bankroll table and both exports keep
+  everything.
+- The launcher opens a 960 × 1040 window by default — half of a 1920-wide screen — matching how the
+  module is actually used. It still works down to 640px.
+
+### Added
+- A hand count in the Hand History header, noting when it is showing only the last 100.
+- Eleven new UI checks: two columns at half screen width, stacking only below 640px, a fixed
+  10-column bead grid, colour-only beads, and a bead box that neither scrolls nor grows.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass
+  (38 UI wiring checks, 59 engine tests, 576 settlement cases plus 4 session derivations agreed
+  across both language implementations, 40 OCR checks, 68 HTTP checks, credential scan clean).
+
+### Still open
+- Capture-region calibration remains the user's step; all 9 profiles are still `"calibrated": false`.
+- The superseded prototype files, the old 12 configs and `API/` await an archive decision.
+- The first full session on v2.2.0 is the visual check.
 
 ---
 

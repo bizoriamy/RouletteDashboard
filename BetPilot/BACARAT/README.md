@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.1.0-20260928-Baccarat** (see `VERSION`)
+Version: **v2.2.0-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; OCR implemented and waiting on your calibration**
 
 This is a rebuild of the Baccarat module after the review in
@@ -57,9 +57,13 @@ Guards the server enforces (each one was a defect in the old build):
 * the commission is taken to the cent ($4.75 profit on a 1-unit Banker win at $5/unit, not $5.00);
 * an ended session refuses further bets.
 
-The interface fits one window: the module is sized so the whole session, statistics and history are
-visible without scrolling, with the required disclaimer pinned along the bottom of the window. Only
-the hand-history table scrolls internally when it grows long.
+The interface is built for the way it is actually used: a narrow, full-length window sitting beside
+the casino. The betting column is on the left; **Hand History**, **Statistics** and **Bankroll** stay
+beside it rather than dropping below, down to a 640px-wide window. Hand History is a fixed 10 × 10
+box holding up to **100 hands**, filled left to right then top to bottom with colour-only beads
+(red Banker, blue Player, green Tie) — it never grows or scrolls, so the layout stays put. Bankroll
+lists every hand with its running total and scrolls internally. The required disclaimer is pinned
+along the bottom of the window.
 
 ---
 
@@ -101,7 +105,7 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 59 unit tests: one per review defect, plus the multi-wager rules (Tie alongside Banker/Player, duplicate sides, netting, legacy hand shapes) |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 27 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll |
+| `python tests\ui_wiring_test.py` | 38 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box |
 | `python tests\ocr_test.py` | 40 checks on the OCR reader and the observe/confirm/auto rules, driven by a fake screen and a fake model |
 | `python tests\server_smoke.py` | 68 checks driving the real server over HTTP — most of them about what must be **refused** |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together |

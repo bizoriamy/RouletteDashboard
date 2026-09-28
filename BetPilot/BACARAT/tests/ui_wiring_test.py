@@ -137,6 +137,28 @@ def main():
           "remaining < 1 || has.banker" in ui or "has.banker" in ui)
     check("a wager can be removed individually", "removeWager" in ui and "action: \"remove\"" in ui)
 
+    print("\nPANEL NAMES AND THE BEAD BOX")
+    check("the panel titles are Hand History / Statistics / Bankroll",
+          ">Hand History<" in html and ">Statistics<" in html and ">Bankroll<" in html,
+          "titles must match the names the user chose")
+    check("the old Bead plate title is gone", ">Bead plate<" not in html)
+    check("the bead grid is a fixed 10-column grid", "repeat(10, 24px)" in css)
+    check("the bead box holds 100 hands", "BEAD_CAPACITY = 100" in ui)
+    check("beads carry no letters, only colour",
+          'bead.textContent' not in ui and 'bead.className = "bead " + result' in ui)
+    check("the grid fills left to right then top to bottom",
+          "grid-auto-rows" in css and "grid-template-columns: repeat(10, 24px)" in css)
+    check("the bead box does not scroll or grow",
+          "min-height: 267px" in css and ".bead-plate" in css and "overflow-y: auto" not in css.split(".bead-plate {")[1].split("}")[0])
+    check("a hand count is shown next to the grid", 'id="bead-count"' in html)
+
+    print("\nNARROW WINDOW (half screen beside the casino)")
+    check("the layout keeps two columns at half screen width",
+          "grid-template-columns: minmax(292px, 336px) minmax(0, 1fr)" in css)
+    check("it only stacks below 640px", "max-width: 640px" in css and "max-width: 900px" not in css)
+    check("the secondary panels sit beside the betting column, not below it",
+          "history-column" in html and ".history-column" in css and "grid-template-rows: auto auto minmax(0, 1fr)" in css)
+
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     if failed:
         for name, detail in failed:

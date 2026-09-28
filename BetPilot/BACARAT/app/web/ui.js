@@ -43,7 +43,7 @@
       "ocr-availability", "ocr-mode", "ocr-profile", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
       "ocr-status", "ocr-counters", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
-      "bead-plate", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
+      "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
       "stat-winrate", "stat-streak", "stat-longest", "stat-drawdown",
       "hands-count", "hands-body",
       "ended-lede", "ended-stats", "btn-new-session", "ended-export-csv", "ended-export-json",
@@ -244,21 +244,35 @@
     });
   }
 
+  /* The Hand History grid is a fixed 10 x 10 box: up to 100 hands, filled left to right then top to
+     bottom, colour only. Older hands drop off the front; the Bankroll table still lists everything. */
+  var BEAD_CAPACITY = 100;
+
   function renderBeadPlate(derived) {
     var plate = el["bead-plate"];
     plate.textContent = "";
-    if (!derived.sequence.length) {
-      var empty = document.createElement("span");
-      empty.className = "bead empty";
-      empty.textContent = "—";
-      plate.appendChild(empty);
+    var sequence = derived.sequence || [];
+    var shown = sequence.slice(-BEAD_CAPACITY);
+    var dropped = sequence.length - shown.length;
+
+    el["bead-count"].textContent = sequence.length
+      ? sequence.length + " hand" + (sequence.length === 1 ? "" : "s") +
+        (dropped ? " · showing last " + shown.length : "")
+      : "left → right, top → bottom";
+
+    if (!shown.length) {
+      // One dashed cell keeps the box visible and its size fixed before the first hand.
+      var placeholder = document.createElement("span");
+      placeholder.className = "bead empty";
+      plate.appendChild(placeholder);
       return;
     }
-    derived.sequence.forEach(function (result) {
+
+    shown.forEach(function (result, index) {
       var bead = document.createElement("span");
       bead.className = "bead " + result;
-      bead.textContent = result.charAt(0).toUpperCase();
-      bead.title = result;
+      bead.title = "Hand " + (dropped + index + 1) + ": " + result;
+      bead.setAttribute("aria-label", result);
       plate.appendChild(bead);
     });
   }
