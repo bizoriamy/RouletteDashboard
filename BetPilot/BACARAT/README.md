@@ -1,7 +1,7 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.4.0-20260928-Baccarat** (see `VERSION`)
-Status: **core complete and verified; OCR implemented and waiting on your calibration**
+Version: **v2.5.0-20260928-Baccarat** (see `VERSION`)
+Status: **core complete and verified; OCR built but NOT yet validated on a real casino display**
 
 This is a rebuild of the Baccarat module after the review in
 [REVIEW_Baccarat_v1.0.0-20260928.md](REVIEW_Baccarat_v1.0.0-20260928.md). The old module was five
@@ -116,10 +116,11 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 52 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake |
-| `python tests\ocr_test.py` | 40 checks on the OCR reader and the observe/confirm/auto rules, driven by a fake screen and a fake model |
-| `python tests\server_smoke.py` | 84 checks driving the real server over HTTP — most of them about what must be **refused** |
-| `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together |
+| `python tests\ui_wiring_test.py` | 55 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line |
+| `python tests\ocr_test.py` | 55 checks on the OCR reader, the observe/confirm/auto rules and the accuracy arithmetic, driven by a fake screen and a fake model |
+| `python tests\server_smoke.py` | 86 checks driving the real server over HTTP — most of them about what must be **refused** |
+| `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
+| `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
 | hygiene check | fails the run if a real-looking credential ever appears in the module |
 
 The rules exist twice on purpose (browser and server). The vector test is what stops the two copies
@@ -146,6 +147,25 @@ the same two inputs you would otherwise type — the bet side still comes from y
 2. **A key must be present** in `casino-tracker/.secrets/ocr.env`. The provider is chosen in
    `config/ocr.json` (default `deepseek`). The module reports honestly what is missing instead of
    pretending to read.
+
+**Judging a region before you trust it — `app/tools/ocr_check.py`:**
+
+```
+python app\tools\ocr_check.py --full --crop-only        capture a sample and call nothing (free)
+python app\tools\ocr_check.py --all                     read every PNG in data\samples\
+python app\tools\ocr_check.py --profile <id>            read your calibrated region now
+python app\tools\ocr_check.py --image path\to\shot.png  read a saved screenshot
+python app\tools\ocr_check.py --profile <id> --repeat 3 ask the same crop three times
+```
+
+Each run saves the exact crop that was sent to the model, so what the model saw can be compared with
+what you see. Drop screenshots into `data\samples\` and `--all` reads the whole batch at once.
+
+**Do not trust Automatic mode until the readout says so.** The module shows an accuracy line built
+from its own audit log: readings taken, accepted, how many you had to correct, rejected, and the
+percentage that needed no correction. Under 20 readings it says "too few to judge"; it only calls
+Automatic reasonable after a clean record. DeepSeek is the default provider; Gemini is a one-line
+switch and its model id is pinned to `gemini-3.8-flash` (the older ids are no longer served).
 
 **The three modes**, exactly as `casino-tracker/roulette/AGENTS.md` defines them:
 

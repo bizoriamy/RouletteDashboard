@@ -5,6 +5,60 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.5.0-20260928-Baccarat (2026-09-28) — OCR EVIDENCE AND A WORKING SPOT-CHECK TOOL
+
+Groundwork for the screen-reading phase. Nothing here claims the reader works on a real casino
+display yet — it has still only been tested against synthetic images.
+
+### Added
+
+- **`app/tools/ocr_check.py`** — the tool for judging a region before trusting it:
+  `--all` reads every PNG in `data/samples/` in one pass, `--image` reads one saved screenshot,
+  `--region` / `--profile` read the live screen, `--full` reads the whole display, `--crop-only`
+  captures and saves **without calling the model** (free sample collection), and `--repeat N` asks
+  the same crop repeatedly to measure stability. Every run saves the exact crop that was sent, so
+  what the model saw can be compared with what you see.
+- **An OCR accuracy readout**, built from the audit log, shown in the module: readings taken, how many
+  were accepted, how many you had to correct, how many were rejected, and the percentage that needed
+  no correction — plus a plain verdict. It refuses to flatter: under 20 readings it says "too few to
+  judge", and it recommends staying on Confirm mode unless the record is clean. This is the evidence
+  needed before Automatic mode can be justified.
+
+### Fixed
+
+- **The Gemini provider had never actually run, and its model id was retired.** Google's API reported
+  `gemini-1.5-flash` (and `gemini-2.5-flash`) as no longer served to this key and named
+  `gemini-3.8-flash` as the replacement. Both `config/ocr.json` and the code default now use it. A
+  retired id or a 429/503 now produces a plain-language message instead of raw JSON.
+- **Session end no longer writes a phantom "stop" event.** Every session you ended logged a stop even
+  though the reader had never been started, which pollutes the audit log — the very log the accuracy
+  readout depends on. It now logs a stop only when the reader was genuinely running.
+
+### Verified against your real data
+
+- All six archived sessions from your evening's testing derive correctly under the current code —
+  including the one written in the older single-wager format, which proves the legacy reader works on
+  real files rather than only on constructed ones.
+- Your 21:37 session contains a **PASS hand carrying the table result (`player`)**, so the v2.3.0
+  pass behaviour is confirmed on a real table. The earlier sessions' pass hands have no result, as
+  expected — PASS could not record one until v2.3.0.
+- The accuracy readout reports "No readings yet" against your actual log, which is correct: the reader
+  has never been started in a session. The six lines in it were the phantom stops, now fixed.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — 72 engine tests, 55 UI wiring checks,
+86 end-to-end HTTP checks, 55 OCR checks (including the accuracy arithmetic and the verdict
+thresholds), the settlement agreement and the credential scan all pass.
+
+### Still open — the actual hard part
+
+- **No real screenshot of the casino display has been read yet.** The prompt and the crop are
+  unvalidated against the user's table, and calibration is still unmeasured (all 9 profiles are
+  `"calibrated": false`). That is the next step, and it needs samples from the user.
+
+---
+
 ## v2.4.0-20260928-Baccarat (2026-09-28) — THE TIE INSURANCE GETS ITS OWN STAKE
 
 From your point that a Tie bet is insurance: "I bet 100 on Banker but feel a Tie would come, so I bet

@@ -356,6 +356,13 @@ def main():
         available = bool(body.get("available"))
         check("OCR status states which provider is configured",
               body.get("provider") in ("deepseek", "gemini") or not available, body.get("provider"))
+        check("OCR status carries the accuracy readout",
+              isinstance(body.get("stats"), dict) and "readings" in body["stats"]
+              and "verdict" in body["stats"] and "accuracyPercent" in body["stats"],
+              json.dumps(body.get("stats"))[:220])
+        check("the readout starts with no readings on a fresh data directory",
+              body["stats"]["readings"] == 0 and "No readings yet" in body["stats"]["verdict"],
+              json.dumps(body["stats"])[:220])
         status, body = request("/api/baccarat/ocr/stop", {})
         check("stopping OCR that never started is safe", status == 200 and body.get("ok") is True, body)
         status, body = request("/api/baccarat/ocr/confirm", {"accept": True})

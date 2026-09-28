@@ -51,7 +51,9 @@ DEFAULT_CONFIG = {
     },
     "gemini": {
         "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
-        "model": "gemini-1.5-flash",
+        # Verified against the user's key on 2026-09-28: the API told us gemini-1.5-flash and
+        # gemini-2.5-flash are no longer served to this key and recommended gemini-3.8-flash.
+        "model": "gemini-3.8-flash",
         "keyName": "GEMINI_API_KEY",
         "temperature": 0,
     },
@@ -266,6 +268,18 @@ def read_with_gemini(image_bytes, section, api_key):
         "generationConfig": {"temperature": float(section.get("temperature", 0))},
     }
     response = requests.post(url, params={"key": api_key}, json=payload, timeout=45)
+    if response.status_code == 404:
+        raise OcrError(
+            "Gemini does not serve the configured model '%s' for this key. List the ids available "
+            "to it at %s/models?key=... and set gemini.model in config/ocr.json. (%s)"
+            % (model, base_url, response.text[:160])
+        )
+    if response.status_code in (429, 503):
+        raise OcrError(
+            "Gemini is temporarily unavailable (HTTP %s: demand spike or rate limit). This is a "
+            "service-side condition, not a configuration problem — retry in a minute, or set "
+            "\"provider\": \"deepseek\" in config/ocr.json." % response.status_code
+        )
     if response.status_code != 200:
         raise OcrError("Gemini returned HTTP %s: %s" % (response.status_code, response.text[:200]))
     body = response.json()

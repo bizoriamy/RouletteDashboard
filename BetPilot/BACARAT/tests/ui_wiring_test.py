@@ -182,6 +182,14 @@ def main():
     check("the Tie stake can be nudged by one unit",
           'id="btn-tie-minus"' in html and '"btn-tie-plus"' in ui)
 
+    print("\nOCR ACCURACY READOUT")
+    check("the accuracy line exists and is rendered",
+          'id="ocr-accuracy"' in html and 'el["ocr-accuracy"].textContent' in ui)
+    check("a poor record is styled as a warning",
+          '.ocr-accuracy[data-grade="poor"]' in css)
+    check("the readout reports corrections and rejections",
+          "corrected " in ui and "rejected " in ui and "needed no correction" in ui)
+
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",
           'action: "place", side: "pass", stakeUnits: 0' in ui)

@@ -44,7 +44,7 @@
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
       "ocr-panel",
       "ocr-availability", "ocr-mode", "ocr-profile", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
-      "ocr-status", "ocr-counters", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
+      "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
       "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
       "stat-winrate", "stat-streak", "stat-longest", "stat-drawdown",
@@ -692,6 +692,27 @@
     if (status.duplicates) counters.push(status.duplicates + " duplicates ignored");
     if (status.lastScanAt) counters.push("last " + status.lastScanAt);
     el["ocr-counters"].textContent = counters.join(" · ");
+
+    // How the reader has actually performed: the evidence for trusting Automatic mode.
+    var stats = ocr.stats;
+    if (stats && stats.readings) {
+      var parts = [stats.readings + " reading" + (stats.readings === 1 ? "" : "s"),
+        "accepted " + stats.accepted];
+      if (stats.corrected) parts.push("corrected " + stats.corrected);
+      if (stats.rejected) parts.push("rejected " + stats.rejected);
+      if (stats.errors) parts.push("errors " + stats.errors);
+      if (stats.autoSettled) parts.push("auto-settled " + stats.autoSettled);
+      if (stats.accuracyPercent !== null && stats.accuracyPercent !== undefined) {
+        parts.push(stats.accuracyPercent + "% needed no correction");
+      }
+      el["ocr-accuracy"].textContent = parts.join(" · ") + " — " + (stats.verdict || "");
+      el["ocr-accuracy"].dataset.grade =
+        (stats.accuracyPercent !== null && stats.accuracyPercent !== undefined && stats.accuracyPercent < 95)
+          ? "poor" : "ok";
+    } else {
+      el["ocr-accuracy"].textContent = stats ? (stats.verdict || "") : "";
+      el["ocr-accuracy"].dataset.grade = "";
+    }
 
     el["btn-ocr-start"].disabled = !available || running || !state.session || state.session.status !== "active";
     el["btn-ocr-stop"].disabled = !running;

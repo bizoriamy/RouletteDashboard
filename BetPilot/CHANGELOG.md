@@ -1,7 +1,45 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.4.0-20260928-Baccarat
+Version tracking: v2.5.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.5.0-20260928-Baccarat (2026-09-28) — OCR EVIDENCE AND A WORKING SPOT-CHECK TOOL
+
+Groundwork for the screen-reading phase. Nothing here claims the reader works on a real casino
+display yet — it has still only been tested against synthetic images.
+
+### Added
+- **`BACARAT/app/tools/ocr_check.py`** — judge a capture region before trusting it. `--all` reads every
+  PNG in `data/samples/` in one pass, `--image` reads a saved screenshot, `--region`/`--profile` read
+  the live screen, `--full` reads the display, `--crop-only` saves a sample without calling the model,
+  and `--repeat N` measures stability. Each run saves the exact crop that was sent.
+- **An OCR accuracy readout** in the module, built from the audit log: readings, accepted, corrected,
+  rejected, and the percentage needing no correction, with a plain verdict that recommends staying on
+  Confirm mode until the record is clean. This is the evidence required before Automatic mode.
+
+### Fixed
+- **The Gemini provider had never run and its model id was retired.** Google's API reported
+  `gemini-1.5-flash` (and `gemini-2.5-flash`) as no longer served to this key and named
+  `gemini-3.8-flash`. Both the config and the code default now use it, and retired ids or 429/503
+  responses produce plain-language messages instead of raw JSON.
+- **Session end no longer writes a phantom "stop" event** into the audit log the accuracy readout
+  depends on.
+
+### Verified against real data
+- All six archived sessions from the evening's testing derive correctly, including one written in the
+  older single-wager format.
+- The 21:37 session contains a PASS hand carrying its table result, confirming v2.3.0 on a real table.
+- The accuracy readout reports "No readings yet" against the real log, correctly: the reader has never
+  been started in a session.
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass
+  (72 engine tests, 55 UI wiring checks, 86 HTTP checks, 55 OCR checks).
+
+### Still open
+- **No real screenshot of the casino display has been read yet.** The prompt and crop are unvalidated
+  against the user's table and all 9 calibration profiles remain unmeasured. That is the next step and
+  it needs samples.
 
 ---
 

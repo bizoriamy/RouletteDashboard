@@ -442,6 +442,88 @@ class SessionStore:
 
 STORE = SessionStore()
 
+# Actions that mean "the reader produced a candidate the user or the auto rule acted on".
+# start/stop are lifecycle, and "ignored"/"error" do not reflect a reading's accuracy.
+OCR_READING_ACTIONS = ("observed", "observed-no-open-bet", "confirmed", "confirmed-corrected",
+                       "rejected", "auto-settled")
+OCR_ACCEPTED_ACTIONS = ("observed", "observed-no-open-bet", "confirmed", "confirmed-corrected",
+                        "auto-settled")
+
+
+def ocr_event_stats(max_lines=20000):
+    """Summarise the OCR audit log: how many readings, how many needed correcting.
+
+    This is the evidence for trusting Automatic mode. Until the reader has a real record on the
+    user's table, the honest answer is "no readings yet".
+    """
+    stats = {
+        "readings": 0, "accepted": 0, "corrected": 0, "rejected": 0, "errors": 0,
+        "autoSettled": 0, "observed": 0,
+        "accuracyPercent": None, "firstAt": None, "lastAt": None,
+        "verdict": "No readings yet. Start the reader in Confirm mode and approve a few hands.",
+        "log": OCR_EVENT_LOG,
+    }
+    if not os.path.isfile(OCR_EVENT_LOG):
+        return stats
+
+    try:
+        with open(OCR_EVENT_LOG, "r", encoding="utf-8") as handle:
+            lines = handle.readlines()[-max_lines:]
+    except OSError as error:
+        stats["verdict"] = "The OCR audit log could not be read: %s" % error
+        return stats
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        action = str(event.get("action") or "")
+        at = event.get("at")
+        if at:
+            stats["firstAt"] = stats["firstAt"] or at
+            stats["lastAt"] = at
+        if action in OCR_READING_ACTIONS:
+            stats["readings"] += 1
+        if action in OCR_ACCEPTED_ACTIONS:
+            stats["accepted"] += 1
+        if action == "rejected":
+            stats["rejected"] += 1
+        if action == "error":
+            stats["errors"] += 1
+        if action == "auto-settled":
+            stats["autoSettled"] += 1
+        if action in ("observed", "observed-no-open-bet"):
+            stats["observed"] += 1
+        # "confirmed-corrected" means the user had to fix the reading.
+        if action == "confirmed-corrected":
+            stats["corrected"] += 1
+
+    if stats["accepted"]:
+        clean = stats["accepted"] - stats["corrected"]
+        stats["accuracyPercent"] = round((clean / stats["accepted"]) * 100, 1)
+
+    readings = stats["readings"]
+    if readings == 0:
+        stats["verdict"] = "No readings yet. Start the reader in Confirm mode and approve a few hands."
+    elif readings < 20:
+        stats["verdict"] = ("Only %d reading%s so far — too few to judge. Keep using Confirm mode."
+                            % (readings, "" if readings == 1 else "s"))
+    elif stats["corrected"] == 0:
+        stats["verdict"] = ("%d readings with no corrections. Automatic mode is reasonable now, but "
+                            "watch the first few hands." % readings)
+    elif stats["accuracyPercent"] is not None and stats["accuracyPercent"] >= 95:
+        stats["verdict"] = ("%d readings, %.1f%% needed no correction. Automatic is workable; keep "
+                            "an eye on it." % (readings, stats["accuracyPercent"]))
+    else:
+        stats["verdict"] = ("%d readings and %.1f%% needed no correction — too error-prone for "
+                            "Automatic. Stay on Confirm, and check the region and the crop."
+                            % (readings, stats["accuracyPercent"] or 0.0))
+    return stats
+
 
 class OcrController:
     """Owns the OCR monitor and turns its decisions into recorded hands.
@@ -484,6 +566,7 @@ class OcrController:
                 "status": {"running": False, "phase": "unavailable", "mode": "manual",
                            "message": "OCR is unavailable in this Python environment.", "error": OCR_IMPORT_ERROR},
                 "pending": None,
+                "stats": ocr_event_stats(),
                 "events": self.events[-20:],
             }
         availability = ocr.describe_availability()
@@ -498,6 +581,7 @@ class OcrController:
             "secretsFile": availability["secretsFile"],
             "status": self.monitor.snapshot() if self.monitor else {},
             "pending": pending,
+            "stats": ocr_event_stats(),
             "events": self.events[-20:],
         }
 
@@ -542,10 +626,14 @@ class OcrController:
     def stop(self):
         if ocr is None or self.monitor is None:
             return {"ok": True, "started": False, "status": {}}
+        was_running = self.monitor.is_running()
         status = self.monitor.stop()
         with self._lock:
             self.pending = None
-        self._log({"action": "stop"})
+        # Ending a session stops the reader, but logging a "stop" for a reader that was never
+        # started would fill the audit log with noise and skew the accuracy readout.
+        if was_running:
+            self._log({"action": "stop"})
         return {"ok": True, "started": False, "status": status}
 
     # ------------------------------------------------------------------ decisions

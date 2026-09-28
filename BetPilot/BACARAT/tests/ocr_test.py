@@ -382,11 +382,76 @@ def test_bad_start_requests():
         server.STORE.clear()
 
 
+def test_event_stats():
+    print("\nOCR ACCURACY READOUT (the evidence for trusting Automatic)")
+    original = server.OCR_EVENT_LOG
+    path = os.path.join(DATA_DIR, "stats-test.jsonl")
+    try:
+        server.OCR_EVENT_LOG = os.path.join(DATA_DIR, "no-such-log.jsonl")
+        stats = server.ocr_event_stats()
+        check("with no log it reports no readings",
+              stats["readings"] == 0 and "No readings yet" in stats["verdict"], stats["verdict"])
+        check("and no accuracy figure", stats["accuracyPercent"] is None, stats["accuracyPercent"])
+
+        rows = [{"action": "start"},
+                {"action": "observed", "at": "2026-09-28T10:00:00"},
+                {"action": "observed-no-open-bet"},
+                {"action": "confirmed"},
+                {"action": "confirmed-corrected"},
+                {"action": "rejected"},
+                {"action": "auto-settled"},
+                {"action": "error"},
+                {"action": "stop"}]
+        with open(path, "w", encoding="utf-8") as handle:
+            for row in rows:
+                handle.write(json.dumps(row) + "\n")
+        server.OCR_EVENT_LOG = path
+        stats = server.ocr_event_stats()
+        check("start/stop are not counted as readings", stats["readings"] == 6, stats)
+        check("accepted counts only the readings that were used", stats["accepted"] == 5, stats)
+        check("corrections are counted", stats["corrected"] == 1, stats)
+        check("rejections are counted", stats["rejected"] == 1, stats)
+        check("recording errors are counted separately from readings", stats["errors"] == 1, stats)
+        check("auto-settled readings are counted", stats["autoSettled"] == 1, stats)
+        check("accuracy excludes the corrected reading", stats["accuracyPercent"] == 80.0,
+              stats["accuracyPercent"])
+        check("a small sample is called too few to judge", "too few" in stats["verdict"], stats["verdict"])
+
+        with open(path, "w", encoding="utf-8") as handle:
+            for _ in range(25):
+                handle.write(json.dumps({"action": "confirmed"}) + "\n")
+        stats = server.ocr_event_stats()
+        check("25 clean readings clear the sample threshold",
+              "Automatic mode is reasonable" in stats["verdict"], stats["verdict"])
+        check("a clean record reports 100%", stats["accuracyPercent"] == 100.0, stats["accuracyPercent"])
+
+        with open(path, "w", encoding="utf-8") as handle:
+            for index in range(25):
+                action = "confirmed-corrected" if index % 4 == 0 else "confirmed"
+                handle.write(json.dumps({"action": action}) + "\n")
+        stats = server.ocr_event_stats()
+        check("a sloppy record warns against Automatic", "too error-prone" in stats["verdict"],
+              stats["verdict"])
+        check("accuracy reflects those corrections", stats["accuracyPercent"] == 72.0,
+              stats["accuracyPercent"])
+
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("this is not json\n")
+            handle.write(json.dumps({"action": "confirmed"}) + "\n")
+        stats = server.ocr_event_stats()
+        check("a corrupt log line is skipped rather than fatal", stats["readings"] == 1, stats)
+    finally:
+        server.OCR_EVENT_LOG = original
+        if os.path.isfile(path):
+            os.remove(path)
+
+
 def main():
     test_scan_decisions()
     test_parsing()
     test_modes()
     test_bad_start_requests()
+    test_event_stats()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
