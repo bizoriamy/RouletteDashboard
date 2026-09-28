@@ -170,6 +170,18 @@ def main():
           ".table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }" in css,
           "at half width the P&L and bankroll columns must remain reachable")
 
+    print("\nINSURANCE — the Tie stake is sized on its own")
+    check("the Tie has its own stake control", 'id="tie-stake"' in html)
+    check("the Tie button uses the insurance stake, not the main one",
+          'side === "tie" ? state.tieStake : state.stake' in ui)
+    check("every bet button shows the stake it will place",
+          'id="tie-bet-stake"' in html and 'id="banker-stake"' in html
+          and 'el["tie-bet-stake"].textContent' in ui)
+    check("the Tie stake is capped by the bankroll like the main stake",
+          "state.tieStake = Math.max(1, Math.min(state.tieStake" in ui)
+    check("the Tie stake can be nudged by one unit",
+          'id="btn-tie-minus"' in html and '"btn-tie-plus"' in ui)
+
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",
           'action: "place", side: "pass", stakeUnits: 0' in ui)

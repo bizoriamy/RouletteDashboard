@@ -212,6 +212,11 @@ a { color: var(--gold-soft); }
 .btn-tie { background: linear-gradient(135deg, var(--green), var(--green-dark)); }
 .bet-name { font-size: 0.9rem; }
 .bet-sub { font-size: 0.58rem; opacity: 0.85; font-weight: 500; }
+.bet-stake { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em; margin-top: 2px; }
+.tie-stake-row { display: flex; align-items: flex-end; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.tie-stake-row .field { flex: 0 0 auto; }
+.tie-stake-row input { width: 76px; text-align: center; font-weight: 700; color: var(--gold); }
+.tie-stake-row .field-hint { align-self: center; flex: 1 1 120px; }
 
 .open-bets { border-color: var(--gold); box-shadow: 0 0 16px rgba(255, 215, 0, 0.12); }
 .wager-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 5px; }

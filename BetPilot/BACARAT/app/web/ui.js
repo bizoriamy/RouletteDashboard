@@ -14,6 +14,7 @@
     derived: null,
     profiles: [],
     stake: 1,
+    tieStake: 1,
     topmost: false,
     busy: false,
     ocr: null,        // last /api/baccarat/ocr/status payload
@@ -36,6 +37,8 @@
       "stake-units", "stake-hint", "stake-echo", "btn-minus5", "btn-minus1", "btn-plus1", "btn-plus5",
       "btn-double", "btn-halve", "btn-clear",
       "bet-panel", "btn-banker", "btn-player", "btn-tie", "btn-pass", "tie-payout-label",
+      "banker-stake", "player-stake", "tie-bet-stake", "tie-stake", "btn-tie-minus", "btn-tie-plus",
+      "tie-stake-hint",
       "open-bets", "open-bets-list", "open-bets-total", "open-bet-hint", "btn-res-banker", "btn-res-player",
       "btn-res-tie", "btn-cancel-bets",
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
@@ -180,6 +183,17 @@
     el["stake-echo"].textContent = state.stake + " unit" + (state.stake === 1 ? "" : "s") +
       " = " + money(state.stake * session.unitValueCents);
 
+    // The Tie side bet has its OWN stake — insurance money, usually much smaller than the main bet —
+    // so it is sized independently and shown on the Tie button.
+    state.tieStake = Math.max(1, Math.min(state.tieStake, Math.max(1, remaining || 1)));
+    el["tie-stake"].value = state.tieStake;
+    el["tie-stake"].max = Math.max(1, remaining || 1);
+    el["banker-stake"].textContent = state.stake;
+    el["player-stake"].textContent = state.stake;
+    el["tie-bet-stake"].textContent = state.tieStake;
+    el["tie-stake-hint"].textContent = state.tieStake + "u = " + money(state.tieStake * session.unitValueCents) +
+      " insurance" + (has.tie ? " (already placed)" : "");
+
     if (passOpen) {
       el["stake-hint"].textContent = "PASS on this hand — no money at risk";
     } else if (remaining < 1) {
@@ -203,6 +217,11 @@
     el["btn-player"].disabled = busy || passOpen || remaining < 1 || has.player || has.banker;
     el["btn-tie"].disabled = busy || passOpen || remaining < 1 || has.tie;
     el["btn-pass"].disabled = busy || anyOpen || max < 1;
+
+    var tieLocked = busy || passOpen || remaining < 1 || has.tie;
+    el["tie-stake"].disabled = tieLocked;
+    el["btn-tie-minus"].disabled = tieLocked;
+    el["btn-tie-plus"].disabled = tieLocked;
 
     var slot = document.getElementById("bet-panel");
     if (slot) slot.dataset.open = anyOpen ? "true" : "false";
@@ -502,7 +521,9 @@
   }
 
   function place(side) {
-    return act({ action: "place", side: side, stakeUnits: state.stake });
+    // The Tie button uses the insurance stake, the other two use the main stake.
+    var stake = side === "tie" ? state.tieStake : state.stake;
+    return act({ action: "place", side: side, stakeUnits: stake });
   }
 
   /**
@@ -862,6 +883,18 @@
     el["btn-clear"].addEventListener("click", function () { state.stake = 1; render(); });
     el["stake-units"].addEventListener("change", function () {
       state.stake = Math.max(1, Math.floor(Number(el["stake-units"].value) || 1));
+      render();
+    });
+    el["tie-stake"].addEventListener("change", function () {
+      state.tieStake = Math.max(1, Math.floor(Number(el["tie-stake"].value) || 1));
+      render();
+    });
+    el["btn-tie-minus"].addEventListener("click", function () {
+      state.tieStake = Math.max(1, state.tieStake - 1);
+      render();
+    });
+    el["btn-tie-plus"].addEventListener("click", function () {
+      state.tieStake = state.tieStake + 1;
       render();
     });
 

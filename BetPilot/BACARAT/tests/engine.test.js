@@ -265,6 +265,44 @@ test("A hand record is immutable once created", function () {
   assertEqual(Engine.derive(session).netCents, 5000, "derive() must recompute, not trust the file");
 });
 
+test("The Tie stake is independent of the main bet (the insurance case)", function () {
+  // Banker 100u at $5, with a 10u Tie insurance — the case the user asked for.
+  var session = Engine.placeBet(fresh(500), "banker", 100);
+  session = Engine.placeBet(session, "tie", 10);
+  assertEqual(Engine.openStakeCents(session), 110 * 500, "100u + 10u at $5 = $550 committed");
+  assertEqual(Engine.openWagersOf(session)[0].stakeUnits, 100);
+  assertEqual(Engine.openWagersOf(session)[1].stakeUnits, 10, "the Tie keeps its own smaller stake");
+
+  var bankerWins = Engine.derive(Engine.settleOpenBets(session, "banker")).hands[0];
+  assertEqual(bankerWins.profitCents, 42500, "banker pays 47500 less the 5000 insurance");
+
+  var tieLands = Engine.derive(Engine.settleOpenBets(session, "tie")).hands[0];
+  assertEqual(tieLands.wagers[0].outcome, "push", "the Banker stake comes back");
+  assertEqual(tieLands.profitCents, 40000, "the insurance pays 8:1 on 10u = $400");
+  assertEqual(tieLands.outcome, "win");
+
+  var playerWins = Engine.derive(Engine.settleOpenBets(session, "player")).hands[0];
+  assertEqual(playerWins.profitCents, -55000, "insurance costs you when it is not needed");
+});
+test("The insurance can be larger or smaller than the main bet", function () {
+  var bigger = Engine.placeBet(Engine.placeBet(fresh(500), "player", 5), "tie", 25);
+  assertEqual(Engine.openWagersOf(bigger).map(function (w) { return w.stakeUnits; }).join(","), "5,25");
+  assertEqual(Engine.openStakeCents(bigger), 30 * 500);
+  var smaller = Engine.placeBet(Engine.placeBet(fresh(500), "player", 40), "tie", 1);
+  assertEqual(Engine.openWagersOf(smaller).map(function (w) { return w.stakeUnits; }).join(","), "40,1");
+});
+test("The independent stakes are still capped by the shared bankroll", function () {
+  var session = Engine.placeBet(fresh(10), "banker", 8);   // 8u of a 10u bankroll
+  assertThrows(function () { Engine.placeBet(session, "tie", 5); }, "stake-over-bankroll");
+  assertEqual(Engine.openStakeCents(Engine.placeBet(session, "tie", 2)), 10 * 500, "8u + 2u fits exactly");
+});
+test("Each wager keeps its own stake through a save and reload", function () {
+  var session = Engine.placeBet(Engine.placeBet(fresh(500), "banker", 100), "tie", 10);
+  var restored = Engine.fromJSON(Engine.toJSON(session));
+  assertEqual(Engine.openWagersOf(restored).map(function (w) { return w.side + ":" + w.stakeUnits; }).join(" "),
+    "banker:100 tie:10");
+});
+
 console.log("\nPASS — no bet, but the table's result is still recorded");
 test("PASS opens the hand with a zero-stake wager", function () {
   var session = Engine.placeBet(fresh(100), "pass", 0);

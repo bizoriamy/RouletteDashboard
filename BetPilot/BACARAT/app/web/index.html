@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BetPilot Baccarat — v2.3.0-20260928-Baccarat</title>
+<title>BetPilot Baccarat — v2.4.0-20260928-Baccarat</title>
 <link rel="stylesheet" href="baccarat.css">
 <meta name="description" content="BetPilot Baccarat — bet assistance and record keeping. No win guarantee. Check local gambling laws. 18+.">
 </head>
@@ -121,7 +121,7 @@
     <section class="bet-column" aria-label="Betting">
       <div class="panel">
         <div class="panel-head">
-          <h2>Your bet</h2>
+          <h2>Main stake</h2>
           <span class="panel-hint" id="stake-hint"></span>
         </div>
         <div class="stake-row">
@@ -142,19 +142,33 @@
       <div class="panel" id="bet-panel">
         <div class="panel-head">
           <h2>Place a bet</h2>
-          <span class="panel-hint">Add Tie on top of Banker or Player if you like.</span>
+          <span class="panel-hint">Each button uses the stake shown on it.</span>
         </div>
         <div class="bet-buttons">
           <button type="button" class="btn btn-banker" id="btn-banker">
             <span class="bet-name">Banker</span><span class="bet-sub">pays 0.95:1</span>
+            <span class="bet-stake"><span id="banker-stake">1</span>u</span>
           </button>
           <button type="button" class="btn btn-player" id="btn-player">
             <span class="bet-name">Player</span><span class="bet-sub">pays 1:1</span>
+            <span class="bet-stake"><span id="player-stake">1</span>u</span>
           </button>
           <button type="button" class="btn btn-tie" id="btn-tie">
             <span class="bet-name">Tie</span><span class="bet-sub" id="tie-payout-label">pays 8:1</span>
+            <span class="bet-stake"><span id="tie-bet-stake">1</span>u</span>
           </button>
         </div>
+
+        <div class="tie-stake-row">
+          <label class="field">
+            <span class="field-label">Tie stake (insurance)</span>
+            <input type="number" id="tie-stake" min="1" step="1" value="1" aria-label="Tie side bet stake in units">
+          </label>
+          <button type="button" class="btn btn-unit btn-small" id="btn-tie-minus" aria-label="Decrease the Tie stake by 1 unit">−1</button>
+          <button type="button" class="btn btn-unit btn-small" id="btn-tie-plus" aria-label="Increase the Tie stake by 1 unit">+1</button>
+          <span class="field-hint" id="tie-stake-hint">Sized on its own, independent of your main stake.</span>
+        </div>
+
         <button type="button" class="btn btn-pass" id="btn-pass">PASS — no bet this hand</button>
       </div>
 

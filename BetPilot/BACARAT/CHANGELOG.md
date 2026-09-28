@@ -5,6 +5,58 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.4.0-20260928-Baccarat (2026-09-28) — THE TIE INSURANCE GETS ITS OWN STAKE
+
+From your point that a Tie bet is insurance: "I bet 100 on Banker but feel a Tie would come, so I bet
+10." The engine already recorded each wager with its own stake — what was missing was a way to *say*
+so, because the single stake box drove whichever bet you placed next.
+
+### Added
+
+- **A dedicated Tie stake control**, sized independently of the main bet, with −1 / +1 nudges. Default
+  1u, and it can be larger or smaller than the main stake.
+- **Each bet button now shows the stake it will place** — Banker and Player show the main stake, Tie
+  shows the insurance stake — so there is no ambiguity at the moment you click.
+- The stake panel is retitled **"Main stake"** to make the distinction explicit.
+- The Tie stake hint reads out its dollar value ("10u = $50.00 insurance") and notes when one is
+  already placed.
+
+### Behaviour, verified by test
+
+Banker 100u + Tie 10u at $5/unit:
+
+| Table shows | Banker wager | Tie insurance | Hand nets |
+|---|---|---|---|
+| Banker | win +$475.00 | lose −$50.00 | **+$425.00** |
+| Tie | push $0.00 | win +$400.00 (8:1) | **+$400.00** |
+| Player | lose −$500.00 | lose −$50.00 | **−$550.00** |
+
+Without the insurance those would be +$475 / −$500 / −$500: the $50 converts a $500 loss into a $550
+loss and pays $400 when the Tie lands, which is exactly what insurance is for.
+
+Both stakes draw on the same bankroll, so together they still cannot exceed it (8u + 2u of a 10u
+bankroll is allowed; 8u + 5u is refused).
+
+### Added to the tests
+
+- Four engine tests (independent stakes, insurance larger or smaller than the main bet, the shared
+  bankroll cap, and the stakes surviving a save/reload).
+- Five UI checks (the Tie has its own control, the Tie button uses it, the buttons display their
+  stakes, the cap, and the nudges).
+- Two HTTP checks covering the 100u + 10u case end to end through the server.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — 72 engine tests, 52 UI wiring checks,
+84 end-to-end HTTP checks, the settlement agreement and the OCR suite all pass.
+
+### Still open
+
+- Capture-region calibration is still yours to run (all 9 profiles remain `"calibrated": false`).
+- The superseded prototype files, the old 12 configs and `API/` await your archive decision.
+
+---
+
 ## v2.3.0-20260928-Baccarat (2026-09-28) — PASS NOW RECORDS THE TABLE'S RESULT
 
 From your question about sitting a hand out: a pass used to leave the hand invisible to Hand History

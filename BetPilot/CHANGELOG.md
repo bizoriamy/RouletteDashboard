@@ -1,7 +1,59 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.2.0-20260928-Baccarat
+Version tracking: v2.4.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.4.0-20260928-Baccarat (2026-09-28) — THE TIE INSURANCE GETS ITS OWN STAKE
+
+From the user's point that a Tie bet is insurance: "I bet 100 on Banker but feel a Tie would come, so
+I bet 10." Each wager already carried its own stake internally; what was missing was a way to set it,
+because one stake box drove whichever bet was placed next.
+
+### Added
+- A dedicated **Tie stake** control, sized independently of the main bet, with −1/+1 nudges (default
+  1u). It may be larger or smaller than the main stake.
+- **Every bet button now shows the stake it will place** — Banker and Player show the main stake, Tie
+  shows the insurance stake. The stake panel is retitled "Main stake".
+- Four engine tests, five UI checks and two HTTP checks, including the full 100u + 10u case.
+
+### Verified behaviour (Banker 100u + Tie 10u at $5/unit)
+- Banker wins: +$425.00 (banker +$475, insurance −$50)
+- Tie lands: +$400.00 (banker stake pushed, insurance pays 8:1 on $50)
+- Player wins: −$550.00 (banker −$500, insurance −$50)
+
+Both stakes draw on the same bankroll and cannot exceed it between them.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass:
+  72 engine tests, 52 UI wiring checks, 84 end-to-end HTTP checks, the settlement agreement and the
+  OCR suite.
+
+---
+
+## v2.3.0-20260928-Baccarat (2026-09-28) — PASS NOW RECORDS THE TABLE'S RESULT
+
+### Changed
+- **PASS opens the hand with nothing at risk** instead of logging it immediately, so you can record
+  what the table showed. That result feeds Hand History, the Banker/Player/Tie distribution and the
+  streaks, while the bankroll never moves — a pass is never a win, a loss or a wager, and win rate
+  stays about the hands actually bet.
+- A pass and a bet cannot share a hand, and a pass cannot carry a stake. Removing it logs nothing.
+- Nine engine tests, ten HTTP checks and five UI checks were added.
+
+### Fixed
+- A flaw in the test harness: `BACARAT/tests/server_smoke.py` shadowed its passing-check counter, so
+  the summary printed "24 passed" while 79 checks had run and passed.
+
+---
+
+## v2.2.1-20260928-Baccarat (2026-09-28) — BEAD SIZE AND FILL ORDER
+
+### Fixed
+- The bead dots were far too big: 14px instead of 24px, so the Hand History box is a compact 172px
+  square rather than a 281px block.
+- The fill order was reversed: the plate now fills **top to bottom first, then left to right**.
 
 ---
 

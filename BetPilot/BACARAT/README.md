@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.3.0-20260928-Baccarat** (see `VERSION`)
+Version: **v2.4.0-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; OCR implemented and waiting on your calibration**
 
 This is a rebuild of the Baccarat module after the review in
@@ -36,9 +36,13 @@ win/lose/push, the 5% Banker commission, the bankroll, the P&L, the statistics.
 | **Tie** | lose | lose | win, pays 8:1 (9:1 configurable) |
 | **Pass** | no money moves | no money moves | no money moves |
 
-A hand may carry a **Tie bet alongside Banker or Player**, and the hand's outcome is the net of its
-wagers: Banker 10u + Tie 1u nets +8.5u when Banker wins (the Tie stake is lost) and +8u when the Tie
-lands (the Banker stake is pushed). The history shows both wagers and their individual outcomes.
+A hand may carry a **Tie bet alongside Banker or Player**, and **the Tie has its own stake** — set it
+in the Tie stake box (default 1u, with −1/+1 nudges) and every button shows the stake it will place.
+That makes the hedge explicit: Banker 100u with a 10u Tie insurance at $5/unit nets **+$425** when
+Banker wins (the $50 insurance is lost), **+$400** when the Tie lands (the Banker stake is pushed and
+the insurance pays 8:1), and **−$550** when Player wins. Both stakes draw on the same bankroll, so
+they can never commit more between them than you have. The history shows each wager and its own
+outcome.
 
 **PASS records the table, not your wallet.** Pressing PASS opens the hand with nothing at risk; when
 the hand settles you record what the table showed, and that result goes into Hand History, the
@@ -109,12 +113,12 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 
 | Step | What it proves |
 |---|---|
-| `node tests\engine.test.js` | 68 unit tests: one per review defect, plus the multi-wager rules and the pass flow (result recorded, no money moved, never a win) |
+| `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 47 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result |
+| `python tests\ui_wiring_test.py` | 52 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake |
 | `python tests\ocr_test.py` | 40 checks on the OCR reader and the observe/confirm/auto rules, driven by a fake screen and a fake model |
-| `python tests\server_smoke.py` | 79 checks driving the real server over HTTP — most of them about what must be **refused** |
+| `python tests\server_smoke.py` | 84 checks driving the real server over HTTP — most of them about what must be **refused** |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together |
 | hygiene check | fails the run if a real-looking credential ever appears in the module |
 

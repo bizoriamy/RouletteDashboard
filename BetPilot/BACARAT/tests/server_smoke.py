@@ -208,6 +208,29 @@ def main():
         check("undoing it restores the bankroll", body["derived"]["bankrollCents"] == 100000,
               body["derived"]["bankrollCents"])
 
+        print("\nINSURANCE — the Tie stake is sized on its own")
+        request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 100})
+        status, body = request("/api/baccarat/hand", {"action": "place", "side": "tie", "stakeUnits": 10})
+        stakes = [(wager["side"], wager["stakeUnits"]) for wager in body["session"]["openWagers"]]
+        check("Banker 100u and Tie 10u keep their own stakes",
+              stakes == [("banker", 100), ("tie", 10)], json.dumps(stakes))
+        status, body = request("/api/baccarat/hand", {"action": "settle", "result": "banker"})
+        check("a 10u insurance only costs 10u when Banker wins (47500 - 5000)",
+              body["derived"]["netCents"] == 42500, str(body["derived"]["netCents"]))
+        status, body = request("/api/baccarat/hand", {"action": "undo"})
+        request("/api/baccarat/hand", {"action": "place", "side": "banker", "stakeUnits": 100})
+        request("/api/baccarat/hand", {"action": "place", "side": "tie", "stakeUnits": 10})
+        status, body = request("/api/baccarat/hand", {"action": "settle", "result": "tie"})
+        check("the insurance pays 8:1 on its own 10u when the Tie lands",
+              body["derived"]["netCents"] == 40000, body["derived"]["netCents"])
+        check("the Banker stake is pushed, not lost",
+              body["derived"]["hands"][0]["wagers"][0]["outcome"] == "push",
+              json.dumps(body["derived"]["hands"][0])[:200])
+        status, body = request("/api/baccarat/hand", {"action": "undo"})
+        check("the insurance hand undoes cleanly",
+              body["derived"]["totalHands"] == 0 and body["derived"]["bankrollCents"] == 100000,
+              json.dumps(body["derived"])[:200])
+
         print("\nPASS — no bet, but the table's result is still recorded")
         status, body = request("/api/baccarat/hand", {"action": "place", "side": "pass", "stakeUnits": 0})
         check("a pass opens the hand with nothing at stake",

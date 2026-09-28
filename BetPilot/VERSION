@@ -1,8 +1,8 @@
-BetPilot — v2.3.0-20260928-Baccarat
+BetPilot — v2.4.0-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.3.0-20260928-Baccarat)
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.4.0-20260928-Baccarat)
 Status:    CORE COMPLETE AND VERIFIED — OCR implemented, awaiting region calibration
 Build:     2026-09-28
 
@@ -13,19 +13,18 @@ v2.0.0 rebuilt the Baccarat module as a local Python server application, replaci
 browser prototype that was reviewed on 2026-09-28 and found not releasable (eight reproduced
 functional defects plus a credential published in a document).
 
-v2.1.0 added the first round of hands-on feedback: a Tie bet alongside Banker or Player on the same
-hand, the disclaimer moved to the foot of the window, and a no-scroll layout.
+v2.1.0 added a Tie bet alongside Banker or Player on the same hand, moved the disclaimer to the foot
+of the window, and removed page scrolling. v2.2.0 put Hand History, Statistics and Bankroll beside
+the betting column so the module works at half screen width, gave the bead plate a fixed 10 x 10 box
+of 100 colour-only hands, and renamed the two table panels. v2.2.1 shrank the dots to 14px and
+corrected the fill order to top-to-bottom then left-to-right.
 
-v2.2.0 added the second round: Hand History, Statistics and Bankroll sit BESIDE the betting column
-rather than below it, so the module works at roughly half screen width beside the casino window; the
-bead plate became a fixed 10 x 10 box holding 100 colour-only hands; and the two table panels were
-renamed Hand History (the grid) and Bankroll (the running-balance table). v2.2.1 shrank the dots to
-14px and corrected the fill order to top-to-bottom, then left-to-right.
+v2.3.0 made PASS record the table's result: passing opens the hand with nothing at risk, the result
+feeds Hand History, the result distribution and the streaks, and the bankroll never moves.
 
-v2.3.0 makes PASS record the table's result: passing opens the hand with nothing at risk, the result
-you record afterwards feeds Hand History, the result distribution and the streaks, and the bankroll
-never moves. A pass is never a win, a loss or a wager, and win rate still describes the hands you
-actually bet.
+v2.4.0 gives the Tie insurance its own stake, set independently of the main bet, with each bet button
+showing the stake it will place: Banker 100u with a 10u Tie insurance nets +$425 when Banker wins,
++$400 when the Tie lands and -$550 when Player wins, at $5 per unit.
 
 The per-release record for the module (including the patch entries) is BACARAT/CHANGELOG.md.
 The review that prompted the rebuild is BACARAT/REVIEW_Baccarat_v1.0.0-20260928.md.
