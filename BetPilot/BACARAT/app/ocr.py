@@ -94,7 +94,10 @@ PROMPT = (
     "- If a hand is still being dealt (cards moving or blurred, no settled totals, a timer or "
     "countdown), or no hand is visible at all, reply "
     '{"result": null, "confidence": 0.0, "evidence": "no clear result"}.\n'
-    "- A wrong result is worse than no result."
+    "- A wrong result is worse than no result.\n"
+    "In \"evidence\", give the signal you decided from and keep it short. Do not restate totals or "
+    "other numbers unless you are certain of them — a wrong number there is more misleading than no "
+    "number, and the person reading it checks it against the table."
 )
 
 
@@ -207,6 +210,26 @@ def region_signature(image_bytes, size=16):
         small = image.convert("RGB").resize((size, size), Image.LANCZOS)
         payload = small.tobytes()
     return "%s-%s" % (hashlib.sha1(payload).hexdigest()[:16], size)
+
+
+def preview_png(image_bytes, max_width=1100):
+    """A smaller PNG of a captured screen, for drawing a region on, plus the scale applied.
+
+    Drawing happens on a picture scaled to fit, so the scale must travel with it: display pixels are
+    converted back to screen pixels by dividing by this number.
+    """
+    from PIL import Image
+    with io.BytesIO(image_bytes) as buffer:
+        with Image.open(buffer) as opened:
+            image = opened.convert("RGB")
+    scale = 1.0
+    if image.width > max_width:
+        scale = float(max_width) / float(image.width)
+        image = image.resize((max(1, int(round(image.width * scale))),
+                              max(1, int(round(image.height * scale)))), Image.LANCZOS)
+    out = io.BytesIO()
+    image.save(out, format="PNG")
+    return out.getvalue(), scale
 
 
 def validate_region(region, screen=None):
@@ -486,9 +509,12 @@ def read_with_deepseek(image_bytes, section, api_key):
         if last_finish != "length":
             return last_content  # empty for another reason; the retry wrapper deals with it
     raise OcrError(
-        "The vision model produced no content within a %d-token budget (finish_reason=%s). The image "
-        "is probably too ambiguous to read; treat it as no result, or raise maxTokens for deepseek in "
-        "config/ocr.json." % (base_budget * 2, last_finish)
+        "The vision model spent its whole %d-token budget deliberating and answered nothing "
+        "(finish_reason=%s). Raising maxTokens does NOT help — a bigger budget was measured and made "
+        "no difference. The region is too busy: leave out the history grid of coloured circles on the "
+        "left and the balance row along the bottom, keeping the hand totals and the panels. "
+        "Alternatively set deepseek.model to deepseek-v4-pro in config/ocr.json, which read the busy "
+        "image where the flash model would not." % (base_budget * 2, last_finish)
     )
 
 

@@ -1,7 +1,57 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.7.2-20260928-Baccarat
+Version tracking: v2.8.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.8.0-20260928-Baccarat (2026-09-28) — THE READER READS THE LIVE TABLE
+
+The milestone this phase was for: **the reader read the user's live casino display through their own
+calibrated region**, and got it right.
+
+### The verified result
+- **PLAYER 0.95 in 3.4 s** — "Player total 9 is higher than Banker total 7; PLAYER panel is
+  highlighted" — and the saved picture confirms it: blue box 9, red box 7, PLAYER panel bright.
+- Correct PLAYER and BANKER readings throughout, e.g. "Player total 9 (8+A) beats Banker total 8
+  (9+9)".
+- **TIE 0.95**, verified against the picture: both totals green at **7**, TIE panel bright, both sides
+  dimmed. (A real Tie on the live table — previously only verified on a mock.)
+- **NONE** promptly during betting phases, with no false readings.
+- 22 live readings: 12 decisive, all correct, and **no empty replies at all** with the tightened region.
+
+### Fixed — the region was too busy, and a bigger token budget would not have helped
+- The first live read of the calibrated region **failed outright**: the model spent its whole token
+  budget deliberating and answered nothing. Raising the budget to 6000, downscaling, and retrying all
+  changed **nothing**. Cropping out the **history grid on the left** and the **balance row at the
+  bottom** fixed it instantly — 3.4 s at 0.95.
+- The profile is tightened to `1220,840,437x135` with provenance recorded. The advice is now in the
+  error message itself, in the Draw-the-region overlay, and in the README.
+
+### Added — draw the region by hand
+- A **"Draw the region"** button: your screen opens *inside the module*, you drag a box, and it saves
+  the region, writes a picture of it to `data/calibration/`, and reads it once so you are told what
+  the reader sees. Display pixels are converted back to screen pixels by the scale sent with the
+  picture. The picture stays on this machine.
+
+### Fixed — a self-captured sample could not really calibrate
+- "Find my table" was being run on a sample the module had itself captured from the **region already in
+  use** and reporting a 0.787 match — circular: it only confirms the region it came from. User-snipped
+  samples now take priority; a self-captured one is reported as circular with an explanation, writes
+  nothing, and never sets `calibrated`.
+
+### Changed
+- Profiles now serve their calibration **provenance**, and the panel shows it in green ("Calibrated
+  from real-02-expected-PLAYER.png (0.95 match)") or amber ("NOT calibrated yet — still pointed at a
+  guess").
+- A reading's note is labelled **"reader's note (may be imprecise)"** — measured reason: the Tie was
+  read correctly while its note said "5 equals 5", the boxes reading 7 and 7.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass
+  (100 OCR, 69 UI wiring, 100 HTTP, 42 live-loop, 19 locator).
+- Two tests that assumed no profile is ever calibrated were rewritten to the properties that matter: a
+  refused action leaves a profile unchanged, and no profile claims calibration without provenance.
 
 ---
 

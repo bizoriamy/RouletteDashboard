@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BetPilot Baccarat — v2.7.2-20260928-Baccarat</title>
+<title>BetPilot Baccarat — v2.8.0-20260928-Baccarat</title>
 <link rel="stylesheet" href="baccarat.css">
 <meta name="description" content="BetPilot Baccarat — bet assistance and record keeping. No win guarantee. Check local gambling laws. 18+.">
 </head>
@@ -209,6 +209,7 @@
             <select id="ocr-profile"></select>
           </label>
         </div>
+        <p class="ocr-counters" id="ocr-profile-state"></p>
         <div class="action-row">
           <button type="button" class="btn btn-gold btn-small" id="btn-ocr-start" disabled>Start reading</button>
           <button type="button" class="btn btn-ghost btn-small" id="btn-ocr-stop" disabled>Stop</button>
@@ -217,6 +218,8 @@
                 title="Save a picture of what the reader would see, so the region can be checked before you trust it">Save a screenshot sample</button>
         <button type="button" class="btn btn-ghost btn-small" id="btn-ocr-locate"
                 title="Find the table on screen using a saved sample and write the region into the selected profile">Find my table</button>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-ocr-draw"
+                title="Show a picture of your screen and drag a box around the part that shows the result">Draw the region</button>
         </div>
         <p class="ocr-status" id="ocr-status">OCR is stopped.</p>
         <p class="ocr-counters" id="ocr-counters"></p>
@@ -333,6 +336,30 @@
     <span id="foot-build">BetPilot Baccarat</span>
   </div>
 </footer>
+
+  <div class="region-picker" id="region-picker" hidden>
+    <div class="region-picker-box">
+      <div class="region-picker-head">
+        <h3>Draw a box around what the reader should look at</h3>
+        <p class="region-picker-hint">
+          Include the hand totals and the panels that light up — that is where the result shows.
+          <strong>Leave out</strong> the history grid of coloured circles on the left and the balance
+          row along the bottom: they make the reader slow and unreliable, and they are not the result.
+          Drag with the mouse. Nothing is saved until you press <strong>Use this region</strong>,
+          and the picture stays on this machine.
+        </p>
+      </div>
+      <div class="region-shot-wrap" id="region-shot-wrap">
+        <img id="region-shot" alt="A picture of your screen to draw the region on" draggable="false">
+        <div class="region-selection" id="region-selection" hidden></div>
+      </div>
+      <div class="region-picker-actions">
+        <span class="region-picker-readout" id="region-readout">Nothing drawn yet — drag a box on the picture.</span>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-region-cancel">Cancel</button>
+        <button type="button" class="btn btn-gold btn-small" id="btn-region-use" disabled>Use this region</button>
+      </div>
+    </div>
+  </div>
 
 <script src="engine.js"></script>
 <script src="ui.js"></script>

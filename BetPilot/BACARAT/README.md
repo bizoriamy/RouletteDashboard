@@ -1,7 +1,7 @@
-# BetPilot — Baccarat (rebuilt)
+﻿# BetPilot — Baccarat (rebuilt)
 
-Version: **v2.7.2-20260928-Baccarat** (see `VERSION`)
-Status: **core complete and verified; the reader is correct on real screenshots of the user's table, the region can be located with one button, and Automatic mode is gated behind a confidence bar**
+Version: **v2.8.0-20260928-Baccarat** (see `VERSION`)
+Status: **the reader reads the live casino display correctly through a calibrated region (verified on your real table, including a Tie); Automatic still awaits a clean accuracy record**
 
 This is a rebuild of the Baccarat module after the review in
 [REVIEW_Baccarat_v1.0.0-20260928.md](REVIEW_Baccarat_v1.0.0-20260928.md). The old module was five
@@ -116,10 +116,10 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 60 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
-| `python tests\ocr_test.py` | 88 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, the confidence gate that Automatic must clear, and the handling of truncated, empty and unparseable model replies |
+| `python tests\ui_wiring_test.py` | 69 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
+| `python tests\ocr_test.py` | 100 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, the confidence gate that Automatic must clear, and the handling of truncated, empty and unparseable model replies |
 | `python tests\ocr_live_test.py` | 42 checks running the **real live loop** — monitor thread, controller, store and statistics — against a fake screen and a fake model: a hand confirmed end to end with the right money, duplicates never re-recorded, a wrong reading corrected before it is stored, Automatic settling only what it is sure of and deferring what it is not, observe mode recording no-bet hands, the accuracy readout reflecting what happened, and an off-screen region refused at start |
-| `python tests\server_smoke.py` | 93 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
+| `python tests\server_smoke.py` | 100 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
 | `python tests\locate_region_test.py` | 19 checks that the table can be found on screen from a saved sample: the right position at the same scale and at 80% scale, a refusal when it is absent, and the region round-tripping into a profile with its provenance |
@@ -191,10 +191,19 @@ and exits non-zero on a regression. All 10 graded synthetic fixtures and all 4 r
 correctly. An 11px label read at 0.95 confidence, which is why no image preprocessing was added: the
 evidence did not call for it.
 
-**What the real table looks like** (this is why the prompt is worded as it is): the result is never
-written as a word. The hand totals appear in coloured boxes — blue for Player, red for Banker — and the
-winning side's panel brightens while the loser's dims, but the panels are *permanently* labelled
-PLAYER / BANKER / TIE with their odds. A history grid of B/P/T markers sits beside the live hand.
+**What to put in the region — this matters more than anything else.** Include the **hand totals** (the
+coloured boxes above the panels: blue for Player, red for Banker, and **both green on a Tie**) and the
+**panels that light up**. Leave out:
+
+* the **history grid** of coloured circles on the left — it is past hands, not this one;
+* the **balance row** along the bottom;
+* the betting amounts and percentages under the panels.
+
+Measured on the real table: a region including the history grid and the balance row made the reader
+spend its whole token budget deliberating and answer **nothing** — and raising the token budget to
+6000 changed that not at all. Cropping those two things out turned the same content into a 3.4-second
+reading at 0.95 confidence. If you see "the reader spent its whole budget deliberating", the region is
+too busy — tighten it.
 
 **Do not trust Automatic mode until the readout says so.** The module shows an accuracy line built
 from its own audit log: readings taken, accepted, how many you had to correct, rejected, and the

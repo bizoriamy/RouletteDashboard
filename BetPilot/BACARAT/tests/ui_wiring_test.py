@@ -200,6 +200,27 @@ def main():
     check("a located region that reads nothing says so",
           "saw no clear result" in ui)
 
+    print("\nDRAWING THE CAPTURE REGION BY HAND")
+    check("the module can show the screen and take a drawn region",
+          'id="btn-ocr-draw"' in html and '"/api/baccarat/ocr/screen"' in ui
+          and '"/api/baccarat/ocr/region"' in ui)
+    check("the drawing overlay has a picture and a selection box",
+          'id="region-picker"' in html and 'id="region-shot"' in html
+          and 'id="region-selection"' in html)
+    check("display pixels are converted back to screen pixels by the scale",
+          "screenScale" in ui and "/ scale" in ui)
+    check("a box too small to be meant is not accepted", "too small" in ui)
+    check("the overlay is modal for the keyboard", 'el["region-picker"].hidden' in ui)
+    check("a drag that leaves the picture still finishes", 'window.addEventListener("mouseup"' in ui)
+    check("the panel says whether the chosen profile is calibrated, and how",
+          'id="ocr-profile-state"' in html and "renderProfileState" in ui
+          and "Calibrated" in ui and "NOT calibrated yet" in ui)
+    check("the calibration state is colour-coded",
+          '#ocr-profile-state[data-state="ready"]' in css
+          and '#ocr-profile-state[data-state="not-ready"]' in css)
+    check("a reading's note is not presented as authoritative",
+          "reader's note" in ui and "may be imprecise" in ui)
+
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",
           'action: "place", side: "pass", stakeUnits: 0' in ui)

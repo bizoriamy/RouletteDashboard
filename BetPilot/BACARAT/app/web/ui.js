@@ -16,6 +16,8 @@
     stake: 1,
     tieStake: 1,
     topmost: false,
+    screenScale: 1,
+    drawnRegion: null,
     busy: false,
     ocr: null,        // last /api/baccarat/ocr/status payload
     ocrProfile: "",
@@ -43,8 +45,10 @@
       "btn-res-tie", "btn-cancel-bets",
       "btn-undo", "btn-end", "link-export-csv", "link-export-json",
       "ocr-panel",
-      "ocr-availability", "ocr-mode", "ocr-profile", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
-      "btn-ocr-sample", "btn-ocr-locate",
+      "ocr-availability", "ocr-mode", "ocr-profile", "ocr-profile-state", "btn-ocr-start", "btn-ocr-stop", "btn-ocr-refresh",
+      "btn-ocr-sample", "btn-ocr-locate", "btn-ocr-draw",
+      "region-picker", "region-shot", "region-shot-wrap", "region-selection", "region-readout",
+      "btn-region-use", "btn-region-cancel",
       "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
       "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
@@ -521,6 +525,136 @@
     render();
   }
 
+  // ---------------------------------------------------------------- drawing the region
+  // The picture is scaled to fit the panel, so a rectangle drawn in display pixels is converted back
+  // to screen pixels by dividing by the scale the server sent with the picture.
+  function hideRegionPicker() {
+    el["region-picker"].hidden = true;
+    el["region-selection"].hidden = true;
+    el["btn-region-use"].disabled = true;
+    state.drawnRegion = null;
+    state.dragFrom = null;
+  }
+
+  function openRegionPicker() {
+    el["ocr-note"].textContent = "Taking a picture of the screen…";
+    api("/api/baccarat/ocr/screen", {})
+      .then(function (result) {
+        var data = result.data || {};
+        if (!data.ok) {
+          toast(data.error || "The screen could not be captured.", "error");
+          el["ocr-note"].textContent = data.error || "The screen could not be captured.";
+          return;
+        }
+        state.screenScale = data.scale || 1;
+        state.screenWidth = data.screenWidth;
+        state.screenHeight = data.screenHeight;
+        state.drawnRegion = null;
+        state.dragFrom = null;
+        el["region-shot"].src = data.image;
+        el["region-selection"].hidden = true;
+        el["btn-region-use"].disabled = true;
+        el["region-readout"].textContent = "Nothing drawn yet — drag a box on the picture.";
+        el["ocr-note"].textContent = "Drag a box around the part of the table that shows the result.";
+        el["region-picker"].hidden = false;
+      })
+      .catch(function (error) {
+        toast("The screen could not be captured: " + error.message, "error");
+      });
+  }
+
+  function imagePoint(event) {
+    var rect = el["region-shot"].getBoundingClientRect();
+    return {
+      x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
+      y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
+    };
+  }
+
+  function updateSelection(from, to) {
+    var left = Math.min(from.x, to.x);
+    var top = Math.min(from.y, to.y);
+    var width = Math.abs(to.x - from.x);
+    var height = Math.abs(to.y - from.y);
+    el["region-selection"].style.left = left + "px";
+    el["region-selection"].style.top = top + "px";
+    el["region-selection"].style.width = width + "px";
+    el["region-selection"].style.height = height + "px";
+    el["region-selection"].hidden = false;
+
+    var scale = state.screenScale || 1;
+    var region = [Math.round(left / scale), Math.round(top / scale),
+      Math.round(width / scale), Math.round(height / scale)];
+    if (width < 12 || height < 10) {
+      state.drawnRegion = null;
+      el["btn-region-use"].disabled = true;
+      el["region-readout"].textContent = "That box is too small — drag a wider one.";
+      return;
+    }
+    state.drawnRegion = region;
+    el["btn-region-use"].disabled = false;
+    el["region-readout"].textContent = "Will capture " + region[2] + "×" + region[3] +
+      " pixels at " + region[0] + "," + region[1] + "  (display scale " + scale.toFixed(2) + ")";
+  }
+
+  function useRegion() {
+    var region = state.drawnRegion;
+    if (!region) return;
+    el["btn-region-use"].disabled = true;
+    api("/api/baccarat/ocr/region", { profileId: el["ocr-profile"].value || null, region: region })
+      .then(function (result) {
+        var data = result.data || {};
+        if (!data.ok) {
+          toast(data.error || "That region was refused.", "error");
+          el["ocr-note"].textContent = data.error || "That region was refused.";
+          return;
+        }
+        var reading = data.reading || {};
+        var verdict;
+        if (reading.error) {
+          verdict = " The test read could not run: " + reading.error;
+        } else if (reading.result) {
+          verdict = " It reads: " + String(reading.result).toUpperCase() + " at " +
+            Number(reading.confidence).toFixed(2) + " confidence.";
+        } else {
+          verdict = " It saw no clear result — try a box that includes the hand totals.";
+        }
+        toast("Region saved: " + data.region.join(",") + (data.saved ? "" : " (no profile selected, so not saved)"),
+          data.saved ? "good" : "error");
+        el["ocr-note"].textContent = "Region " + data.region.join(",") +
+          (data.saved ? " saved into " + data.profileId : " — no profile was selected, so nothing was saved") +
+          "." + verdict + (data.cropPath ? " A picture of it was saved to " + data.cropPath + "." : "");
+        hideRegionPicker();
+        loadProfiles();
+      })
+      .catch(function (error) {
+        toast("That region could not be saved: " + error.message, "error");
+      })
+      .then(function () { el["btn-region-use"].disabled = false; });
+  }
+
+  function wireRegionPicker() {
+    el["btn-ocr-draw"].addEventListener("click", openRegionPicker);
+    el["btn-region-cancel"].addEventListener("click", hideRegionPicker);
+    el["btn-region-use"].addEventListener("click", useRegion);
+
+    el["region-shot"].addEventListener("mousedown", function (event) {
+      event.preventDefault();
+      state.dragFrom = imagePoint(event);
+      updateSelection(state.dragFrom, state.dragFrom);
+    });
+    el["region-shot"].addEventListener("mousemove", function (event) {
+      if (!state.dragFrom) return;
+      updateSelection(state.dragFrom, imagePoint(event));
+    });
+    // Listen on the window so a drag that leaves the picture still finishes cleanly.
+    window.addEventListener("mouseup", function (event) {
+      if (!state.dragFrom) return;
+      updateSelection(state.dragFrom, imagePoint(event));
+      state.dragFrom = null;
+    });
+  }
+
   function place(side) {
     // The Tie button uses the insurance stake, the other two use the main stake.
     var stake = side === "tie" ? state.tieStake : state.stake;
@@ -630,7 +764,32 @@
     }).catch(function () { /* the setup screen still works without profiles */ });
   }
 
+  function renderProfileState() {
+    var list = state.profiles || [];
+    var chosen = list.filter(function (profile) {
+      return profile.id === el["ocr-profile"].value;
+    })[0];
+    if (!chosen) {
+      el["ocr-profile-state"].textContent = "";
+      return;
+    }
+    var region = (chosen.region || []).join(",");
+    if (chosen.calibrated) {
+      var how = chosen.calibratedFrom ? " from " + chosen.calibratedFrom : "";
+      var score = (chosen.matchScore !== null && chosen.matchScore !== undefined)
+        ? " (" + Number(chosen.matchScore).toFixed(2) + " match)" : "";
+      el["ocr-profile-state"].textContent = "Calibrated" + how + score + " — capturing " + region +
+        ". If you move or resize the casino window, calibrate again.";
+      el["ocr-profile-state"].dataset.state = "ready";
+    } else {
+      el["ocr-profile-state"].textContent = "NOT calibrated yet — it is still pointed at a guess (" +
+        region + "). Press \"Draw the region\" or \"Find my table\" before expecting it to read.";
+      el["ocr-profile-state"].dataset.state = "not-ready";
+    }
+  }
+
   function fillOcrProfiles(list) {
+    state.profiles = list || [];
     var select = el["ocr-profile"];
     select.textContent = "";
     if (!list.length) {
@@ -638,6 +797,7 @@
       option.value = "";
       option.textContent = "No calibration profiles found in config/";
       select.appendChild(option);
+      el["ocr-profile-state"].textContent = "";
       return;
     }
     list.forEach(function (profile) {
@@ -647,6 +807,7 @@
       select.appendChild(option);
     });
     if (state.ocrProfile) select.value = state.ocrProfile;
+    renderProfileState();
   }
 
   function loadArchive() {
@@ -743,8 +904,11 @@
       // A reading waiting on approval must not be hidden behind a collapsed panel.
       el["ocr-panel"].open = true;
       el["ocr-pending-line"].textContent = "Read: " + String(pending.result || "?").toUpperCase() +
-        " (confidence " + (pending.confidence === undefined ? "?" : pending.confidence) + ") — " +
-        (pending.evidence || "no evidence given");
+        " (confidence " + (pending.confidence === undefined ? "?" : pending.confidence) + ")" +
+        // The note is the reader's own account, and it can misquote details even when the result is
+        // right (measured: a real Tie described as "5 equals 5" while the boxes read 7 and 7). The
+        // result is what gets recorded; the note is a hint to check against the table.
+        (pending.evidence ? " — reader's note (may be imprecise): " + pending.evidence : "");
       el["ocr-pending-result"].value = pending.result || "banker";
     }
 
@@ -855,6 +1019,15 @@
   function onKey(event) {
     if (typingInField(event) || event.ctrlKey || event.metaKey || event.altKey) return;
 
+    // The region picker is modal: Escape closes it and no other shortcut should fire while it is up.
+    if (!el["region-picker"].hidden) {
+      if (event.key === "Escape") {
+        hideRegionPicker();
+        event.preventDefault();
+      }
+      return;
+    }
+
     // An OCR candidate awaiting approval takes priority: Enter confirms, Backspace rejects.
     if (state.ocr && state.ocr.pending) {
       if (event.key === "Enter") {
@@ -958,6 +1131,7 @@
     el["btn-ocr-start"].addEventListener("click", startOcr);
     el["btn-ocr-stop"].addEventListener("click", stopOcr);
     el["btn-ocr-refresh"].addEventListener("click", function () { ocrStatus(); refreshQuiet(); });
+    wireRegionPicker();
     el["btn-ocr-locate"].addEventListener("click", function () {
       // Calibration without dragging a box: match a saved sample against the live screen and write
       // the region into the profile. A poor match is refused rather than guessed.
@@ -976,6 +1150,12 @@
                 " at " + Number(reading.confidence).toFixed(2) + " confidence.";
             } else {
               verdict = " It saw no clear result — check the saved crop before trusting this region.";
+            }
+            if (data.circular) {
+              toast("That sample came from the region already in use — nothing was saved.", "error");
+              el["ocr-note"].textContent = data.note ||
+                "That sample was captured from the region already in use, so matching it only confirms it.";
+              return;
             }
             toast("Table found at " + data.region.join(",") + " (match " + data.score.toFixed(2) + ")" +
               (reading.result ? " — reads " + String(reading.result).toUpperCase() : ""), "good");
@@ -1024,6 +1204,7 @@
     el["btn-ocr-reject"].addEventListener("click", function () { confirmOcr(false); });
     el["ocr-profile"].addEventListener("change", function () {
       state.ocrProfile = el["ocr-profile"].value;
+      renderProfileState();
     });
   }
 

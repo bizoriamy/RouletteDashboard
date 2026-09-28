@@ -75,6 +75,8 @@ OCR_REJECT_PATH = OCR_PREFIX + "/reject"
 OCR_EVENTS_PATH = OCR_PREFIX + "/events"
 OCR_SAMPLE_PATH = OCR_PREFIX + "/sample"
 OCR_LOCATE_PATH = OCR_PREFIX + "/locate"
+OCR_SCREEN_PATH = OCR_PREFIX + "/screen"
+OCR_REGION_PATH = OCR_PREFIX + "/region"
 OCR_EVENT_LOG = os.path.join(DATA_DIR, "ocr-events.jsonl")
 
 INSTANCE_KEY = os.environ.get("BACCARAT_INSTANCE_KEY", APP_DIR)
@@ -765,6 +767,85 @@ class OcrController:
         except Exception as error:  # noqa: BLE001 - the reading is a bonus, not the answer
             return {"error": "%s: %s" % (type(error).__name__, error)}
 
+    def screen_preview(self, payload=None):
+        """A picture of the screen for drawing a region on, scaled to fit a panel.
+
+        Stays on this machine: it is captured here and served to the local page. The scale travels
+        with it so the drawn rectangle can be converted back to screen pixels exactly.
+        """
+        if ocr is None:
+            raise StateError("OCR is unavailable: %s" % OCR_IMPORT_ERROR, "ocr-unavailable", 503)
+        try:
+            screen = ocr.capture_full_screen()
+        except Exception as error:  # noqa: BLE001
+            raise StateError("Screen capture failed: %s: %s" % (type(error).__name__, error),
+                             "capture-failed", 503)
+        try:
+            preview, scale = ocr.preview_png(screen, max_width=1100)
+        except Exception as error:  # noqa: BLE001
+            raise StateError("The screen picture could not be prepared: %s" % error, "preview-failed", 503)
+        size = ocr.screen_size()
+        import base64
+        return {
+            "ok": True,
+            "image": "data:image/png;base64," + base64.b64encode(preview).decode("ascii"),
+            "scale": scale,
+            "screenWidth": size[0],
+            "screenHeight": size[1],
+            "bytes": len(preview),
+        }
+
+    def set_region(self, payload):
+        """Save a hand-drawn region into a profile, after checking it can actually be captured.
+
+        Draws on the same self-check as calibration-by-matching: the region is validated, a picture of
+        it is saved for eyeballing, and it is read once so the user is told what the reader sees.
+        """
+        if ocr is None:
+            raise StateError("OCR is unavailable: %s" % OCR_IMPORT_ERROR, "ocr-unavailable", 503)
+
+        region = payload.get("region")
+        problem = ocr.validate_region(region)
+        if problem:
+            raise StateError("That region cannot be captured: %s" % problem, "bad-region")
+
+        profile_id = str(payload.get("profileId") or "").strip()
+        profile_path = None
+        if profile_id:
+            known = {profile["id"]: profile for profile in load_profiles()}
+            if profile_id.replace(".json", "") not in known:
+                raise StateError("Unknown calibration profile: %s" % profile_id, "bad-profile")
+            profile_path = os.path.join(CONFIG_DIR, profile_id.replace(".json", "") + ".json")
+
+        try:
+            screen = ocr.capture_full_screen()
+        except Exception as error:  # noqa: BLE001
+            raise StateError("Screen capture failed: %s: %s" % (type(error).__name__, error),
+                             "capture-failed", 503)
+
+        region = [int(value) for value in region]
+        result = {"ok": True, "region": region, "profileId": profile_id or None,
+                  "reading": self._verify_region(screen, region), "cropPath": None}
+        try:
+            folder = os.path.join(DATA_DIR, "calibration")
+            os.makedirs(folder, exist_ok=True)
+            crop_path = os.path.join(folder, "region-%s.png" % time.strftime("%Y%m%d-%H%M%S"))
+            with open(crop_path, "wb") as handle:
+                handle.write(ocr.crop_from_screen(screen, region))
+            result["cropPath"] = crop_path
+        except Exception:  # noqa: BLE001 - the picture is a convenience
+            pass
+
+        if profile_path:
+            ocr.apply_region_to_profile(profile_path, region, sample="drawn by hand",
+                                        score=None)
+            result["saved"] = True
+        else:
+            result["saved"] = False
+        self._log({"action": "calibrated", "by": "hand", "region": region,
+                   "profile": profile_id or None, "reading": result["reading"]})
+        return result
+
     def locate_table(self, payload):
         """Find the table on screen from a saved sample and write the region into the profile.
 
@@ -797,6 +878,16 @@ class OcrController:
                 "No sample screenshots to look for yet — press \"Save a screenshot sample\" while the "
                 "table is visible, then try again.", "no-samples", 409)
 
+        # A sample the module captured itself came FROM the region currently in use, so matching it
+        # only confirms that region — it cannot find the table. Prefer samples the user snipped, and
+        # when only self-captured ones exist, say so and do not mark anything calibrated: "calibrated"
+        # must mean found from a real reference, not found itself.
+        self_captured = [path for path in paths if os.path.basename(path).startswith("sample-")]
+        user_samples = [path for path in paths if not os.path.basename(path).startswith("sample-")]
+        only_self_captured = bool(self_captured) and not user_samples
+        if only_self_captured:
+            paths = self_captured
+
         try:
             screen = ocr.capture_full_screen()
         except Exception as error:  # noqa: BLE001
@@ -810,7 +901,13 @@ class OcrController:
 
         if result["found"]:
             result["reading"] = self._verify_region(screen, result["region"])
-        if result["found"] and profile_path:
+        if only_self_captured:
+            result["circular"] = True
+            result["note"] = ("This sample was captured from the region already in use, so a match only "
+                              "confirms it rather than finding your table. Nothing was written. To "
+                              "calibrate for real, snip the table yourself and save it into "
+                              "data\\samples, or press Draw the region.")
+        if result["found"] and profile_path and not only_self_captured:
             ocr.apply_region_to_profile(profile_path, result["region"], result["sample"], result["score"])
             result["profileId"] = profile_id
             try:
@@ -824,7 +921,7 @@ class OcrController:
                 result["cropPath"] = None
         self._log({"action": "locate", "found": result["found"], "score": round(result["score"], 3),
                    "sample": result["sample"], "profile": profile_id or None,
-                   "region": result["region"]})
+                   "region": result["region"], "circular": bool(only_self_captured)})
         return result
 
     def save_sample(self, payload):
@@ -917,6 +1014,11 @@ def load_profiles():
                 "label": data.get("label") or data.get("name") or name,
                 "region": region,
                 "calibrated": bool(data.get("calibrated")),
+                # How it was measured, so the UI can show it and so "calibrated" can never be a bare
+                # claim without provenance.
+                "calibratedAt": data.get("calibratedAt"),
+                "calibratedFrom": data.get("calibratedFrom"),
+                "matchScore": data.get("matchScore"),
             })
     return profiles
 
@@ -1031,6 +1133,8 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
             OCR_REJECT_PATH: lambda: OCR_STATE.confirm({"accept": False}),
             OCR_SAMPLE_PATH: lambda: OCR_STATE.save_sample(self._json_body_()),
             OCR_LOCATE_PATH: lambda: OCR_STATE.locate_table(self._json_body_()),
+            OCR_SCREEN_PATH: lambda: OCR_STATE.screen_preview(self._json_body_()),
+            OCR_REGION_PATH: lambda: OCR_STATE.set_region(self._json_body_()),
         }
         handler = handlers.get(path)
         if not handler:

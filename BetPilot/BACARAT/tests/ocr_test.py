@@ -583,6 +583,43 @@ def test_auto_deferral():
     server.STORE.clear()
 
 
+def test_region_picking():
+    print("\nDRAWING A REGION: VALIDATION AND THE SCALED PICTURE")
+    check("an ordinary on-screen region is accepted",
+          ocr.validate_region([100, 100, 400, 200], screen=[1920, 1080]) is None)
+    check("a full-screen region is accepted",
+          ocr.validate_region([0, 0, 1920, 1080], screen=[1920, 1080]) is None)
+    for region, why in (([1500, 900, 900, 680], "it runs past the edge"),
+                        ([-5, 0, 100, 100], "it starts off screen"),
+                        ([10, 10, 0, 0], "it has no size"),
+                        ([1, 2, 3], "it is not four numbers"),
+                        (None, "there is no region at all")):
+        reason = ocr.validate_region(region, screen=[1920, 1080])
+        check("a region is refused when %s" % why, bool(reason), reason)
+    check("the refusal names the screen size it measured against",
+          "1920x1080" in (ocr.validate_region([1900, 0, 100, 100], screen=[1920, 1080]) or ""),
+          ocr.validate_region([1900, 0, 100, 100], screen=[1920, 1080]))
+
+    from PIL import Image
+    big = io.BytesIO()
+    Image.new("RGB", (2000, 1000), (10, 20, 30)).save(big, format="PNG")
+    preview, scale = ocr.preview_png(big.getvalue(), max_width=1000)
+    with Image.open(io.BytesIO(preview)) as image:
+        check("a wide screen is scaled down to fit", (image.width, image.height) == (1000, 500),
+              (image.width, image.height))
+    check("the scale comes back with it so drawing can be converted to screen pixels",
+          abs(scale - 0.5) < 0.001, scale)
+    small = io.BytesIO()
+    Image.new("RGB", (800, 400), (10, 20, 30)).save(small, format="PNG")
+    _preview, scale = ocr.preview_png(small.getvalue(), max_width=1000)
+    check("a screen already smaller than the limit is not enlarged", scale == 1.0, scale)
+
+    # The conversion the browser performs: display pixels / scale = screen pixels.
+    drawn = [300, 150, 200, 80]
+    converted = [round(value / scale) for value in drawn]
+    check("a drawn box converts back to the region it was drawn over", converted == drawn, converted)
+
+
 def main():
     test_scan_decisions()
     test_parsing()
@@ -593,6 +630,7 @@ def main():
     test_retry()
     test_auto_confidence_gate()
     test_auto_deferral()
+    test_region_picking()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))

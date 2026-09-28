@@ -5,6 +5,83 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.8.0-20260928-Baccarat (2026-09-28) — THE READER READS THE LIVE TABLE
+
+The milestone the phase was for: **the reader read the user's live casino display through their own
+calibrated region**, and got it right. Everything below came out of that session.
+
+### The verified result
+
+| Reading | Evidence the reader gave | Checked |
+|---|---|---|
+| PLAYER 0.95 (3.4s) | "Player total 9 is higher than Banker total 7; PLAYER panel is highlighted" | **picture confirmed**: blue box 9, red box 7, PLAYER panel bright |
+| PLAYER 0.98–1.00 | "Player total 9 is higher than Banker total 6" / "7 vs 0" / "9 (8+A) beats 8 (9+9)" | reasoning matches the region |
+| BANKER 0.99–1.00 | read from the totals and the highlighted panel | reasoning matches |
+| **TIE 0.95** | "Player total 5 (blue box) equals Banker total 5 (red box)" | **picture confirmed as a Tie** — both totals green at **7**, TIE panel bright, both sides dimmed |
+| NONE | "no settled hand or result marker visible" during betting phases | correct and prompt, no false readings |
+
+Across 22 live readings: 12 decisive, all correct; 10 refusals during betting; **no empty replies at
+all** once the region was tightened. Latency 1.9–7.8 s, mostly 2–4 s.
+
+### Fixed — the finding that mattered most: the region was too busy
+
+The first live read of the calibrated region **failed outright**: the model spent its whole token
+budget deliberating and answered nothing. Raising the budget to 6000, downscaling the image and
+re-trying all changed **nothing**. Cropping out the **history grid of coloured circles on the left and
+the balance row along the bottom** fixed it instantly — the same content then read in 3.4 s at 0.95.
+
+- The profile is now tightened to `1220,840,437x135` (from `965,840,692x157`), keeping the hand totals
+  and the panels and dropping the clutter, with the provenance recorded in the profile.
+- **The advice is in the error itself**: an empty reply now says a bigger budget does not help and
+  tells you to leave out the grid and the balance row, and that `deepseek-v4-pro` read the busy image
+  where the flash model would not (measured).
+- The **Draw the region** overlay says the same thing where you drag the box.
+
+### Added — draw the region by hand
+
+A **"Draw the region"** button in the OCR panel: a picture of your screen opens *inside the module*,
+you drag a box on the casino table with the mouse, and it saves that region into the selected profile,
+writes a picture of it to `data/calibration/`, and **reads it once** so you are told what the reader
+sees. The picture is scaled to fit, so display pixels are converted back to screen pixels by the scale
+the server sends with it, and a box too small to be meant is ignored. The picture never leaves this
+machine.
+
+### Fixed — a sample the module captured itself cannot calibrate
+
+Found by reading the user's own event log: "Find my table" was run on a sample the module had just
+captured **from the region already in use**, and reported a 0.787 match — but that match only confirms
+the region it came from. It is circular, and it was marking profiles `calibrated: true` on that basis.
+Now: samples the user snipped take priority, a self-captured sample is reported as circular with a
+plain explanation, **nothing is written**, and `calibrated` is never set from a circular match.
+
+### Changed
+
+- The API now serves a profile's calibration **provenance** (`calibratedAt`, `calibratedFrom`,
+  `matchScore`), and the panel shows it: *"Calibrated from real-02-expected-PLAYER.png (0.95 match) —
+  capturing 1220,840,437,135"*, or in amber *"NOT calibrated yet — it is still pointed at a guess"*.
+- A reading's note is labelled **"reader's note (may be imprecise)"**. Measured reason: the Tie above
+  was read correctly but its note said "5 equals 5" while the boxes read 7 and 7. The result is what
+  gets recorded; the note is a hint to check against the table. The prompt now asks for the signal
+  rather than numbers the model is unsure of.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass, now with
+  **100** OCR checks, **69** UI wiring checks, **100** HTTP checks, **42** live-loop checks and **19**
+  locator checks.
+- Two tests that assumed no profile is ever calibrated were rewritten to the property that matters: a
+  refused action must leave the profile **byte-for-byte unchanged**, and no profile may claim
+  calibration without provenance. The user's real calibration broke the old assumptions and they were
+  wrong to hold them.
+
+### Still open
+
+- The user's module is on an older build; the new button appears after relaunching.
+- Automatic mode still needs a clean accuracy record before it is justified — the evidence machinery
+  is in place and the reader has now been right on 12 of 12 decisive live readings.
+
+---
+
 ## v2.7.2-20260928-Baccarat (2026-09-28) — THE LIVE LOOP, PROVEN END TO END
 
 The parts were each tested; the loop they form had never been run as a whole. It has now — and the run

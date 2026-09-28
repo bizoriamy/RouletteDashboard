@@ -31,7 +31,8 @@ def check(name, condition, detail=""):
         print("  ok   %s" % name)
     else:
         failed.append((name, detail))
-        print("  FAIL %s%s" % (name, ("  <- " + detail) if detail else ""))
+        # str() here: a detail of any type must never turn a failure report into a crash.
+        print("  FAIL %s%s" % (name, ("  <- " + str(detail)) if detail else ""))
 
 
 def request(path, payload=None, method=None, timeout=15):
@@ -134,8 +135,15 @@ def main():
         check("no provider-less duplicate profiles are served",
               all(p.get("provider") for p in profiles),
               [p.get("id") for p in profiles if not p.get("provider")])
-        check("profiles start uncalibrated until a human measures them",
-              all(p.get("calibrated") is False for p in profiles))
+        # A profile may be calibrated once the user measures it, but it may never CLAIM calibration
+        # without saying where the measurement came from. That is the property worth protecting.
+        unjustified = [p.get("id") for p in profiles if p.get("calibrated")
+                       and not (p.get("calibratedAt") or p.get("calibratedFrom")
+                                or p.get("matchScore") is not None)]
+        check("no profile claims calibration without provenance", not unjustified, unjustified)
+        check("a profile that is not calibrated says so",
+              all(p.get("calibrated") in (True, False) for p in profiles),
+              [p.get("calibrated") for p in profiles])
 
         print("\nSESSION SETUP")
         status, body = request("/api/baccarat/session", {
@@ -414,17 +422,54 @@ def main():
               status == 400 and body.get("code") == "bad-profile", "%s %s" % (status, body))
 
         # Locating the table: the refusals matter more than the success (which needs a live table).
+        with open(os.path.join(CONFIG_DIR, "baccarat-pragmatic-half-width-full-length.json"),
+                  "r", encoding="utf-8") as handle:
+            stored = json.load(handle)
+        before_profile = (stored.get("region"), stored.get("calibrated"), stored.get("calibratedAt"))
         status, body = request("/api/baccarat/ocr/locate", {"profileId": "no-such-profile"})
         check("locating the table refuses an unknown profile",
               status == 400 and body.get("code") == "bad-profile", "%s %s" % (status, body))
         status, body = request("/api/baccarat/ocr/locate", {"profileId": None, "sample": "not-there.png"})
         check("locating refuses when there is no sample to look for",
               status == 409 and body.get("code") == "no-samples", "%s %s" % (status, body))
-        with open(os.path.join(CONFIG_DIR, "baccarat-pragmatic-half-width-full-length.json"),
-                  "r", encoding="utf-8") as handle:
-            shipped = json.load(handle)
-        check("a refused locate writes nothing into a profile",
-              shipped.get("calibrated") is False, shipped.get("calibrated"))
+
+        # Drawing the region by hand: a picture of the screen comes back, and a bad region is refused.
+        status, body = request("/api/baccarat/ocr/screen", {})
+        check("a picture of the screen can be fetched for drawing",
+              status == 200 and body.get("ok")
+              and str(body.get("image", "")).startswith("data:image/png;base64,"),
+              "%s %s" % (status, json.dumps(body)[:120]))
+        check("it reports the scale and the screen size it measured",
+              0 < float(body.get("scale", 0)) <= 1.0 and int(body.get("screenWidth", 0)) > 0
+              and int(body.get("screenHeight", 0)) > 0,
+              json.dumps({key: body.get(key) for key in ("scale", "screenWidth", "screenHeight")}))
+        status, body = request("/api/baccarat/ocr/region",
+                               {"profileId": "no-such-profile", "region": [10, 10, 100, 50]})
+        check("a drawn region for an unknown profile is refused",
+              status == 400 and body.get("code") == "bad-profile", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/ocr/region",
+                               {"profileId": "baccarat-pragmatic-half-width-full-length", "region": [1, 2, 3]})
+        check("a malformed drawn region is refused",
+              status == 400 and body.get("code") == "bad-region", "%s %s" % (status, body))
+        status, body = request("/api/baccarat/ocr/region",
+                               {"profileId": "baccarat-pragmatic-half-width-full-length",
+                                "region": [1900, 1000, 900, 680]})
+        check("a drawn region that runs off the screen is refused",
+              status == 400 and body.get("code") == "bad-region", "%s %s" % (status, body))
+        # A refused locate or an off-screen region must leave the profile EXACTLY as it was. This is
+        # checked as a before/after comparison rather than assuming the profile ships uncalibrated —
+        # the user may well have calibrated it for real by now.
+        profile_path = os.path.join(CONFIG_DIR, "baccarat-pragmatic-half-width-full-length.json")
+
+        def profile_state():
+            with open(profile_path, "r", encoding="utf-8") as handle:
+                stored = json.load(handle)
+            return (stored.get("region"), stored.get("calibrated"), stored.get("calibratedAt"))
+
+        unchanged = profile_state() == before_profile
+        check("nothing that was refused wrote anything into a profile", unchanged,
+              "%s -> %s" % (before_profile, profile_state()))
+        check("the profile is a real one with a region", len(before_profile[0]) == 4, before_profile[0])
 
     finally:
         try:
