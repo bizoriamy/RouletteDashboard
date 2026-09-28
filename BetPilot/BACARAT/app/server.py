@@ -619,6 +619,13 @@ class OcrController:
         problem = ocr.validate_region(region)
         if problem:
             raise StateError("This region cannot be captured: %s" % problem, "bad-region")
+        if ocr.region_covers_whole_screen(region):
+            raise StateError(
+                "Profile %s is pointed at your whole screen, which always makes the reader too busy to "
+                "answer (measured: it spends its entire token budget and returns nothing). Point it at "
+                "just the hand totals and the panels first — press \"Draw the region\", or \"Find my "
+                "table\" with a screenshot you snipped yourself. If the table is a different layout, "
+                "choose the profile that matches it." % profile_id, "busy-region", 409)
 
         session = STORE.load()
         if not session or session.get("status") != "active":

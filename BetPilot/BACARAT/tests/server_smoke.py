@@ -443,6 +443,8 @@ def main():
               0 < float(body.get("scale", 0)) <= 1.0 and int(body.get("screenWidth", 0)) > 0
               and int(body.get("screenHeight", 0)) > 0,
               json.dumps({key: body.get(key) for key in ("scale", "screenWidth", "screenHeight")}))
+        screen_w = int(body.get("screenWidth") or 0)
+        screen_h = int(body.get("screenHeight") or 0)
         status, body = request("/api/baccarat/ocr/region",
                                {"profileId": "no-such-profile", "region": [10, 10, 100, 50]})
         check("a drawn region for an unknown profile is refused",
@@ -470,6 +472,27 @@ def main():
         check("nothing that was refused wrote anything into a profile", unchanged,
               "%s -> %s" % (before_profile, profile_state()))
         check("the profile is a real one with a region", len(before_profile[0]) == 4, before_profile[0])
+
+        # A whole-screen profile must be refused before it loops on errors, not started. Whether the
+        # shipped full-width region counts as the whole screen depends on THIS machine's screen, and
+        # the user may have calibrated the profile since — so the expectation is computed, not assumed.
+        profiles = {p.get("id"): p for p in (request("/api/baccarat/profiles")[1].get("profiles") or [])}
+        candidate = profiles.get("baccarat-playtech-full-width-full-length") or {}
+        candidate_region = candidate.get("region") or []
+        whole = (len(candidate_region) == 4 and screen_w and screen_h
+                 and candidate_region[2] * candidate_region[3] >= 0.95 * screen_w * screen_h)
+        status, body = request("/api/baccarat/ocr/start",
+                               {"mode": "confirm", "profileId": candidate.get("id")})
+        if whole:
+            check("a whole-screen profile is refused rather than started",
+                  status == 409 and body.get("code") == "busy-region", "%s %s" % (status, body))
+            check("and the refusal says what to do instead",
+                  "Draw the region" in str(body.get("error", "")), body.get("error"))
+        else:
+            check("a profile smaller than the screen is not flagged as whole-screen",
+                  status != 200 or body.get("ok"), "%s %s" % (status, body))
+            if status == 200:
+                request("/api/baccarat/ocr/stop", {})
 
     finally:
         try:

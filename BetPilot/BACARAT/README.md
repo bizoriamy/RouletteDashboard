@@ -1,6 +1,6 @@
 ﻿# BetPilot — Baccarat (rebuilt)
 
-Version: **v2.8.0-20260928-Baccarat** (see `VERSION`)
+Version: **v2.8.1-20260928-Baccarat** (see `VERSION`)
 Status: **the reader reads the live casino display correctly through a calibrated region (verified on your real table, including a Tie); Automatic still awaits a clean accuracy record**
 
 This is a rebuild of the Baccarat module after the review in
@@ -116,10 +116,10 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\engine.test.js` | 72 unit tests: one per review defect, plus the multi-wager rules, the independent Tie insurance stake and the pass flow |
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
-| `python tests\ui_wiring_test.py` | 69 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
+| `python tests\ui_wiring_test.py` | 72 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line, the sample button, the find-my-table button and its self-reading verdict |
 | `python tests\ocr_test.py` | 100 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, the confidence gate that Automatic must clear, and the handling of truncated, empty and unparseable model replies |
 | `python tests\ocr_live_test.py` | 42 checks running the **real live loop** — monitor thread, controller, store and statistics — against a fake screen and a fake model: a hand confirmed end to end with the right money, duplicates never re-recorded, a wrong reading corrected before it is stored, Automatic settling only what it is sure of and deferring what it is not, observe mode recording no-bet hands, the accuracy readout reflecting what happened, and an off-screen region refused at start |
-| `python tests\server_smoke.py` | 100 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
+| `python tests\server_smoke.py` | 102 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample and a refused region locate |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
 | `python tests\locate_region_test.py` | 19 checks that the table can be found on screen from a saved sample: the right position at the same scale and at 80% scale, a refusal when it is absent, and the region round-tripping into a profile with its provenance |
@@ -236,7 +236,7 @@ confirm, exactly as Confirm mode would. A reading with no confidence at all is n
    it invalidates the region — press **Find my table** again, or re-run `calibrate.py`.
 2. In the module's **OCR panel**, pick your profile and set the mode to **Confirm** (not Automatic —
    not yet).
-3. Press **Start reading**. The panel shows scans, candidates and duplicates as they happen.
+3. Press **Start reading**. The panel shows scans, candidates and duplicates as they happen. The region is captured at that moment: if you change or re-calibrate the profile later, press **Stop** and start again, or the reader keeps watching the old area.
 4. When a hand is read, the panel shows what it saw. Press **Confirm** (or Enter) if it matches the
    table; correct the result from the dropdown first if it does not; **Reject** (Backspace) if it is
    wrong. Nothing is recorded until you decide.

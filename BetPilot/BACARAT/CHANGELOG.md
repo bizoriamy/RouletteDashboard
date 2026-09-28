@@ -5,6 +5,51 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.8.1-20260928-Baccarat (2026-09-28) — "WHY IS NO RESULT SHOWING?"
+
+Asked verbatim while a reader was running and producing nothing. The answer was two traps, both now
+closed.
+
+### The two traps
+
+1. **The reader was watching the whole screen.** The Evolution profile still held the shipped
+   `0,0,1920,1080` default — the entire desktop, including the module itself. Measured, that much
+   clutter makes the model spend its whole token budget and answer nothing, so the reader sat in an
+   error loop with no result and no clear reason.
+2. **The region is captured when Start is pressed and does not follow the profile.** The user then
+   drew a proper region for that same profile (the new Draw-the-region button working correctly,
+   `791,548,293x127` at 23:33:30) — but the running reader kept watching the old whole-screen area.
+
+### Fixed
+
+- **A whole-screen region is now refused at Start**, by name, with a plain explanation and what to do
+  instead ("press Draw the region, or Find my table with a screenshot you snipped yourself"), rather
+  than starting and failing every scan. Detection is by area (95% of the screen or more), so it holds
+  on any monitor size.
+- **Changing the profile while running is now explained in the panel**: *"the reader is watching
+  0,0,1920,1080 from when you pressed Start, but this profile now says 791,548,293,127. Press Stop,
+  then Start reading, to make it use the new region."*
+- **The panel calls out a whole-screen profile before you start it**: *"NOT usable as it stands — this
+  profile is pointed at your whole screen."*
+- **A hand-drawn region no longer inherits a stale match score.** Drawing by hand writes "drawn by
+  hand" as its provenance and clears any `matchScore` left over from an earlier automatic match, which
+  had been misreporting a drawn region as a 0.828 match.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass (**102** HTTP
+  checks now, **72** UI wiring checks, up from 69).
+- The HTTP check computes whether the shipped full-width region is whole-screen **from the screen the
+  server reports**, rather than assuming this machine's resolution — the assumption that made the
+  first version of that test wrong.
+
+### Still open
+
+- Automatic mode awaits a clean accuracy record. The reader has been right on 12 of 12 decisive live
+  readings so far.
+
+---
+
 ## v2.8.0-20260928-Baccarat (2026-09-28) — THE READER READS THE LIVE TABLE
 
 The milestone the phase was for: **the reader read the user's live casino display through their own

@@ -1,10 +1,10 @@
-BetPilot — v2.8.0-20260928-Baccarat
+BetPilot — v2.8.1-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.8.0-20260928-Baccarat)
-Status:    the screen reader READS THE LIVE TABLE correctly through a calibrated region, verified on
-           the user's real display including a Tie; Automatic mode still awaits a clean accuracy record
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.8.1-20260928-Baccarat)
+Status:    the screen reader reads the user's LIVE table correctly through a calibrated region
+           (12 of 12 decisive readings, including a Tie); Automatic still awaits a clean record
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -16,17 +16,18 @@ browser prototype that was reviewed and found not releasable.
 v2.1.0 added a Tie bet alongside Banker or Player, moved the disclaimer to the foot of the window and
 removed page scrolling. v2.2.x put the panels beside the betting column for half-screen use and gave
 the bead plate a fixed 10 x 10 box. v2.3.0 made PASS record the table's result. v2.4.0 gave the Tie
-insurance its own stake.
+insurance its own stake. v2.5.x built and proved the OCR tooling and prompt. v2.6.0 is where the reader
+met the real table. v2.7.x added one-click calibration, gated Automatic behind a 0.9 confidence bar,
+proved the live loop end to end and made an uncapturable region say so.
 
-v2.5.x built and proved the OCR tooling and prompt. v2.6.0 is where the reader met the real table.
-v2.7.x added one-click calibration, gated Automatic behind a 0.9 confidence bar, proved the live loop
-end to end and made an uncapturable region say so.
+v2.8.0 is the milestone: the reader read the user's live casino display through their calibrated
+region (12 of 12 decisive readings correct, including a Tie verified against the picture), found that
+a region containing the history grid and the balance row made the model burn its whole token budget
+(raising the budget did not help; cropping did), added a Draw-the-region button, and stopped
+self-captured samples from "calibrating" a profile by matching themselves.
 
-v2.8.0 is the milestone: the reader read the user's LIVE casino display through their calibrated
-region — 12 of 12 decisive readings correct, including a Tie verified against the picture, with clean
-prompt refusals during betting and no empty replies. It also found that a region containing the
-history grid and the balance row made the model burn its whole token budget and answer nothing
-(raising the budget did not help; cropping did), added a "Draw the region" button, and stopped
-self-captured samples from being able to "calibrate" a profile by matching themselves.
+v2.8.1 closes the "why is no result showing?" traps: a whole-screen region is refused at Start with a
+plain explanation, changing the profile while the reader runs is pointed out with the fix (Stop, then
+Start), and a hand-drawn region no longer inherits a stale match score.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

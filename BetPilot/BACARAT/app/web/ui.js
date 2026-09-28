@@ -774,7 +774,15 @@
       return;
     }
     var region = (chosen.region || []).join(",");
-    if (chosen.calibrated) {
+    var wholeScreen = chosen.region && state.screenWidth
+      ? (chosen.region[2] * chosen.region[3]) >= 0.95 * state.screenWidth * state.screenHeight
+      : false;
+    if (wholeScreen) {
+      el["ocr-profile-state"].textContent = "NOT usable as it stands — this profile is pointed at your " +
+        "whole screen (" + region + "), which always makes the reader too busy to answer. Press " +
+        "\"Draw the region\", or choose the profile you calibrated for this table.";
+      el["ocr-profile-state"].dataset.state = "not-ready";
+    } else if (chosen.calibrated) {
       var how = chosen.calibratedFrom ? " from " + chosen.calibratedFrom : "";
       var score = (chosen.matchScore !== null && chosen.matchScore !== undefined)
         ? " (" + Number(chosen.matchScore).toFixed(2) + " match)" : "";
@@ -914,6 +922,20 @@
 
     var events = ocr.events || [];
     el["ocr-event-count"].textContent = events.length ? "(" + events.length + ")" : "";
+
+    // The region a running reader watches is captured when Start is pressed. If the chosen profile has
+    // been changed (or re-calibrated) since, say so: otherwise the reader silently watches the old
+    // area and the user sees no results with no explanation.
+    var status = ocr.status || {};
+    var chosen = (state.profiles || []).filter(function (profile) {
+      return profile.id === el["ocr-profile"].value;
+    })[0];
+    if (status.running && chosen && chosen.region && status.region &&
+        chosen.region.join(",") !== status.region.join(",")) {
+      el["ocr-note"].textContent = "Heads up: the reader is watching " + status.region.join(",") +
+        " from when you pressed Start, but this profile now says " + chosen.region.join(",") +
+        ". Press Stop, then Start reading, to make it use the new region.";
+    }
     var list = el["ocr-events-list"];
     list.textContent = "";
     events.slice().reverse().forEach(function (event) {

@@ -220,6 +220,10 @@ def main():
           and '#ocr-profile-state[data-state="not-ready"]' in css)
     check("a reading's note is not presented as authoritative",
           "reader's note" in ui and "may be imprecise" in ui)
+    check("a profile pointed at the whole screen is called out",
+          "NOT usable as it stands" in ui and "whole screen" in ui)
+    check("changing the profile while running is explained",
+          "from when you pressed Start" in ui and "Press Stop, then Start reading" in ui)
 
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",

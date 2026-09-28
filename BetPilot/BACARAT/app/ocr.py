@@ -232,6 +232,28 @@ def preview_png(image_bytes, max_width=1100):
     return out.getvalue(), scale
 
 
+def region_covers_whole_screen(region, screen=None, coverage=0.95):
+    """Whether a region is essentially the entire screen.
+
+    A whole-screen region contains the module itself, the desktop and the taskbar. Measured on the
+    real table, that much clutter makes the reader spend its whole token budget deliberating and
+    answer nothing — so it is worth refusing up front rather than looping on errors.
+    """
+    if not (isinstance(region, (list, tuple)) and len(region) == 4):
+        return False
+    try:
+        x, y, width, height = [int(value) for value in region]
+    except (TypeError, ValueError):
+        return False
+    try:
+        size = list(screen) if screen else screen_size()
+    except Exception:  # noqa: BLE001
+        return False
+    if size[0] <= 0 or size[1] <= 0:
+        return False
+    return (width * height) >= coverage * size[0] * size[1]
+
+
 def validate_region(region, screen=None):
     """Why a region cannot be captured, or None when it is fine.
 
@@ -411,6 +433,10 @@ def apply_region_to_profile(profile_path, region, sample=None, score=None, when=
         profile["calibratedFrom"] = os.path.basename(sample)
     if score is not None:
         profile["matchScore"] = round(float(score), 3)
+    else:
+        # A region drawn by hand has no match score. Leaving a stale one from an earlier locate would
+        # misrepresent how it was measured.
+        profile.pop("matchScore", None)
     with open(profile_path, "w", encoding="utf-8") as handle:
         json.dump(profile, handle, indent=2, ensure_ascii=False)
         handle.write("\n")

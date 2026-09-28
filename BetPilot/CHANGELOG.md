@@ -1,7 +1,41 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.8.0-20260928-Baccarat
+Version tracking: v2.8.1-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.8.1-20260928-Baccarat (2026-09-28) — "WHY IS NO RESULT SHOWING?"
+
+Asked verbatim while a reader ran and produced nothing. Two traps, both now closed.
+
+### The two traps
+1. **The reader was watching the whole screen.** The Evolution profile still held the shipped
+   `0,0,1920,1080` default — the entire desktop, the module included. Measured, that clutter makes the
+   model spend its whole token budget and answer nothing, so the reader sat in an error loop.
+2. **The region is captured when Start is pressed and does not follow the profile.** The user then drew
+   a proper region for that same profile (the new Draw-the-region button working correctly,
+   `791,548,293x127`), but the running reader kept watching the old whole-screen area.
+
+### Fixed
+- **A whole-screen region is refused at Start**, by name, with what to do instead — rather than
+  starting and failing every scan. Detection is by area (95%+ of the screen), so it holds on any
+  monitor size.
+- **Changing the profile while running is explained in the panel**, with the fix: "Press Stop, then
+  Start reading."
+- **The panel flags a whole-screen profile before you start it**: "NOT usable as it stands."
+- **A hand-drawn region no longer inherits a stale match score** — provenance reads "drawn by hand"
+  and any earlier `matchScore` is cleared.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass
+  (102 HTTP checks, 72 UI wiring checks).
+- The HTTP check now computes whether a shipped region is whole-screen **from the screen the server
+  reports**, instead of assuming this machine's resolution.
+
+### Still open
+- Automatic mode awaits a clean accuracy record; the reader has been right on 12 of 12 decisive live
+  readings.
 
 ---
 

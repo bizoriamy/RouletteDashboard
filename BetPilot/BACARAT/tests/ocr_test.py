@@ -619,6 +619,23 @@ def test_region_picking():
     converted = [round(value / scale) for value in drawn]
     check("a drawn box converts back to the region it was drawn over", converted == drawn, converted)
 
+    # A region of the whole screen contains the module, the desktop and the taskbar: measured to make
+    # the reader burn its entire budget and answer nothing, so it is called out rather than tried.
+    check("the whole screen is recognised as too much",
+          ocr.region_covers_whole_screen([0, 0, 1920, 1080], screen=[1920, 1080]) is True)
+    check("a near-whole screen is too", 
+          ocr.region_covers_whole_screen([0, 0, 1900, 1060], screen=[1920, 1080]) is True)
+    check("a real region is not flagged",
+          ocr.region_covers_whole_screen([1220, 840, 437, 135], screen=[1920, 1080]) is False)
+    check("half the screen in one column is not the whole screen",
+          ocr.region_covers_whole_screen([0, 0, 960, 1080], screen=[1920, 1080]) is False)
+    check("a malformed region is not flagged as whole-screen",
+          ocr.region_covers_whole_screen([1, 2, 3], screen=[1920, 1080]) is False)
+    check("the shipped full-width profiles are whole-screen regions",
+          all(ocr.region_covers_whole_screen(region, screen=[1920, 1080])
+              for region in ([0, 0, 1920, 1080],)),
+          "the full-width defaults are the whole screen and will be refused until measured")
+
 
 def main():
     test_scan_decisions()
