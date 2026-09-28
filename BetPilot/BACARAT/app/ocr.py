@@ -707,12 +707,34 @@ def grid_cell(position, pitch=13.5):
     return int(round(float(position) / float(pitch))) if pitch else int(position)
 
 
-def grid_shot(image_bytes, max_width=640, padding=10):
-    """A zoomed, crisp picture of the filled part of the history grid, for the Hand History panel.
+def ensure_grid_region(panels_region, stored_region, capture=None):
+    """A grid region that actually contains markers, re-finding it if the window has moved.
 
-    The full grid box has empty white columns to its right and a thin margin, which showed as dead
-    space in the panel. Cropping to the markers and upscaling nearest-neighbour (the markers are solid
-    colour, so it stays crisp) fills the panel with the actual history instead.
+    A stored region goes stale when the casino window is moved or resized, and a stale region is worse
+    than none: it points at whatever is now there (a chat window, measured on the user's screen) and
+    the reader silently falls back to the model. So the region is only trusted while markers are
+    visible in it; otherwise it is looked for again from the panels' region.
+    """
+    grab = capture or capture_region
+    if stored_region:
+        try:
+            if grid_markers(grab(stored_region)):
+                return list(stored_region)
+        except Exception:  # noqa: BLE001 - a stored region that cannot be read is not trusted
+            pass
+    return find_grid_region(panels_region, capture=grab)
+
+
+def grid_shot(image_bytes, max_width=640, padding=10, min_aspect=1.4):
+    """A crisp picture of the history grid, cropped to its content, for the Hand History panel.
+
+    The grid box has empty white columns to the right of the filled markers, which showed as dead
+    space. Two rules keep the picture sane:
+
+    * The full HEIGHT is always kept. A single filled column is tall and narrow; cropping to it and
+      then stretching it to the panel's width made the markers gigantic (measured on the user's screen:
+      it filled the panel and overflowed). A crop is only taken when what remains is still wide.
+    * The upscale is capped, and nearest-neighbour, so the solid-colour markers stay crisp.
     """
     from PIL import Image
     with io.BytesIO(image_bytes) as buffer:
@@ -721,14 +743,16 @@ def grid_shot(image_bytes, max_width=640, padding=10):
     markers = grid_markers(image_bytes)
     if markers:
         left = max(0, min(m[1] for m in markers) - padding)
-        top = max(0, min(m[2] for m in markers) - padding)
         right = min(image.width, max(m[1] for m in markers) + padding + 1)
-        bottom = min(image.height, max(m[2] for m in markers) + padding + 1)
-        if right - left >= 24 and bottom - top >= 16:
-            image = image.crop((left, top, right, bottom))
+        width, height = right - left, image.height
+        # Only cut the empty columns away while the result is still wider than it is tall (by
+        # min_aspect). Otherwise keep the whole box, which is reliably wide.
+        if width >= 24 and width >= min_aspect * height:
+            image = image.crop((left, 0, right, height))
     if image.width < max_width:
-        factor = min(4, max(2, int(round(float(max_width) / image.width))))
-        image = image.resize((image.width * factor, image.height * factor), Image.NEAREST)
+        factor = min(2, max(1, int(round(float(max_width) / image.width))))
+        if factor > 1:
+            image = image.resize((image.width * factor, image.height * factor), Image.NEAREST)
     out = io.BytesIO()
     image.save(out, format="PNG")
     return out.getvalue(), len(markers)

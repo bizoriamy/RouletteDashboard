@@ -5,6 +5,42 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.10.4-20260928-Baccarat (2026-09-28) — THE SNAP STOPPED BEING GIANT, AND THE GRID REGION NOW HEALS ITSELF
+
+Reported: *"you see what happen? sometime very big."* My own v2.10.3 crop caused it, and looking at the
+screen while fixing it turned up a second fault.
+
+### Fixed — the giant snapshot
+
+- v2.10.3 cropped the grid to the markers. Early in a shoe that is **one column**, which is tall and
+  narrow (about 16 px wide, 85 px tall); stretched to the panel's width it became thousands of pixels
+  tall and swallowed the panel — exactly what the screenshot shows.
+- The crop now **always keeps the full height** and is only taken while what remains is still wider
+  than it is tall (1.4×). A single filled column therefore shows the whole wide box, and a longer
+  history has its empty columns trimmed. A test pins it: the snapshot must never be taller than it is
+  wide. The displayed height is also capped (240 px, `object-fit: contain`) as a hard backstop.
+
+### Fixed — a stale grid region (found while checking the screen)
+
+- While investigating, the configured grid region was found pointing at the **chat window and taskbar**:
+  the casino window had moved, so the saved region was stale. A stale region is worse than none — it
+  hands the reader whatever is now there, and the reader silently falls back to the model.
+- `ensure_grid_region` now trusts a stored region **only while markers are visible in it**; otherwise
+  it looks for the grid again from the panels' region and the new position is saved. If it cannot find
+  the grid, the panel says the grid is unavailable instead of showing the wrong picture.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass; the grid step
+  is now **31** checks, including "the crop is still wider than it is tall" and the stale-region heal.
+
+### Still open
+
+- The six model-read hands from before the grid reader took over remain in the existing session's
+  history; a new session reflects the grid going forward.
+
+---
+
 ## v2.10.3-20260928-Baccarat (2026-09-28) — THE HAND HISTORY SNAP NOW FILLS THE PANEL
 
 Reported: *"i think you can max the Hand History snap, there are still many spaces."* Two causes: the

@@ -1,7 +1,35 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.10.3-20260928-Baccarat
+Version tracking: v2.10.4-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.10.4-20260928-Baccarat (2026-09-28) — THE SNAP STOPPED BEING GIANT, AND THE GRID REGION NOW HEALS ITSELF
+
+Reported: *"you see what happen? sometime very big."* My own v2.10.3 crop caused it, and checking the
+screen while fixing it turned up a second fault.
+
+### Fixed — the giant snapshot
+- v2.10.3 cropped the grid to the markers. Early in a shoe that is **one column** — tall and narrow
+  (~16 px wide, 85 px tall) — and stretched to the panel's width it became thousands of pixels tall.
+- The crop now always keeps the full height and is only taken while the result stays wider than it is
+  tall (1.4×), so a single column shows the whole wide box and a long history has its empty columns
+  trimmed. A test pins it. The displayed height is also capped (240 px, `object-fit: contain`).
+
+### Fixed — a stale grid region (found while checking the screen)
+- The configured grid region was found pointing at the **chat window and taskbar**: the casino window
+  had moved. A stale region is worse than none — it hands the reader whatever is now there.
+- `ensure_grid_region` now trusts a stored region only while markers are visible in it; otherwise it
+  re-finds the grid and saves the new position, or reports that no grid is available.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **ten** steps pass; the
+  grid step is now **31** checks.
+
+### Still open
+- The six model-read hands from before the grid reader took over remain in the existing session's
+  history; a new session reflects the grid going forward.
 
 ---
 

@@ -915,8 +915,8 @@ class OcrController:
                    "profile": profile_id or None, "reading": result["reading"]})
         return result
 
-    def _resolve_grid_region(self, profile_id):
-        """Where the history grid is, for a profile id, falling back to the session's profile."""
+    def _profile_for(self, profile_id):
+        """The profile named, or the one matching the session when none is named. None if neither."""
         profile_id = str(profile_id or "").strip()
         profiles = {profile["id"]: profile for profile in load_profiles()}
         profile = profiles.get(profile_id) or profiles.get(profile_id.replace(".json", ""))
@@ -931,15 +931,25 @@ class OcrController:
                         and wanted(candidate.get("layout")) == wanted(session.get("layout"))):
                     profile = candidate
                     break
+        return profile
+
+    def _healed_grid_region(self, profile_id):
+        """A grid region that really contains markers, re-found if the casino window has moved.
+
+        Returns (region, profile) or (None, profile).
+        """
+        profile = self._profile_for(profile_id)
         if not profile:
             raise StateError("No calibration profile to read the grid from.", "no-profile", 409)
-        region = profile.get("gridRegion")
-        if not region:
-            # Found once before by the reader; find it again if the profile predates it.
-            region = ocr.find_grid_region(profile.get("region")) if ocr else None
-        if not region or (ocr and ocr.validate_region(region)):
-            raise StateError("No history grid found for this profile yet.", "no-grid", 409)
-        return region
+        region = ocr.ensure_grid_region(profile.get("region"), profile.get("gridRegion")) if ocr else None
+        if region and region != profile.get("gridRegion"):
+            # The window moved: remember where the grid is now, so the reader keeps up.
+            try:
+                if profile.get("id"):
+                    ocr.save_grid_region(os.path.join(CONFIG_DIR, str(profile["id"]) + ".json"), region)
+            except Exception:  # noqa: BLE001
+                pass
+        return region, profile
 
     def grid_preview(self, payload=None):
         """The casino's own history grid — the authoritative hand history — for the Hand History panel.
@@ -958,7 +968,9 @@ class OcrController:
         if frame:
             source = "the grid the reader is watching"
         else:
-            region = self._resolve_grid_region(str(payload.get("profileId") or "").strip())
+            region, _profile = self._healed_grid_region(str(payload.get("profileId") or "").strip())
+            if not region:
+                raise StateError("No history grid found for this profile yet.", "no-grid", 409)
             try:
                 frame = ocr.capture_region(region)
             except Exception as error:  # noqa: BLE001

@@ -178,23 +178,52 @@ def main():
         check("the chosen box really does contain markers",
               len(ocr.grid_markers(two_box_capture(region))) == 4, region)
 
-    print("\nGRID SHOT — cropped to the history and enlarged for the panel")
+    print("\nGRID SHOT — cropped to the history, but never so tall that it dwarfs the panel")
     from PIL import Image as _Image
-    full = grid_image(column(["B", "P", "T", "P", "B"], 0), width=250, height=165)
-    shot, count = ocr.grid_shot(full)
+
+    def wide_grid(markers):
+        # The real plate's proportions: 236 wide, 85 tall (six rows one pitch apart).
+        return grid_image(markers, width=236, height=85)
+
+    def rows(columns, x_step=16):
+        out = []
+        for column in range(columns):
+            for row in range(6):
+                out.append((["B", "P", "T", "B", "P", "T"][row], 8 + column * x_step, 8 + row * 14))
+        return out
+
+    shot, count = ocr.grid_shot(wide_grid(rows(1)))
     with _Image.open(io.BytesIO(shot)) as im:
-        check("the shot finds the markers that are there", count == 5, count)
-        check("the shot is enlarged from the full box", im.width > 250 and im.height > 165, im.size)
-    # Markers only in the left columns: the shot should crop off the empty right side.
-    cropped = grid_image(column(["B", "P", "T"], 0) + column(["B", "P", "T"], 1), width=250, height=165)
-    shot, count = ocr.grid_shot(cropped)
+        check("a single filled column keeps the whole wide box", count == 6 and im.width > im.height, im.size)
+
+    shot, count = ocr.grid_shot(wide_grid(rows(10)))
     with _Image.open(io.BytesIO(shot)) as im:
-        check("an empty margin is cropped away so the history fills the panel",
-              im.width < 250 * 4, im.size)
-    empty = grid_image([], width=250, height=165)
-    shot, count = ocr.grid_shot(empty)
+        check("a full history has its empty columns cropped away", count == 60 and im.width < 236 * 2,
+              im.size)
+        check("the crop is still wider than it is tall — the giant-marker bug cannot come back",
+              im.width >= im.height * 1.4, im.size)
+
+    shot, count = ocr.grid_shot(grid_image([], width=236, height=85))
     with _Image.open(io.BytesIO(shot)) as im:
-        check("an empty grid still returns a picture rather than failing", count == 0 and im.width >= 250, im.size)
+        check("an empty grid still returns a picture rather than failing",
+              count == 0 and im.width >= 236, im.size)
+
+    print("\nGRID REGION THAT HEALS — a moved window must not leave it pointing at the wrong box")
+    screen = Image.new("RGB", (1000, 400), (60, 60, 90))
+    screen.paste(grid_pil(rows(10), width=236, height=85), (200, 120))
+
+    def moved_capture(area):
+        x, y, width, height = [int(value) for value in area]
+        return png(screen.crop((x, y, x + width, y + height)))
+
+    # The stored region now points at empty background where the grid used to be.
+    healed = ocr.ensure_grid_region([200, 120, 300, 120], [700, 120, 236, 85], capture=moved_capture)
+    check("a stale region is replaced by one that really has markers",
+          healed is not None and len(ocr.grid_markers(moved_capture(healed))) >= 6, healed)
+    if healed:
+        check("and it found the grid where it actually is now", abs(healed[0] - 200) <= 8, healed)
+    kept = ocr.ensure_grid_region([200, 120, 300, 120], [200, 120, 236, 85], capture=moved_capture)
+    check("a region that still works is kept as it is", kept == [200, 120, 236, 85], kept)
 
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
     for name, detail in failed:
