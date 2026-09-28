@@ -5,6 +5,32 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.2.1-20260928-Baccarat (2026-09-28) — BEAD SIZE AND FILL ORDER
+
+Two corrections from your first look at v2.2.0.
+
+### Fixed
+
+- **The dots were far too big.** Cells are now 14px instead of 24px, so the Hand History box is a
+  compact 172px square rather than a 281px block, and it sits centred in its panel.
+- **The fill order was the wrong way round.** The plate now fills **top to bottom first, then left to
+  right** — down each column before starting the next one (`grid-auto-flow: column`), which is what
+  you meant. The earlier row-major arrangement was my misreading of "left to right, up to down".
+- The panel hint and the accessible label now state the correct order.
+
+### Verified
+
+`powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — 42 UI wiring checks now, including
+"the grid fills TOP TO BOTTOM first, then left to right", "the dots are small (14px, not 24px)" and
+"the panel hint states the fill order the user asked for".
+
+### Still open
+
+- Capture-region calibration is still yours to run (all 9 profiles remain `"calibrated": false`).
+- The superseded prototype files, the old 12 configs and `API/` await your archive decision.
+
+---
+
 ## v2.2.0-20260928-Baccarat (2026-09-28) — SIDE-BY-SIDE LAYOUT AND THE 100-HAND GRID
 
 Changes made from the second hands-on review, where the module is run at roughly half screen width

@@ -258,7 +258,7 @@
     el["bead-count"].textContent = sequence.length
       ? sequence.length + " hand" + (sequence.length === 1 ? "" : "s") +
         (dropped ? " · showing last " + shown.length : "")
-      : "left → right, top → bottom";
+      : "top → bottom, left → right";
 
     if (!shown.length) {
       // One dashed cell keeps the box visible and its size fixed before the first hand.

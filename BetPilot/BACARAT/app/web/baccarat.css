@@ -231,11 +231,12 @@ a { color: var(--gold-soft); }
 .action-row { display: flex; flex-wrap: wrap; gap: 7px; }
 
 /* ------------------------------- bead box: a fixed 10 x 10 grid = 100 hands ------
-   Left to right, then top to bottom, newest last. Colour only — no letters.
-   The box never grows or scrolls, so the layout stays put for a whole session. */
+   TOP TO BOTTOM first, then left to right: the plate fills down each column before starting the
+   next one. Colour only — no letters. Small, fixed cells, and the box neither grows nor scrolls. */
 .bead-box {
-  width: 281px;          /* 10 x 24px cells + 9 x 3px gaps + padding + border */
+  width: 172px;          /* 10 x 14px cells + 9 x 2px gaps + padding + border */
   max-width: 100%;
+  margin: 0 auto;
   padding: 6px;
   background: var(--bg-deep);
   border: 1px solid var(--border);
@@ -243,18 +244,18 @@ a { color: var(--gold-soft); }
 }
 .bead-plate {
   display: grid;
-  grid-template-columns: repeat(10, 24px);
-  grid-auto-rows: 24px;
-  gap: 3px;
-  min-height: 267px;     /* ten rows, whether or not they are filled yet */
+  grid-template-rows: repeat(10, 14px);
+  grid-template-columns: repeat(10, 14px);
+  grid-auto-flow: column;   /* down the column first, then the next column */
+  gap: 2px;
 }
 .bead {
-  width: 24px; height: 24px; border-radius: 50%;
+  width: 14px; height: 14px; border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
 .bead.banker { background: var(--red); }
 .bead.player { background: var(--blue); }
-.bead.tie { background: var(--green); border-radius: 6px; }
+.bead.tie { background: var(--green); border-radius: 4px; }
 .bead.empty { background: transparent; border-style: dashed; border-color: var(--border); }
 
 /* ----------------------------------------------------------------- statistics */

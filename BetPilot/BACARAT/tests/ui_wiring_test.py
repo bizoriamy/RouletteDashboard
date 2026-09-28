@@ -142,15 +142,23 @@ def main():
           ">Hand History<" in html and ">Statistics<" in html and ">Bankroll<" in html,
           "titles must match the names the user chose")
     check("the old Bead plate title is gone", ">Bead plate<" not in html)
-    check("the bead grid is a fixed 10-column grid", "repeat(10, 24px)" in css)
+    check("the bead grid is a fixed 10 x 10 grid",
+          "grid-template-rows: repeat(10, 14px)" in css and "grid-template-columns: repeat(10, 14px)" in css)
     check("the bead box holds 100 hands", "BEAD_CAPACITY = 100" in ui)
     check("beads carry no letters, only colour",
           'bead.textContent' not in ui and 'bead.className = "bead " + result' in ui)
-    check("the grid fills left to right then top to bottom",
-          "grid-auto-rows" in css and "grid-template-columns: repeat(10, 24px)" in css)
+    check("the grid fills TOP TO BOTTOM first, then left to right",
+          "grid-auto-flow: column" in css,
+          "column-major flow is what the user asked for")
+    check("the dots are small (14px, not 24px)", ".bead {\n  width: 14px; height: 14px;" in css)
     check("the bead box does not scroll or grow",
-          "min-height: 267px" in css and ".bead-plate" in css and "overflow-y: auto" not in css.split(".bead-plate {")[1].split("}")[0])
+          ".bead-plate" in css and "overflow" not in css.split(".bead-plate {")[1].split("}")[0]
+          and "min-height" not in css.split(".bead-plate {")[1].split("}")[0])
+    check("the grid shows the most recent hands and drops older ones",
+          "slice(-BEAD_CAPACITY)" in ui, "the Bankroll table keeps the full history")
     check("a hand count is shown next to the grid", 'id="bead-count"' in html)
+    check("the panel hint states the fill order the user asked for",
+          "top → bottom, left → right" in html)
 
     print("\nNARROW WINDOW (half screen beside the casino)")
     check("the layout keeps two columns at half screen width",

@@ -1,6 +1,6 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.2.0-20260928-Baccarat** (see `VERSION`)
+Version: **v2.2.1-20260928-Baccarat** (see `VERSION`)
 Status: **core complete and verified; OCR implemented and waiting on your calibration**
 
 This is a rebuild of the Baccarat module after the review in
@@ -60,10 +60,10 @@ Guards the server enforces (each one was a defect in the old build):
 The interface is built for the way it is actually used: a narrow, full-length window sitting beside
 the casino. The betting column is on the left; **Hand History**, **Statistics** and **Bankroll** stay
 beside it rather than dropping below, down to a 640px-wide window. Hand History is a fixed 10 × 10
-box holding up to **100 hands**, filled left to right then top to bottom with colour-only beads
-(red Banker, blue Player, green Tie) — it never grows or scrolls, so the layout stays put. Bankroll
-lists every hand with its running total and scrolls internally. The required disclaimer is pinned
-along the bottom of the window.
+box holding up to **100 hands**, filled **top to bottom first, then left to right**, with small
+colour-only dots (red Banker, blue Player, green Tie) — it never grows or scrolls, so the layout
+stays put. Bankroll lists every hand with its running total and scrolls internally. The required
+disclaimer is pinned along the bottom of the window.
 
 ---
 
