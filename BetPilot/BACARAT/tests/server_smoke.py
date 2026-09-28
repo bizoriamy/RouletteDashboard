@@ -463,6 +463,19 @@ def main():
         status, body = request("/api/baccarat/ocr/preview?profileId=no-such-profile")
         check("a preview for an unknown profile is refused",
               status == 400 and body.get("code") == "no-profile", "%s %s" % (status, body))
+
+        # The hand history: the casino's own grid, shown live.
+        status, body = request("/api/baccarat/ocr/grid?profileId=baccarat-pragmatic-half-width-full-length")
+        check("the hand history grid can be fetched",
+              status == 200 and body.get("ok")
+              and str(body.get("image", "")).startswith("data:image/png;base64,"),
+              "%s %s" % (status, json.dumps(body)[:120]))
+        check("the grid says where it came from and when",
+              bool(body.get("source")) and bool(body.get("at")) and bool(body.get("signature")),
+              json.dumps({k: body.get(k) for k in ("source", "at", "signature")}))
+        status, body = request("/api/baccarat/ocr/grid?profileId=no-such-profile")
+        check("a grid fetch for an unknown profile is refused",
+              status == 400 and body.get("code") == "no-profile", "%s %s" % (status, body))
         status, body = request("/api/baccarat/ocr/region",
                                {"profileId": "no-such-profile", "region": [10, 10, 100, 50]})
         check("a drawn region for an unknown profile is refused",

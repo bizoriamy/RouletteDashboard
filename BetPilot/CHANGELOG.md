@@ -1,7 +1,36 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.10.1-20260928-Baccarat
+Version tracking: v2.10.2-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.10.2-20260928-Baccarat (2026-09-28) — HAND HISTORY IS NOW THE LIVE CASINO GRID (THE USER'S IDEA)
+
+Reported: *"only the first few hands was not right... maybe you can replace our 'hand history' with the
+live screen shot, better right?"*
+
+### The root cause, found in the recorded session
+- The first **six** hands were read by the vision model from the panels (signatures ending `-16`), before
+  the grid reader took over; the next eighteen were read correctly from the grid. The model's six were
+  the "not right" ones — read during the transition animations. The reader also cannot back-fill hands
+  that happened before it started.
+- The user's remedy is correct: the casino's own grid is the authoritative history, and showing it live
+  removes this whole class of error.
+
+### Changed
+- The redrawn 10×10 bead plate is gone; the Hand History panel now shows the **live picture of the
+  casino's history grid**, served by `GET /api/baccarat/ocr/grid`. The hand count stays beside it.
+- The grid follows the same profile contract as the preview: a profile you name must exist or you are
+  told.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **ten** steps pass (UI
+  asserts `#history-shot` and `refreshHistoryShot`, HTTP asserts the grid endpoint: **109** checks).
+
+### Still open
+- The six model-read hands from before the fix remain in the existing session's history; a new session
+  reflects the grid going forward.
 
 ---
 

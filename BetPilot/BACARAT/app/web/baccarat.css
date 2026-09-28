@@ -1,4 +1,4 @@
-/* BetPilot — Baccarat UI
+﻿/* BetPilot — Baccarat UI
    Theme carried over from the original module (gold / red Banker / blue Player / green Tie).
 
    Layout intent: the whole module fits one window with no vertical page scrolling. The page is a
@@ -397,3 +397,7 @@ details.panel[open] > summary { margin-bottom: 8px; }
 .disclaimer-text { font-size: 0.6rem; line-height: 1.35; color: #f0c98a; text-align: center; }
 .disclaimer-text strong { color: #fff; text-transform: uppercase; letter-spacing: 0.4px; }
 .bottom-meta { display: flex; justify-content: space-between; gap: 10px; font-size: 0.58rem; color: var(--text-muted); margin-top: 3px; }
+
+.history-shot { display:block; width:100%; image-rendering:pixelated; border-radius:6px; background:#0d1524; }
+.history-shot[hidden] { display:none; }
+.history-note { margin-top:6px; color:#8aa0b8; }

@@ -53,7 +53,7 @@
       "ocr-status", "ocr-counters", "ocr-accuracy", "ocr-preview-box", "ocr-preview", "ocr-preview-note",
       "ocr-pending", "ocr-pending-line", "ocr-pending-result",
       "btn-ocr-confirm", "btn-ocr-reject", "ocr-events-list", "ocr-event-count", "ocr-note", "mode-hint",
-      "bead-plate", "bead-count", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
+      "bead-count", "history-shot", "history-note", "stat-hands", "stat-wagers", "stat-wins", "stat-losses", "stat-pushes", "stat-voids",
       "stat-winrate", "stat-streak", "stat-longest", "stat-drawdown",
       "hands-count", "hands-body",
       "ended-lede", "ended-stats", "btn-new-session", "ended-export-csv", "ended-export-json",
@@ -287,32 +287,39 @@
   var BEAD_CAPACITY = 100;
 
   function renderBeadPlate(derived) {
-    var plate = el["bead-plate"];
-    plate.textContent = "";
+    // The casino's own grid is now shown as a live picture (refreshHistoryShot), so this only keeps
+    // the hand count current — the picture is the authoritative history, not a redrawing of it.
     var sequence = derived.sequence || [];
-    var shown = sequence.slice(-BEAD_CAPACITY);
-    var dropped = sequence.length - shown.length;
-
     el["bead-count"].textContent = sequence.length
-      ? sequence.length + " hand" + (sequence.length === 1 ? "" : "s") +
-        (dropped ? " · showing last " + shown.length : "")
-      : "top → bottom, left → right";
+      ? sequence.length + " hand" + (sequence.length === 1 ? "" : "s") + " · live casino grid"
+      : "live casino grid";
+  }
 
-    if (!shown.length) {
-      // One dashed cell keeps the box visible and its size fixed before the first hand.
-      var placeholder = document.createElement("span");
-      placeholder.className = "bead empty";
-      plate.appendChild(placeholder);
-      return;
-    }
-
-    shown.forEach(function (result, index) {
-      var bead = document.createElement("span");
-      bead.className = "bead " + result;
-      bead.title = "Hand " + (dropped + index + 1) + ": " + result;
-      bead.setAttribute("aria-label", result);
-      plate.appendChild(bead);
-    });
+  function refreshHistoryShot() {
+    var profile = el["ocr-profile"].value || "";
+    var since = state.historySignature || "";
+    return api("/api/baccarat/ocr/grid?profileId=" + encodeURIComponent(profile) +
+               "&since=" + encodeURIComponent(since))
+      .then(function (result) {
+        var data = result.data || {};
+        if (!data.ok) {
+          el["history-shot"].hidden = true;
+          el["history-note"].textContent = "grid not available yet — " + (data.error || "no grid");
+          return;
+        }
+        el["history-shot"].hidden = false;
+        if (data.unchanged) {
+          el["history-note"].textContent = "live · unchanged since " + (data.at || "").replace("T", " ");
+          return;
+        }
+        el["history-shot"].src = data.image;
+        state.historySignature = data.signature;
+        el["history-note"].textContent = "live casino grid · " + (data.source || "") +
+          " · " + (data.at || "").replace("T", " ");
+      })
+      .catch(function () {
+        el["history-note"].textContent = "grid not available yet";
+      });
   }
 
   function renderStats(derived) {
@@ -1140,6 +1147,8 @@
         state.session = result.data.session;
         state.derived = result.data.derived;
         render();
+        // The Hand History is the casino's own grid, shown live and kept current.
+        refreshHistoryShot();
       }
     }).catch(function () { /* the status poll already reports trouble */ });
   }
@@ -1422,6 +1431,7 @@
     loadArchive();
     ocrStatus();
     refresh();
+    refreshHistoryShot();
   }
 
   if (document.readyState === "loading") {

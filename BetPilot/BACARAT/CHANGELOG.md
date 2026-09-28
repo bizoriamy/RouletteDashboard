@@ -1,7 +1,46 @@
-﻿# BETPILOT — BACARAT CHANGELOG
+# BETPILOT — BACARAT CHANGELOG
 
 Format: newest release at the top. Dates are YYYY-MM-DD.
 Every entry states what changed in plain language, what was verified, and what is still open.
+
+---
+
+## v2.10.2-20260928-Baccarat (2026-09-28) — HAND HISTORY IS NOW THE LIVE CASINO GRID (THE USER'S IDEA)
+
+Reported: *"only the first few hands was not right... maybe you can replace our 'hand history' with the
+live screen shot, better right?"*
+
+### The root cause, found in the recorded session
+
+The first **six** hands in the session were read by the **vision model from the panels** (their
+signatures end in `-16`), before the grid reader took over; the remaining eighteen were read correctly
+from the grid (`grid-…` signatures). The model's six were the ones that were "not right" — read during
+the transition animations the model could not read reliably. The reader also cannot back-fill hands
+that happened before it started, because it only records a hand when a new marker appears.
+
+The user's remedy is correct and better than patching: **the casino's own grid is the authoritative
+history, and showing it live removes this whole class of error.**
+
+### Changed — Hand History now shows the casino's grid, not a redrawn bead plate
+
+- The redrawn 10×10 bead plate is gone. In its place is the **live picture of the casino's history
+  grid**, served by a new `GET /api/baccarat/ocr/grid`. While the reader is reading the grid it is the
+  very frame it is looking at; otherwise the grid region is captured fresh. The image carries the
+  same `since` short-circuit as the OCR preview, so it is refreshed cheaply.
+- The hand count stays beside it ("23 hands · live casino grid").
+- The grid follows the same profile contract as the preview: a profile you name must exist or you are
+  told.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **ten** steps pass: the UI step
+  now asserts the live grid (`#history-shot`, `refreshHistoryShot`, no hand-drawn beads) and the HTTP
+  step asserts the grid endpoint returns an image and refuses an unknown profile (**109** HTTP checks).
+
+### Still open
+
+- The six model-read hands from before the fix remain in the existing session's history; a new session
+  (or an export) reflects the grid going forward.
 
 ---
 

@@ -78,6 +78,7 @@ OCR_LOCATE_PATH = OCR_PREFIX + "/locate"
 OCR_SCREEN_PATH = OCR_PREFIX + "/screen"
 OCR_REGION_PATH = OCR_PREFIX + "/region"
 OCR_PREVIEW_PATH = OCR_PREFIX + "/preview"
+OCR_GRID_PATH = OCR_PREFIX + "/grid"
 OCR_EVENT_LOG = os.path.join(DATA_DIR, "ocr-events.jsonl")
 
 INSTANCE_KEY = os.environ.get("BACCARAT_INSTANCE_KEY", APP_DIR)
@@ -914,6 +915,70 @@ class OcrController:
                    "profile": profile_id or None, "reading": result["reading"]})
         return result
 
+    def _resolve_grid_region(self, profile_id):
+        """Where the history grid is, for a profile id, falling back to the session's profile."""
+        profile_id = str(profile_id or "").strip()
+        profiles = {profile["id"]: profile for profile in load_profiles()}
+        profile = profiles.get(profile_id) or profiles.get(profile_id.replace(".json", ""))
+        if profile_id and not profile:
+            # Same contract as the preview and as starting the reader: a profile you name must exist.
+            raise StateError("Unknown calibration profile: %s" % profile_id, "no-profile")
+        if not profile:
+            session = STORE.load() or {}
+            wanted = lambda value: str(value or "").strip().lower()  # noqa: E731
+            for candidate in profiles.values():
+                if (wanted(candidate.get("provider")) == wanted(session.get("provider"))
+                        and wanted(candidate.get("layout")) == wanted(session.get("layout"))):
+                    profile = candidate
+                    break
+        if not profile:
+            raise StateError("No calibration profile to read the grid from.", "no-profile", 409)
+        region = profile.get("gridRegion")
+        if not region:
+            # Found once before by the reader; find it again if the profile predates it.
+            region = ocr.find_grid_region(profile.get("region")) if ocr else None
+        if not region or (ocr and ocr.validate_region(region)):
+            raise StateError("No history grid found for this profile yet.", "no-grid", 409)
+        return region
+
+    def grid_preview(self, payload=None):
+        """The casino's own history grid — the authoritative hand history — for the Hand History panel.
+
+        While the reader is reading the grid this is the very frame it is looking at; otherwise the
+        grid region is captured fresh. Replaces the redrawn bead plate: the casino's grid shows every
+        hand, including the first few the reader could not have read (it cannot back-fill hands that
+        happened before it started).
+        """
+        if ocr is None:
+            raise StateError("OCR is unavailable: %s" % OCR_IMPORT_ERROR, "ocr-unavailable", 503)
+        payload = payload or {}
+        frame = at = signature = None
+        if self.monitor and self.monitor.snapshot().get("source") == "grid":
+            frame, at, signature = self.monitor.latest_frame()
+        if frame:
+            source = "the grid the reader is watching"
+        else:
+            region = self._resolve_grid_region(str(payload.get("profileId") or "").strip())
+            try:
+                frame = ocr.capture_region(region)
+            except Exception as error:  # noqa: BLE001
+                raise StateError("Screen capture failed: %s" % error, "capture-failed", 503)
+            signature = ocr.region_signature(frame)
+            at = time.strftime("%Y-%m-%dT%H:%M:%S")
+            source = "a fresh capture of the history grid"
+
+        wanted_signature = str(payload.get("since") or "")
+        if wanted_signature and wanted_signature == signature:
+            return {"ok": True, "unchanged": True, "signature": signature, "at": at, "source": source}
+        try:
+            small, scale = ocr.preview_png(frame, max_width=560)
+        except Exception as error:  # noqa: BLE001
+            raise StateError("The grid could not be prepared: %s" % error, "preview-failed", 503)
+        import base64
+        return {"ok": True, "unchanged": False,
+                "image": "data:image/png;base64," + base64.b64encode(small).decode("ascii"),
+                "at": at, "signature": signature, "source": source, "scale": scale}
+
     def preview(self, payload=None):
         """A small picture of what the reader is looking at, for the panel.
 
@@ -1227,6 +1292,16 @@ class BaccaratHandler(http.server.SimpleHTTPRequestHandler):
             query = urllib.parse.parse_qs(parsed.query)
             try:
                 self.send_json(200, OCR_STATE.preview({
+                    "profileId": (query.get("profileId") or [""])[0],
+                    "since": (query.get("since") or [""])[0],
+                }))
+            except StateError as error:
+                self.send_json(error.status, {"ok": False, "error": str(error), "code": error.code})
+            return
+        if path == OCR_GRID_PATH:
+            query = urllib.parse.parse_qs(parsed.query)
+            try:
+                self.send_json(200, OCR_STATE.grid_preview({
                     "profileId": (query.get("profileId") or [""])[0],
                     "since": (query.get("since") or [""])[0],
                 }))

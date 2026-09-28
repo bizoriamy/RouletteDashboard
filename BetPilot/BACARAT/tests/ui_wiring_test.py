@@ -137,28 +137,25 @@ def main():
           "remaining < 1 || has.banker" in ui or "has.banker" in ui)
     check("a wager can be removed individually", "removeWager" in ui and "action: \"remove\"" in ui)
 
-    print("\nPANEL NAMES AND THE BEAD BOX")
+    print("\nPANEL NAMES AND THE HAND HISTORY (THE LIVE CASINO GRID)")
     check("the panel titles are Hand History / Statistics / Bankroll",
           ">Hand History<" in html and ">Statistics<" in html and ">Bankroll<" in html,
           "titles must match the names the user chose")
     check("the old Bead plate title is gone", ">Bead plate<" not in html)
-    check("the bead grid is a fixed 10 x 10 grid",
-          "grid-template-rows: repeat(10, 14px)" in css and "grid-template-columns: repeat(10, 14px)" in css)
-    check("the bead box holds 100 hands", "BEAD_CAPACITY = 100" in ui)
-    check("beads carry no letters, only colour",
-          'bead.textContent' not in ui and 'bead.className = "bead " + result' in ui)
-    check("the grid fills TOP TO BOTTOM first, then left to right",
-          "grid-auto-flow: column" in css,
-          "column-major flow is what the user asked for")
-    check("the dots are small (14px, not 24px)", ".bead {\n  width: 14px; height: 14px;" in css)
-    check("the bead box does not scroll or grow",
-          ".bead-plate" in css and "overflow" not in css.split(".bead-plate {")[1].split("}")[0]
-          and "min-height" not in css.split(".bead-plate {")[1].split("}")[0])
-    check("the grid shows the most recent hands and drops older ones",
-          "slice(-BEAD_CAPACITY)" in ui, "the Bankroll table keeps the full history")
-    check("a hand count is shown next to the grid", 'id="bead-count"' in html)
-    check("the panel hint states the fill order the user asked for",
-          "top → bottom, left → right" in html)
+    check("the hand history is now the casino's own grid, shown live",
+          'id="history-shot"' in html and 'class="history-shot"' in html
+          and 'id="history-note"' in html)
+    check("the live grid is fetched from the server", "/api/baccarat/ocr/grid" in ui
+          and "refreshHistoryShot" in ui)
+    check("the picture updates with the state and on start",
+          ui.count("refreshHistoryShot()") >= 2 and "refreshHistoryShot();" in ui)
+    check("no beads are drawn by hand anymore",
+          "bead.className" not in ui and "appendChild(bead)" not in ui
+          and 'class="bead-plate"' not in html)
+    check("the hand count is still shown, beside the grid",
+          'id="bead-count"' in html and "hand" in ui and "live casino grid" in ui)
+    check("the panel hint names the live grid, not a fill order",
+          "the casino's own grid" in html and "top → bottom" not in html)
 
     print("\nNARROW WINDOW (half screen beside the casino)")
     check("the layout keeps two columns at half screen width",

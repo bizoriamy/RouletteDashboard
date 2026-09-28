@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BetPilot Baccarat — v2.10.1-20260928-Baccarat</title>
+<title>BetPilot Baccarat — v2.10.2-20260928-Baccarat</title>
 <link rel="stylesheet" href="baccarat.css">
 <meta name="description" content="BetPilot Baccarat — bet assistance and record keeping. No win guarantee. Check local gambling laws. 18+.">
 </head>
@@ -268,10 +268,11 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Hand History</h2>
-          <span class="panel-hint" id="bead-count">top → bottom, left → right</span>
+          <span class="panel-hint" id="bead-count">the casino's own grid</span>
         </div>
         <div class="bead-box">
-          <div class="bead-plate" id="bead-plate" role="img" aria-label="Bead plate of recorded results, newest last"></div>
+          <img class="history-shot" id="history-shot" alt="Live casino history grid" aria-label="The casino's own history grid, shown live" />
+          <div class="panel-hint history-note" id="history-note">waiting for the table…</div>
         </div>
       </div>
 
