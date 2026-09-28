@@ -1,8 +1,8 @@
-BetPilot — v2.2.0-20260928-Baccarat
+BetPilot — v2.2.1-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.2.0-20260928-Baccarat)
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.2.1-20260928-Baccarat)
 Status:    CORE COMPLETE AND VERIFIED — OCR implemented, awaiting region calibration
 Build:     2026-09-28
 
@@ -16,10 +16,13 @@ functional defects plus a credential published in a document).
 v2.1.0 added the first round of hands-on feedback: a Tie bet alongside Banker or Player on the same
 hand, the disclaimer moved to the foot of the window, and a no-scroll layout.
 
-v2.2.0 added the second round: Hand History, Statistics and Bankroll now sit BESIDE the betting
-column rather than below it, so the module works at roughly half screen width beside the casino
-window; the bead plate became a fixed 10 x 10 box holding 100 colour-only hands; and the two table
-panels were renamed Hand History (the grid) and Bankroll (the running-balance table).
+v2.2.0 added the second round: Hand History, Statistics and Bankroll sit BESIDE the betting column
+rather than below it, so the module works at roughly half screen width beside the casino window; the
+bead plate became a fixed 10 x 10 box holding 100 colour-only hands; and the two table panels were
+renamed Hand History (the grid) and Bankroll (the running-balance table).
 
-See BACARAT/CHANGELOG.md for the item-by-item record and
-BACARAT/REVIEW_Baccarat_v1.0.0-20260928.md for the review that prompted the rebuild.
+v2.2.1 corrected two details of that bead plate: the dots are 14px instead of 24px, and the plate
+fills TOP TO BOTTOM first, then left to right.
+
+The per-release record for the module (including the patch entries) is BACARAT/CHANGELOG.md.
+The review that prompted the rebuild is BACARAT/REVIEW_Baccarat_v1.0.0-20260928.md.
