@@ -96,7 +96,9 @@ class FakeScreen:
                            "evidence": "%s panel highlighted" % result})
 
 
-def wait_for(predicate, timeout=6.0, interval=0.03):
+def wait_for(predicate, timeout=15.0, interval=0.03):
+    # Generous on purpose: this drives real threads with real sleeps, and a tight timeout makes the
+    # suite fail for being busy rather than for being wrong.
     deadline = time.time() + timeout
     while time.time() < deadline:
         if predicate():

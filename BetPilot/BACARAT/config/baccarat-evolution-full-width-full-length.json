@@ -4,10 +4,10 @@
   "provider": "Evolution",
   "layout": "Full Width / Full Length",
   "region": [
-    791,
-    548,
-    293,
-    127
+    786,
+    531,
+    307,
+    145
   ],
   "regionConvention": "x, y, width, height",
   "scalePercent": 100,
@@ -18,7 +18,7 @@
   "signatureCheck": true,
   "calibrationMethod": "python app/tools/calibrate.py --profile baccarat-evolution-full-width-full-length",
   "notes": "Safest starting point, and the slowest to read. Prefer a tighter region once you have calibrated. Evolution's card display sits higher; the result strip is usually narrower. Run calibration with your casino window open before enabling OCR; this region is a starting point, not a measurement.",
-  "calibratedAt": "2026-09-28T23:33:30",
+  "calibratedAt": "2026-09-28T23:39:52",
   "calibratedFrom": "drawn by hand",
   "matchScore": 0.828
 }

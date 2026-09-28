@@ -604,9 +604,34 @@ class OcrController:
         if mode not in ("observe", "confirm", "auto"):
             raise StateError("OCR mode must be observe, confirm or auto.", "bad-mode")
 
+        # Loaded here (the "no session" refusal still happens in its old place, so error precedence is
+        # unchanged) because the session's provider and layout decide which profile to use by default.
+        session_for_profile = STORE.load()
         profile_id = str(payload.get("profileId") or "").strip()
         profiles = {profile["id"]: profile for profile in load_profiles()}
         profile = profiles.get(profile_id) or profiles.get(profile_id.replace(".json", ""))
+        if profile_id and not profile:
+            # Naming a profile that does not exist is a mistake to report, not to paper over by
+            # silently reading a different table's region.
+            raise StateError("Unknown calibration profile: %s" % profile_id, "bad-profile")
+        if not profile and session_for_profile:
+            # No profile named: follow the session, so "Pragmatic Half Width / Full Length" at setup
+            # means the reader uses the profile measured for that table rather than an arbitrary one.
+            wanted = lambda value: str(value or "").strip().lower()  # noqa: E731
+            session_provider = wanted(session_for_profile.get("provider"))
+            session_layout = wanted(session_for_profile.get("layout"))
+            for candidate in profiles.values():
+                if (wanted(candidate.get("provider")) == session_provider
+                        and wanted(candidate.get("layout")) == session_layout):
+                    profile = candidate
+                    profile_id = candidate["id"]
+                    break
+            if not profile:
+                raise StateError(
+                    "No calibration profile matches this session (%s — %s). Pick one in the OCR panel, "
+                    "or calibrate it with \"Draw the region\"."
+                    % (session_for_profile.get("provider") or "?", session_for_profile.get("layout") or "?"),
+                    "no-profile-for-session", 409)
         if not profile:
             raise StateError("Unknown calibration profile: %s" % (profile_id or "(none)"), "bad-profile")
 
@@ -627,7 +652,7 @@ class OcrController:
                 "table\" with a screenshot you snipped yourself. If the table is a different layout, "
                 "choose the profile that matches it." % profile_id, "busy-region", 409)
 
-        session = STORE.load()
+        session = session_for_profile
         if not session or session.get("status") != "active":
             raise StateError("Start a session before starting OCR.", "no-session", 409)
 
@@ -793,6 +818,20 @@ class OcrController:
             raise StateError("The screen picture could not be prepared: %s" % error, "preview-failed", 503)
         size = ocr.screen_size()
         import base64
+        suggestion = None
+        try:
+            sample_dir = os.path.join(DATA_DIR, "samples")
+            samples = []
+            if os.path.isdir(sample_dir):
+                samples = sorted(os.path.join(sample_dir, name) for name in os.listdir(sample_dir)
+                                 if name.lower().endswith(".png")
+                                 and not name.startswith("sample-"))   # never suggest from our own crops
+            found = ocr.locate_sample(screen, samples) if samples else None
+            if found and found.get("found"):
+                suggestion = {"region": found["region"], "score": round(found["score"], 3),
+                              "sample": found["sample"]}
+        except Exception:  # noqa: BLE001 - a suggestion is a convenience, never a blocker
+            suggestion = None
         return {
             "ok": True,
             "image": "data:image/png;base64," + base64.b64encode(preview).decode("ascii"),
@@ -800,6 +839,9 @@ class OcrController:
             "screenWidth": size[0],
             "screenHeight": size[1],
             "bytes": len(preview),
+            # Where a screenshot the user snipped appears on screen right now, so the drawing starts
+            # from the table instead of guessing. Drawing never fails for want of it.
+            "suggested": suggestion,
         }
 
     def set_region(self, payload):

@@ -501,6 +501,22 @@ def parse_result_json(text):
     }
 
 
+def model_attempts(section):
+    """The models to try, in order: the configured one, then an optional fallback.
+
+    The fast vision model occasionally spends its whole budget deliberating on a busy frame (a settled
+    hand with cards on it, measured) and returns nothing. A slower model read that same frame, so one
+    retry with it turns a missed hand into a reading. The fallback is only ever reached after the
+    primary has failed, so it costs nothing on a normal hand.
+    """
+    primary = section.get("model", DEFAULT_CONFIG["deepseek"]["model"])
+    fallback = section.get("fallbackModel", DEFAULT_CONFIG["deepseek"].get("fallbackModel"))
+    attempts = [primary]
+    if fallback and fallback != primary:
+        attempts.append(fallback)
+    return attempts
+
+
 def read_with_deepseek(image_bytes, section, api_key):
     from openai import OpenAI
     client = OpenAI(api_key=api_key, base_url=section.get("baseUrl", DEFAULT_CONFIG["deepseek"]["baseUrl"]),
@@ -511,36 +527,36 @@ def read_with_deepseek(image_bytes, section, api_key):
     last_content = ""
     # A reasoning-style vision model spends output tokens before it writes the JSON. On a cluttered
     # image that can eat a modest budget whole and the reply comes back empty with finish_reason
-    # "length" — a good hand silently lost. Escalate the budget once when that happens, but keep the
-    # ceiling modest: an image the model cannot settle within it is better treated as "no result"
-    # (which the caller logs and the user records by hand) than left to stall the scan loop.
-    for budget in (base_budget, base_budget * 2):
-        response = client.chat.completions.create(
-            model=section.get("model", DEFAULT_CONFIG["deepseek"]["model"]),
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": PROMPT},
-                    {"type": "image_url", "image_url": {"url": "data:image/png;base64," + encoded}},
-                ],
-            }],
-            temperature=float(section.get("temperature", 0)),
-            max_tokens=budget,
-        )
-        choice = response.choices[0]
-        last_finish = getattr(choice, "finish_reason", None)
-        last_content = choice.message.content or ""
-        if last_content.strip():
-            return last_content
-        if last_finish != "length":
-            return last_content  # empty for another reason; the retry wrapper deals with it
+    # "length" — a good hand silently lost. Escalate the budget once, then try the fallback model.
+    models = model_attempts(section)
+    for model in models:
+        budgets = (base_budget, base_budget * 2) if model == models[0] else (base_budget,)
+        for budget in budgets:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": PROMPT},
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64," + encoded}},
+                    ],
+                }],
+                temperature=float(section.get("temperature", 0)),
+                max_tokens=budget,
+            )
+            choice = response.choices[0]
+            last_finish = getattr(choice, "finish_reason", None)
+            last_content = choice.message.content or ""
+            if last_content.strip():
+                return last_content
+            if last_finish != "length":
+                return last_content  # empty for another reason; the retry wrapper deals with it
     raise OcrError(
         "The vision model spent its whole %d-token budget deliberating and answered nothing "
-        "(finish_reason=%s). Raising maxTokens does NOT help — a bigger budget was measured and made "
-        "no difference. The region is too busy: leave out the history grid of coloured circles on the "
-        "left and the balance row along the bottom, keeping the hand totals and the panels. "
-        "Alternatively set deepseek.model to deepseek-v4-pro in config/ocr.json, which read the busy "
-        "image where the flash model would not." % (base_budget * 2, last_finish)
+        "(finish_reason=%s) — tried %s. Raising maxTokens does NOT help; a bigger budget was measured "
+        "and made no difference. The frame is too busy: leave out the history grid of coloured circles "
+        "on the left and the balance row along the bottom, keeping the hand totals and the panels."
+        % (base_budget * 2, last_finish, " then ".join(models))
     )
 
 

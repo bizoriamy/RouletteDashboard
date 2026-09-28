@@ -1,7 +1,43 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.8.1-20260928-Baccarat
+Version tracking: v2.8.2-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.8.2-20260928-Baccarat (2026-09-28) — SETUP AND READER NOW AGREE, AND DRAWING STARTS FROM THE TABLE
+
+Reported: *"the setting page (1st screen) change to Pragmatic Half width/Full length — when start
+session, it doesn't change to Pragmatic Half width/Full length."* Correct, and it was the root cause of
+the silent no-results.
+
+### Fixed — the OCR profile follows the session
+- Starting a session selects the calibration profile matching that session's provider and layout.
+- The setup screen drives it before you start; starting OCR with no profile named takes it from the
+  session (server-side too). Naming a profile that does not exist is still refused, not silently
+  swapped.
+- A session whose provider/layout has no matching profile is refused by name, quoting the session back.
+- The panel shows when it follows the session; a manual dropdown choice sticks for that session.
+
+### Added — the drawing screen starts from the table
+- A hand-drawn box landed on the **chat panel** twice (confirmed by looking at what it captured:
+  "Let me see", usernames, bet amounts). **Draw the region** now looks for a screenshot the user
+  snipped and **pre-draws that box in green dashes**; press *Use this region* or drag to adjust.
+
+### Added — a fallback model for busy frames
+- The fast vision model occasionally spends its whole budget on a frame with the dealt cards on it
+  (measured once in ~20 live readings) and answers nothing. `deepseek-v4-pro` is now tried once after
+  it, turning a missed hand into a slower reading.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all **nine** steps pass
+  (113 OCR, 75 UI wiring, 102 HTTP, 42 live-loop, 19 locator).
+- The live-loop test's waits were widened from 6 s to 15 s: it drives real threads, and a tight timeout
+  made the suite fail for being busy rather than wrong.
+
+### Still open
+- The user's Evolution profile is drawn over the chat panel too; it needs *Draw the region* again.
+- Automatic mode awaits a clean accuracy record.
 
 ---
 

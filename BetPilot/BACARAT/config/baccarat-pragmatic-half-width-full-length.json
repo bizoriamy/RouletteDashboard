@@ -18,7 +18,6 @@
   "signatureCheck": true,
   "calibrationMethod": "python app/tools/calibrate.py --profile baccarat-pragmatic-half-width-full-length",
   "notes": "The common case for a casino sitting in the right half of the screen. Pragmatic places the result strip and betting buttons differently from the others. Run calibration with your casino window open before enabling OCR; this region is a starting point, not a measurement.",
-  "calibratedAt": "2026-09-28T23:18:21",
-  "calibratedFrom": "real-02-expected-PLAYER.png (tightened: history grid and balance row excluded)",
-  "matchScore": 0.949
+  "calibratedAt": "2026-09-28T23:53:00",
+  "calibratedFrom": "real-02-expected-PLAYER.png (tightened: history grid and balance row excluded)"
 }

@@ -370,13 +370,39 @@ def test_bad_start_requests():
         for payload, code, why in (
             ({"mode": "telepathy", "profileId": "baccarat-pragmatic-half-width-full-length"}, "bad-mode", "an unknown mode"),
             ({"mode": "observe", "profileId": "no-such-profile"}, "bad-profile", "an unknown profile"),
-            ({"mode": "auto"}, "bad-profile", "a missing profile"),
         ):
             try:
                 controller.start(payload)
                 check("%s is refused" % why, False, "no error")
             except server.StateError as error:
                 check("%s is refused" % why, error.code == code, "%s != %s" % (error.code, code))
+
+        # With no profile named, the reader follows the session's provider and layout — the setup
+        # screen and the OCR panel must not disagree about which table is being read.
+        try:
+            result = controller.start({"mode": "observe"})
+            check("an unnamed profile follows the session's provider and layout",
+                  result["status"]["profile"] == "baccarat-pragmatic-half-width-full-length",
+                  result["status"]["profile"])
+            controller.stop()
+        except server.StateError as error:
+            check("an unnamed profile follows the session's provider and layout", False,
+                  "%s: %s" % (error.code, error))
+
+        # And when nothing matches the session, say so rather than reading an unrelated table.
+        server.STORE.clear()
+        server.STORE.create({"casino": "odd table", "provider": "NoSuchVendor",
+                             "layout": "Weird Layout", "startingUnits": 100, "unitValueCents": 500,
+                             "mode": "manual", "force": True})
+        try:
+            controller.start({"mode": "observe"})
+            check("a session with no matching profile is refused", False, "it started anyway")
+        except server.StateError as error:
+            check("a session with no matching profile is refused",
+                  error.code == "no-profile-for-session", error.code)
+            check("and the refusal names the session's provider and layout",
+                  "NoSuchVendor" in str(error), str(error))
+        controller.stop()
     finally:
         ocr.describe_availability = original
         server.STORE.clear()
@@ -635,6 +661,21 @@ def test_region_picking():
           all(ocr.region_covers_whole_screen(region, screen=[1920, 1080])
               for region in ([0, 0, 1920, 1080],)),
           "the full-width defaults are the whole screen and will be refused until measured")
+
+    # A busy frame can defeat the fast model entirely; a fallback model read the same frame, so it is
+    # tried once after the primary fails.
+    attempts = ocr.model_attempts({"model": "fast-model", "fallbackModel": "slow-model"})
+    check("the configured model is tried first", attempts[0] == "fast-model", attempts)
+    check("the fallback is tried after it", attempts[1:] == ["slow-model"], attempts)
+    check("no fallback means one attempt only",
+          ocr.model_attempts({"model": "only"}) == ["only"], ocr.model_attempts({"model": "only"}))
+    check("a fallback identical to the primary is not tried twice",
+          ocr.model_attempts({"model": "same", "fallbackModel": "same"}) == ["same"],
+          ocr.model_attempts({"model": "same", "fallbackModel": "same"}))
+    with open(os.path.join(APP_DIR, "..", "config", "ocr.json"), "r", encoding="utf-8") as handle:
+        shipped_config = json.load(handle)["deepseek"]
+    check("the shipped config carries a fallback model",
+          len(ocr.model_attempts(shipped_config)) == 2, ocr.model_attempts(shipped_config))
 
 
 def main():

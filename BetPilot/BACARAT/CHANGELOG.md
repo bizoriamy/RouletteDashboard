@@ -5,6 +5,58 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.8.2-20260928-Baccarat (2026-09-28) — SETUP AND READER NOW AGREE, AND DRAWING STARTS FROM THE TABLE
+
+Reported: *"the setting page (1st screen) change to Pragmatic Half width/Full length — when start
+session, it doesn't change to Pragmatic Half width/Full length."* Correct, and it was the root cause of
+the silent no-results: the setup screen and the OCR profile dropdown were two unconnected selectors, so
+a Pragmatic session could be read through an Evolution profile pointed at the whole screen.
+
+### Fixed — the OCR profile follows the session
+
+- **Starting a session now selects the calibration profile matching that session's provider and
+  layout**, so "Pragmatic — Half Width / Full Length" at setup is the profile the reader uses.
+- **The setup screen drives it before you even start**: changing the layout selection moves the OCR
+  profile to match.
+- **Starting OCR with no profile named takes it from the session** (server-side too), so the two can no
+  longer disagree. Naming a profile that does not exist is still refused rather than silently swapped.
+- **A session whose provider and layout have no matching profile is refused by name**, with the session
+  quoted back ("Your session is Pragmatic — Min Width / Full Length, but no calibration profile matches
+  it"), rather than reading an unrelated table.
+- The panel says when it is following the session: *"Calibrated … Follows your session (Pragmatic —
+  Half Width / Full Length)."* A manual choice in the dropdown sticks for that session.
+
+### Added — the drawing screen starts from the table
+
+Drawing a region by hand meant finding the casino table inside a scaled-down picture of the whole
+screen, and a box landed on the **chat panel** twice instead (verified by looking at what it captured:
+"Let me see", usernames and bet amounts). Now, when **Draw the region** opens, it first looks for a
+screenshot the user snipped and **pre-draws that box in green dashes** — press *Use this region*, or
+drag to adjust. Dragging replaces the suggestion. The box it suggests is the table; the box it drew was
+not.
+
+### Added — a fallback model for busy frames
+
+The fast vision model occasionally spends its whole budget deliberating on a frame that has the dealt
+cards on it and answers nothing (measured once in about twenty live readings of the same region). A
+fallback model (`deepseek-v4-pro`, which read that frame) is now tried once after the primary fails, so
+a busy frame costs a slower read instead of a missed hand.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all **nine** steps pass: **113** OCR
+  checks, **75** UI wiring checks, **102** HTTP checks, 42 live-loop, 19 locator.
+- The live-loop test's waits were widened from 6 s to 15 s: it drives real threads, and a tight timeout
+  made the suite fail for being busy rather than for being wrong.
+
+### Still open
+
+- The user's Evolution profile is drawn over the chat panel too; it needs *Draw the region* again
+  (which will now suggest the table) or a table that matches it.
+- Automatic mode still awaits a clean accuracy record.
+
+---
+
 ## v2.8.1-20260928-Baccarat (2026-09-28) — "WHY IS NO RESULT SHOWING?"
 
 Asked verbatim while a reader was running and producing nothing. The answer was two traps, both now

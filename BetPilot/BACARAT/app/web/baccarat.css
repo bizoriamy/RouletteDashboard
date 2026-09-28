@@ -340,6 +340,12 @@ details.panel[open] > summary { margin-bottom: 8px; }
   pointer-events: none;
 }
 .region-selection[hidden] { display: none; }
+/* A box the module found for you is dashed; one you dragged yourself is solid. */
+.region-selection[data-suggested="true"] {
+  border-style: dashed;
+  border-color: var(--green-bright);
+  background: rgba(0, 230, 118, 0.14);
+}
 .region-picker-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .region-picker-readout { flex: 1 1 200px; font-size: 0.68rem; color: var(--text-muted); }
 .ocr-pending { border: 1px solid var(--gold); border-radius: 8px; padding: 8px; margin: 6px 0; background: rgba(255, 215, 0, 0.05); }

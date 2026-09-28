@@ -21,6 +21,7 @@
     busy: false,
     ocr: null,        // last /api/baccarat/ocr/status payload
     ocrProfile: "",
+    ocrProfileManual: false,
     ocrPoll: null,
     busyOcr: false
   };
@@ -553,10 +554,35 @@
         state.dragFrom = null;
         el["region-shot"].src = data.image;
         el["region-selection"].hidden = true;
+        el["region-selection"].dataset.suggested = "false";
         el["btn-region-use"].disabled = true;
         el["region-readout"].textContent = "Nothing drawn yet — drag a box on the picture.";
         el["ocr-note"].textContent = "Drag a box around the part of the table that shows the result.";
         el["region-picker"].hidden = false;
+
+        // If a screenshot the user snipped can be found on screen, start from there: the box is drawn
+        // on the table already and they only adjust it. This is what stops a box landing on the chat
+        // panel or a blank page.
+        var suggested = data.suggested;
+        if (suggested && suggested.region) {
+          var scale = state.screenScale || 1;
+          var from = { x: suggested.region[0] * scale, y: suggested.region[1] * scale };
+          var to = { x: (suggested.region[0] + suggested.region[2]) * scale,
+                     y: (suggested.region[1] + suggested.region[3]) * scale };
+          state.drawnRegion = suggested.region.slice();
+          el["region-selection"].style.left = Math.min(from.x, to.x) + "px";
+          el["region-selection"].style.top = Math.min(from.y, to.y) + "px";
+          el["region-selection"].style.width = Math.abs(to.x - from.x) + "px";
+          el["region-selection"].style.height = Math.abs(to.y - from.y) + "px";
+          el["region-selection"].dataset.suggested = "true";
+          el["region-selection"].hidden = false;
+          el["btn-region-use"].disabled = false;
+          el["region-readout"].textContent = "Found the table from " + suggested.sample + " (match " +
+            suggested.score.toFixed(2) + ") — capturing " + suggested.region.join(",") +
+            ". Press Use this region, or drag to adjust it.";
+          el["ocr-note"].textContent = "The box is already on your table. Press \"Use this region\" if " +
+            "it looks right, or drag a better one.";
+        }
       })
       .catch(function (error) {
         toast("The screen could not be captured: " + error.message, "error");
@@ -576,6 +602,8 @@
     var top = Math.min(from.y, to.y);
     var width = Math.abs(to.x - from.x);
     var height = Math.abs(to.y - from.y);
+    // Dragging replaces the suggested box, so it stops being marked as a suggestion.
+    el["region-selection"].dataset.suggested = "false";
     el["region-selection"].style.left = left + "px";
     el["region-selection"].style.top = top + "px";
     el["region-selection"].style.width = width + "px";
@@ -727,6 +755,10 @@
 
   /** A mode chosen at setup must actually do something — the old build's selector did not. */
   function afterSessionStart(mode) {
+    // Whatever was chosen before, the OCR profile now follows THIS session's provider and layout — the
+    // setup screen and the reader must agree, or the reader watches another table's region.
+    state.ocrProfileManual = false;
+    syncOcrProfileToSession(true);
     if (!mode || mode === "manual") return;
     el["ocr-mode"].value = mode;
     var profile = el["ocr-profile"].value;
@@ -764,6 +796,38 @@
     }).catch(function () { /* the setup screen still works without profiles */ });
   }
 
+  function profileFor(provider, layout) {
+    // The setup screen and the OCR panel both describe a provider + layout; they must agree, or the
+    // reader ends up pointed at a different table's region than the one being played.
+    var wanted = function (value) { return String(value || "").trim().toLowerCase(); };
+    return (state.profiles || []).filter(function (profile) {
+      return wanted(profile.provider) === wanted(provider) && wanted(profile.layout) === wanted(layout);
+    })[0] || null;
+  }
+
+  function setupChoice() {
+    var selected = el["input-layout"].selectedOptions[0];
+    return {
+      provider: selected ? (selected.dataset.provider || "") : "",
+      layout: selected ? (selected.dataset.layout || "") : ""
+    };
+  }
+
+  function syncOcrProfileToSession(force) {
+    // A manual choice sticks for the session; anything else follows the setup screen, so "Pragmatic
+    // Half Width" chosen at setup is the profile the reader uses.
+    if (state.ocrProfileManual && !force) return false;
+    var choice = setupChoice();
+    var match = profileFor(choice.provider, choice.layout);
+    if (!match) return false;
+    if (el["ocr-profile"].value !== match.id) {
+      el["ocr-profile"].value = match.id;
+    }
+    state.ocrProfile = match.id;
+    renderProfileState();
+    return true;
+  }
+
   function renderProfileState() {
     var list = state.profiles || [];
     var chosen = list.filter(function (profile) {
@@ -774,10 +838,22 @@
       return;
     }
     var region = (chosen.region || []).join(",");
+    var session = state.session;
+    var sessionChoice = session && session.status === "active"
+      ? { provider: session.provider, layout: session.layout } : null;
+    var sessionMatch = sessionChoice ? profileFor(sessionChoice.provider, sessionChoice.layout) : null;
+    var follows = !!(sessionMatch && sessionMatch.id === chosen.id);
+    var sessionLabel = sessionChoice
+      ? String(sessionChoice.provider || "?") + " — " + String(sessionChoice.layout || "?") : "";
     var wholeScreen = chosen.region && state.screenWidth
       ? (chosen.region[2] * chosen.region[3]) >= 0.95 * state.screenWidth * state.screenHeight
       : false;
-    if (wholeScreen) {
+    if (sessionChoice && !sessionMatch) {
+      el["ocr-profile-state"].textContent = "Your session is " + sessionLabel + ", but no calibration " +
+        "profile matches it. Pick the profile you measured for this table, or calibrate it with " +
+        "\"Draw the region\".";
+      el["ocr-profile-state"].dataset.state = "not-ready";
+    } else if (wholeScreen) {
       el["ocr-profile-state"].textContent = "NOT usable as it stands — this profile is pointed at your " +
         "whole screen (" + region + "), which always makes the reader too busy to answer. Press " +
         "\"Draw the region\", or choose the profile you calibrated for this table.";
@@ -787,7 +863,8 @@
       var score = (chosen.matchScore !== null && chosen.matchScore !== undefined)
         ? " (" + Number(chosen.matchScore).toFixed(2) + " match)" : "";
       el["ocr-profile-state"].textContent = "Calibrated" + how + score + " — capturing " + region +
-        ". If you move or resize the casino window, calibrate again.";
+        (follows ? ". Follows your session (" + sessionLabel + ")." : ".") +
+        " If you move or resize the casino window, calibrate again.";
       el["ocr-profile-state"].dataset.state = "ready";
     } else {
       el["ocr-profile-state"].textContent = "NOT calibrated yet — it is still pointed at a guess (" +
@@ -814,9 +891,11 @@
       option.textContent = profile.label + (profile.calibrated ? "" : " (not calibrated)");
       select.appendChild(option);
     });
-    if (state.ocrProfile) select.value = state.ocrProfile;
-    renderProfileState();
-  }
+      if (state.ocrProfile) select.value = state.ocrProfile;
+      // The setup screen may have been chosen before the profiles were loaded; align them now.
+      syncOcrProfileToSession(false);
+      renderProfileState();
+    }
 
   function loadArchive() {
     return api("/api/baccarat/history").then(function (result) {
@@ -1226,7 +1305,13 @@
     el["btn-ocr-reject"].addEventListener("click", function () { confirmOcr(false); });
     el["ocr-profile"].addEventListener("change", function () {
       state.ocrProfile = el["ocr-profile"].value;
+      // A deliberate choice sticks until a new session starts, so it is not silently reverted.
+      state.ocrProfileManual = true;
       renderProfileState();
+    });
+    el["input-layout"].addEventListener("change", function () {
+      // Show the reader following the setup screen before the session is even started.
+      if (!state.session || state.session.status !== "active") syncOcrProfileToSession(true);
     });
   }
 

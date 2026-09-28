@@ -1,33 +1,27 @@
-BetPilot — v2.8.1-20260928-Baccarat
+BetPilot — v2.8.2-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.8.1-20260928-Baccarat)
-Status:    the screen reader reads the user's LIVE table correctly through a calibrated region
-           (12 of 12 decisive readings, including a Tie); Automatic still awaits a clean record
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.8.2-20260928-Baccarat)
+Status:    the reader follows the session's provider+layout, draws from a detected table position,
+           reads the live table correctly, and has a fallback model for busy frames
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
 All visible labels, launcher, and window titles must match this version.
 
-v2.0.0 rebuilt the Baccarat module as a local Python server application, replacing a five-file
-browser prototype that was reviewed and found not releasable.
+v2.0.0 rebuilt the Baccarat module as a local Python server application. v2.1.0-v2.4.0 added the Tie
+bet and its own stake, the half-screen layout, PASS recording the table's result, and the OCR
+groundwork. v2.5.x-v2.7.x built and proved the OCR tooling, calibration, the confidence gate and the
+live loop. v2.8.0 was the milestone: the reader read the user's live casino display correctly, and
+found that a region containing the history grid and the balance row makes the model burn its whole
+token budget.
 
-v2.1.0 added a Tie bet alongside Banker or Player, moved the disclaimer to the foot of the window and
-removed page scrolling. v2.2.x put the panels beside the betting column for half-screen use and gave
-the bead plate a fixed 10 x 10 box. v2.3.0 made PASS record the table's result. v2.4.0 gave the Tie
-insurance its own stake. v2.5.x built and proved the OCR tooling and prompt. v2.6.0 is where the reader
-met the real table. v2.7.x added one-click calibration, gated Automatic behind a 0.9 confidence bar,
-proved the live loop end to end and made an uncapturable region say so.
-
-v2.8.0 is the milestone: the reader read the user's live casino display through their calibrated
-region (12 of 12 decisive readings correct, including a Tie verified against the picture), found that
-a region containing the history grid and the balance row made the model burn its whole token budget
-(raising the budget did not help; cropping did), added a Draw-the-region button, and stopped
-self-captured samples from "calibrating" a profile by matching themselves.
-
-v2.8.1 closes the "why is no result showing?" traps: a whole-screen region is refused at Start with a
-plain explanation, changing the profile while the reader runs is pointed out with the fix (Stop, then
-Start), and a hand-drawn region no longer inherits a stale match score.
+v2.8.1 closed the "why is no result showing?" traps (a whole-screen region is refused at Start;
+changing the profile while running is explained). v2.8.2 connects the setup screen to the reader — the
+OCR profile now follows the session's provider and layout, so choosing "Pragmatic Half Width / Full
+Length" at setup is the profile the reader uses — and makes Draw the region start from the table's
+detected position instead of a guess, after a hand-drawn box landed on the chat panel twice. A
+fallback model now covers the busy frames that occasionally defeat the fast one.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

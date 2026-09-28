@@ -224,6 +224,16 @@ def main():
           "NOT usable as it stands" in ui and "whole screen" in ui)
     check("changing the profile while running is explained",
           "from when you pressed Start" in ui and "Press Stop, then Start reading" in ui)
+    check("the OCR profile follows the session's provider and layout",
+          "syncOcrProfileToSession" in ui and "afterSessionStart" in ui
+          and "input-layout" in ui and "Follows your session" in ui)
+    check("a session with no matching profile is called out",
+          "Your session is " in ui and "but no calibration " in ui and "profile matches it" in ui)
+    check("the drawing screen starts from a suggested box when the table is found",
+          "data.suggested" in ui and "Found the table from " in ui
+          and '.region-selection[data-suggested="true"]' in css)
+    check("dragging replaces the suggestion",
+          'el["region-selection"].dataset.suggested = "false"' in ui)
 
     print("\nPASS RECORDS THE TABLE RESULT")
     check("the PASS button opens a zero-stake hand rather than logging a result-less hand",
