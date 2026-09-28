@@ -1,0 +1,130 @@
+"""BetPilot — UI wiring test.
+
+Run: python ui_wiring_test.py
+
+Static checks between the three files that make up the module UI. These are the defects that shipped
+in the old build and are invisible until someone clicks:
+
+  * JavaScript referencing an element id that does not exist in the HTML (the old #min-bet crash);
+  * markup calling a function that is never defined (the old setTableOcr ReferenceError);
+  * CSS classes used but never defined, so a control silently renders wrong;
+  * a second entry screen or a window.open handoff creeping back in.
+"""
+import os
+import re
+import sys
+
+TESTS_DIR = os.path.normcase(os.path.realpath(os.path.dirname(os.path.abspath(__file__))))
+WEB_DIR = os.path.normcase(os.path.realpath(os.path.join(TESTS_DIR, "..", "app", "web")))
+
+HTML_PATH = os.path.join(WEB_DIR, "index.html")
+UI_PATH = os.path.join(WEB_DIR, "ui.js")
+ENGINE_PATH = os.path.join(WEB_DIR, "engine.js")
+CSS_PATH = os.path.join(WEB_DIR, "baccarat.css")
+
+# Classes that intentionally have no rule: semantic hooks and state flags handled by other rules.
+ALLOWED_WITHOUT_RULE = {
+    "active", "hidden", "open-row", "empty", "class", "field-readout", "stats-wide",
+}
+
+passed = []
+failed = []
+
+
+def check(name, condition, detail=""):
+    if condition:
+        passed.append(name)
+        print("  ok   %s" % name)
+    else:
+        failed.append((name, detail))
+        print("  FAIL %s%s" % (name, ("  <- " + str(detail)) if detail else ""))
+
+
+def read(path):
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def main():
+    html = read(HTML_PATH)
+    ui = read(UI_PATH)
+    engine = read(ENGINE_PATH)
+    css = read(CSS_PATH)
+
+    print("\nELEMENT IDS")
+    html_ids = set(re.findall(r'id="([^"]+)"', html))
+    ui_ids = set(re.findall(r'el\["([^"]+)"\]', ui))
+    missing = sorted(ui_ids - html_ids)
+    check("every element id used by ui.js exists in index.html", not missing, missing)
+    check("index.html has no duplicate ids",
+          len(re.findall(r'id="([^"]+)"', html)) == len(html_ids))
+    check("the id list is substantial (sanity)", len(html_ids) > 40, len(html_ids))
+
+    print("\nHANDLERS")
+    inline = re.findall(r'on(?:click|submit|input|change)="([^"]+)"', html)
+    check("index.html uses no inline event handlers at all (nothing can call an undefined function)",
+          not inline, inline[:3])
+    ui_functions = set(re.findall(r"function ([A-Za-z_$][\w$]*)\s*\(", ui))
+    ui_listeners = set(re.findall(r'el\["([^"]+)"\]\.addEventListener', ui))
+    listeners_without_function = sorted(
+        name for name in ui_listeners if name not in html_ids
+    )
+    check("every element ui.js attaches a listener to exists", not listeners_without_function,
+          listeners_without_function)
+    check("the engine's public API is what ui.js expects",
+          all(token in engine for token in ("settleOpenBet", "formatCents", "formatUnits")))
+    engine_calls = set(re.findall(r"Engine\.([A-Za-z_$][\w$]*)\s*\(", ui))
+    allowed_engine_calls = {"formatCents", "formatUnits"}
+    check("the view only ever calls the engine's formatters, never its money logic",
+          engine_calls <= allowed_engine_calls, sorted(engine_calls - allowed_engine_calls))
+    check("ui.js never settles a hand itself",
+          "Engine.settle(" not in ui and "settleOpenBet" not in ui)
+    check("ui.js does not load or reimplement the settlement module",
+          "import settlement" not in ui and "commissionRate" not in ui)
+
+    print("\nCSS CLASSES")
+    css_classes = set(re.findall(r"\.([A-Za-z][\w-]*)", css))
+    html_classes = set()
+    for attribute in re.findall(r'class="([^"]+)"', html):
+        html_classes.update(attribute.split())
+    js_classes = set()
+    for attribute in re.findall(r'className\s*=\s*"([^"]+)"', ui):
+        js_classes.update(attribute.split())
+    for attribute in re.findall(r'classList\.add\("([^"]+)"\)', ui):
+        js_classes.update(attribute.split())
+    undefined = sorted(
+        (html_classes | js_classes) - css_classes - ALLOWED_WITHOUT_RULE
+    )
+    check("every class used in markup or by ui.js has a CSS rule", not undefined, undefined)
+    check("buttons that get disabled have a disabled style",
+          "disabled" not in html or ".btn:disabled" in css or ":disabled" in css)
+    check("form controls have a focus style",
+          "<select" not in html or ":focus" in css)
+    check("the statistics grid the view builds has a rule", ".stats" in css)
+
+    print("\nSTRUCTURE")
+    check("there is exactly one entry screen", html.count("<main") == 3,
+          "%d main sections (setup, table, ended summary)" % html.count("<main"))
+    check("no window.open handoff (the old build lost every value typed on the entry screen)",
+          "window.open" not in html and "window.open" not in ui)
+    check("no unusable always-on-top window flags", "alwaysOnTop" not in html and "chrome=no" not in html)
+    check("the required disclaimer is present and prominent", "DISCLAIMER" in html)
+    check("the page loads the engine before the view",
+          html.index("engine.js") < html.index("ui.js"))
+    check("only the module's own assets are referenced",
+          not re.search(r'(src|href)="(https?:)?//', html), "external asset reference found")
+    check("all local assets referenced by the page exist",
+          all(os.path.isfile(os.path.join(WEB_DIR, name))
+              for name in re.findall(r'(?:src|href)="([^":/]+\.(?:js|css))"', html)),
+          re.findall(r'(?:src|href)="([^":/]+\.(?:js|css))"', html))
+
+    print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))
+    if failed:
+        for name, detail in failed:
+            print("FAILED: %s\n  %s" % (name, detail))
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,21 @@
+{
+  "name": "baccarat-evolution-half-width-full-length",
+  "label": "Evolution — Half Width / Full Length",
+  "provider": "Evolution",
+  "layout": "Half Width / Full Length",
+  "region": [
+    820,
+    200,
+    900,
+    680
+  ],
+  "regionConvention": "x, y, width, height",
+  "scalePercent": 100,
+  "resolution": "1920 x 1080",
+  "calibrated": false,
+  "captureTarget": "Betting buttons plus the result display and cards, without the chat panel.",
+  "ocrUse": "Reads the hand result; keeps the prompt small so replies come back faster.",
+  "signatureCheck": true,
+  "calibrationMethod": "python app/tools/calibrate.py --profile baccarat-evolution-half-width-full-length",
+  "notes": "The common case for a casino sitting in the right half of the screen. Evolution's card display sits higher; the result strip is usually narrower. Run calibration with your casino window open before enabling OCR; this region is a starting point, not a measurement."
+}

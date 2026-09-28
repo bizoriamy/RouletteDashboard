@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BetPilot — Baccarat — v1.0.0-20260928-Baccarat</title>
+<style>
+  html,body{margin:0;padding:0;background:transparent;overflow:hidden;font-family:Segoe UI,system-ui,sans-serif;color:#f5f0e6}
+  .launcher{position:fixed;top:20px;left:20px;width:420px;border:2px solid #e7bc62;border-radius:14px;background:#101311cc;backdrop-filter:blur(16px);box-shadow:0 20px 60px rgba(0,0,0,.55);padding:20px;z-index:999999}
+  .launcher h1{font-family:Georgia,serif;color:#e7bc62;font-size:1.1rem;margin:0 0 6px;letter-spacing:.06em}
+  .ver{font-size:.65rem;color:#aaa79f;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+  .row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+  .row label{font-size:.72rem;color:#aaa79f;text-transform:uppercase;letter-spacing:.06em;width:110px}
+  .row input,.row select{flex:1;padding:6px 8px;border:1px solid rgba(255,255,255,.14);border-radius:6px;background:#181c19;color:#f5f0e6;font:inherit;font-size:.8rem}
+  .unit-dollar{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid rgba(255,255,255,.10)}
+  .unit-display{font-size:1.3rem;font-weight:800;color:#e7bc62;letter-spacing:.05em}
+  .btn{padding:8px 14px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:transparent;color:#f5f0e6;cursor:pointer;font:inherit;font-weight:600;transition:border-color .15s}
+  .btn:hover,.btn:focus{border-color:#e7bc62;outline:none}
+  .btn-primary{background:#e7bc62;color:#101311;border-color:#e7bc62;font-weight:700}
+  .ocr-mode{display:flex;gap:8px;margin-top:6px}
+  .ocr-mode button{font-size:.7rem;padding:6px 10px;border-radius:6px;font-weight:600}
+  .ocr-mode button.active{background:#e7bc62;color:#101311;border-color:#e7bc62}
+  #disclaimer-bottom{margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,.10);font-size:.65rem;color:#aaa79f;line-height:1.45}
+  #disclaimer-bottom strong{color:#e7bc62;text-transform:uppercase;font-size:.7rem;letter-spacing:.06em}
+</style>
+
+<!-- Chrome:  --disable-menu-bar --app=baccarat_launcher.html -->
+<!-- Always on top: alwaysOnTop true in Electron / setWindowFlag in Python -->
+
+</head>
+<body>
+<div class="launcher" role="dialog" aria-label="BetPilot Baccarat launcher">
+  <h1>BetPilot — Baccarat <span style="font-size:.75rem;font-family:system-ui;font-weight:400;color:#aaa79f">v1.0.0-20260928</span></h1>
+  <div class="ver">Module: Baccarat · Provider: Gemini 1.5 Flash · Separate from Roulette (DeepSeek)</div>
+
+  <div class="row"><label for="start-units">Start Units</label><input id="start-units" type="number" value="0" min="0" step="1"></div>
+  <div class="row"><label for="start-dollars">Start $</label><input id="start-dollars" type="number" value="0" min="0" step="10"></div>
+
+  <div class="unit-dollar">
+    <div class="unit-display"><span id="disp-units">0</span> U</div>
+    <div class="unit-display" style="color:#aaa79f"><span id="disp-dollars">$0</span></div>
+  </div>
+
+  <div class="row"><label for="table-select">Table Layout</label>
+  <select id="table-select"><option>Pragmatic — Half Width / Full Length</option><option>Evolution — Half Width / Full Length</option><option>Playtech — Half Width / Full Length</option></select></div>
+
+  <div class="row" style="margin-top:4px"><label>OCR Mode</label>
+  <div class="ocr-mode" role="radiogroup" aria-label="OCR mode selection">
+    <button onclick="setOcr('manual')" id="btn-manual" class="active">Manual</button>
+    <button onclick="setOcr('observe')" id="btn-observe">Observe</button>
+    <button onclick="setOcr('confirm')" id="btn-confirm">Confirm</button>
+    <button onclick="setOcr('auto')" id="btn-auto">Auto</button>
+  </div></div>
+
+  <div class="row" style="margin-top:6px"><button class="btn btn-primary" onclick="launch()">Launch Baccarat</button></div>
+
+  <!-- 5. Disclaimer moved to BOTTOM -->
+  <div id="disclaimer-bottom">
+    <strong>Disclaimer:</strong> BetPilot is a bet-assistance tool. It does NOT predict outcomes, guarantee winnings, or provide betting advice. All casino games involve random outcomes and a house edge. Only bet amounts you can afford to lose. Check local gambling laws. Must be 18+ (or local legal age) to use. <strong>Responsible gambling.</strong>
+  </div>
+
+  <!-- 4. Security note REMOVED from entry screen -->
+</div>
+
+<script>
+  function updateDisplay() {
+    var u = parseInt(document.getElementById('start-units').value) || 0;
+    var d = parseInt(document.getElementById('start-dollars').value) || 0;
+    document.getElementById('disp-units').textContent = u;
+    document.getElementById('disp-dollars').textContent = '$' + d;
+  }
+  document.getElementById('start-units').addEventListener('input', updateDisplay);
+  document.getElementById('start-dollars').addEventListener('input', updateDisplay);
+
+  function setOcr(mode) {
+    ['manual','observe','confirm','auto'].forEach(function(m){ document.getElementById('btn-'+m).classList.remove('active'); });
+    document.getElementById('btn-'+mode).classList.add('active');
+  }
+  function launch() { window.open('baccarat_module.html','BetPilotBaccarat','width=980,height=720,alwaysOnTop=yes,chrome=no'); }
+</script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+/* BetPilot — Baccarat Module Styles
+Version: v1.0.0-20260928-Baccarat
+Theme: Gold / Red (Banker) / Blue (Player) / Green (Tie) — matches baccarat/style.css */
+
+:root {
+  --gold: #FFD700;
+  --gold-dark: #B8860B;
+  --red: #DC143C;
+  --red-dark: #A00020;
+  --blue: #1E90FF;
+  --blue-dark: #0066CC;
+  --green: #0D6B3D;
+  --green-dark: #064D2A;
+  --bg-dark: #1A1A2E;
+  --bg-card: #16213E;
+  --text-light: #FFFFFF;
+  --text-muted: #A0A0A0;
+  --border: #2D2D4A;
+  --font: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100vh;
+  background: var(--bg-dark);
+  color: var(--text-light);
+  font-family: var(--font);
+  overflow-x: hidden;
+}
+
+/* Disclaimer Bar (required — must be visible) */
+.disclaimer-bar {
+  background: linear-gradient(135deg, #3D0000, #1a1a2e);
+  color: #f5c518;
+  padding: 10px 16px;
+  font-size: 0.65rem;
+  text-align: center;
+  border-bottom: 2px solid var(--gold);
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
+
+.disclaimer-bar strong { color: #fff; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.5px; }
+
+/* Screens */
+.screen { display: none; min-height: 100vh; padding: 12px; }
+.screen.active { display: flex; flex-direction: column; }
+
+/* Setup Card */
+.setup-card {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 420px;
+  margin: auto;
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.12);
+}
+
+.setup-card h1 { text-align: center; color: var(--gold); font-size: 1.6rem; margin-bottom: 4px; text-shadow: 0 0 8px rgba(255, 215, 0, 0.3); }
+
+.version-label, .provider-label { text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+
+.setup-form { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+.setup-form label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+.setup-form input, .setup-form select { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-dark); color: var(--text-light); font-size: 0.95rem; font-family: inherit; width: 100%; }
+.setup-form input:focus, .setup-form select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.15); }
+
+/* Buttons */
+.btn { border: none; border-radius: 8px; padding: 14px 20px; font-size: 0.9rem; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.8px; transition: all 0.15s ease; font-family: inherit; }
+.btn:active { transform: scale(0.97); }
+.btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #0a0a1a; box-shadow: 0 0 12px rgba(255, 215, 0, 0.2); }
+.btn-gold:hover { box-shadow: 0 0 18px rgba(255, 215, 0, 0.35); }
+
+/* Security / Recent Sessions */
+.recent-sessions { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.recent-sessions h3 { font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
+.empty-message { color: var(--text-muted); text-align: center; font-size: 0.85rem; padding: 10px 0; }
+
+.security-note { margin-top: 16px; padding: 10px 12px; background: rgba(255, 215, 0, 0.06); border: 1px solid rgba(255, 215, 0, 0.15); border-radius: 8px; font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; }
+.security-note strong { color: var(--gold); }
+.security-note code { background: var(--bg-dark); padding: 2px 5px; border-radius: 4px; color: var(--text-light); font-size: 0.75rem; }
+
+/* Session Header */
+.session-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border); border-radius: 14px 14px 0 0; }
+.session-label { font-weight: 700; color: var(--gold); font-size: 1rem; }
+.casino-name { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.table-type { display: inline-block; font-size: 0.6rem; color: var(--gold); background: rgba(255, 215, 0, 0.1); padding: 3px 8px; border-radius: 4px; margin-top: 4px; }
+.balance-display { text-align: right; }
+.balance-label { font-size: 0.6rem; color: var(--text-muted); display: block; }
+.balance-value { font-size: 1.15rem; font-weight: 700; color: var(--gold); }
+.unit-label { font-size: 0.7rem; color: var(--text-muted); }
+
+/* Betting Area */
+.betting-area { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.current-bet { text-align: center; padding: 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+.bet-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px; }
+.bet-amount { display: flex; align-items: baseline; justify-content: center; gap: 10px; }
+#current-units { font-size: 2.2rem; font-weight: 700; color: var(--gold); letter-spacing: 1px; }
+#current-dollar { font-size: 0.9rem; color: var(--text-light); }
+
+/* Unit Controls */
+.unit-controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.btn-unit { flex: 1; min-width: 60px; padding: 12px 8px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-light); font-size: 0.85rem; border-radius: 8px; transition: border-color 0.15s; }
+.btn-unit:hover { border-color: var(--gold); }
+.btn-double { background: var(--green-dark); border-color: var(--green); color: #fff; }
+.btn-clear { background: #3D0A0A; border-color: var(--red); color: #fff; }
+
+/* Bet Buttons */
+.bet-buttons { display: flex; gap: 10px; justify-content: center; }
+.btn-banker, .btn-player, .btn-tie { flex: 1; padding: 20px 12px; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.8px; border-radius: 10px; transition: all 0.15s ease; }
+.btn-banker { background: linear-gradient(135deg, var(--red), var(--red-dark)); color: #fff; }
+.btn-player { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: #fff; }
+.btn-tie { background: linear-gradient(135deg, var(--green), var(--green-dark)); color: #fff; flex: 0.8; }
+.btn-banker:hover { box-shadow: 0 0 16px rgba(220, 20, 60, 0.35); }
+.btn-player:hover { box-shadow: 0 0 16px rgba(30, 144, 255, 0.35); }
+.btn-tie:hover { box-shadow: 0 0 16px rgba(13, 107, 61, 0.35); }
+
+/* Pass Button */
+.btn-pass { background: linear-gradient(135deg, #555, #333); color: #fff; padding: 10px 16px; font-size: 0.75rem; border-radius: 8px; display: block; margin: 0 auto; width: fit-content; }
+
+/* OCR / Entry Panel */
+.ocr-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.ocr-panel h3 { color: var(--gold); font-size: 1rem; margin-bottom: 6px; }
+.ocr-hint { color: var(--text-muted); font-size: 0.75rem; line-height: 1.45; margin-bottom: 10px; }
+.ocr-mode-display { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px; padding: 6px 8px; background: var(--bg-dark); border-radius: 6px; border-left: 3px solid var(--gold); }
+.ocr-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn-banker-sm, .btn-player-sm, .btn-tie-sm { width: 50px; height: 50px; border-radius: 50%; font-size: 1.1rem; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: transform 0.1s; }
+.btn-banker-sm { background: var(--red); }
+.btn-player-sm { background: var(--blue); }
+.btn-tie-sm { background: var(--green); }
+.btn-pass-sm { background: #555; width: 50px; height: 50px; border-radius: 50%; }
+.btn-banker-sm:hover, .btn-player-sm:hover, .btn-tie-sm:hover { transform: scale(1.1); }
+.ocr-note { font-size: 0.65rem; color: var(--text-muted); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); line-height: 1.4; }
+
+/* Result Panel */
+.result-panel { display: flex; flex-direction: column; gap: 10px; align-items: center; padding: 14px; background: linear-gradient(135deg, #16213e, #1a2a40); border: 1px solid var(--gold); border-radius: 10px; animation: fadeIn 0.3s ease; }
+.result-panel.hidden { display: none; }
+.bet-summary { font-size: 0.9rem; color: var(--gold); font-weight: 600; }
+.result-buttons { display: flex; gap: 10px; width: 100%; justify-content: center; }
+.btn-win { background: linear-gradient(135deg, #00E676, #00A854); color: #000; flex: 1; max-width: 90px; padding: 8px 6px; font-size: 0.75rem; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+.btn-push { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #000; flex: 1; max-width: 90px; padding: 8px 6px; font-size: 0.75rem; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+.btn-lose { background: linear-gradient(135deg, var(--red), var(--red-dark)); color: #fff; flex: 1; max-width: 90px; padding: 8px 6px; font-size: 0.75rem; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+
+/* History Panel */
+.history-panel { background: var(--bg-card); border-top: 1px solid var(--gold); border-radius: 0 0 14px 14px; padding: 16px; max-height: 42vh; overflow-y: auto; }
+.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.history-header h3 { font-size: 0.8rem; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+.history-actions { display: flex; gap: 8px; }
+.btn-small { padding: 8px 12px; font-size: 0.75rem; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; }
+.btn-end { background: var(--red); color: #fff; }
+.btn-export { background: var(--green-dark); color: #fff; border: 1px solid var(--green); }
+
+.history-stats { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.history-stats strong { color: var(--text-light); }
+
+.history-list { overflow-y: auto; max-height: 28vh; }
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--bg-dark); border-radius: 6px; margin-bottom: 6px; font-size: 0.8rem; border-left: 3px solid transparent; }
+.history-item .bet-info { display: flex; gap: 10px; align-items: center; }
+.side-badge { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.side-banker { background: var(--red); }
+.side-player { background: var(--blue); }
+.side-tie { background: var(--green); }
+.side-pass { background: #555; }
+.history-item .result-win { color: #00E676; font-weight: 600; }
+.history-item .result-lose { color: var(--red); font-weight: 600; }
+.history-item .result-push { color: var(--gold); font-weight: 600; }
+.history-item .pass-label { color: #888; font-size: 0.7rem; }
+.result-pass { color: #888; }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .setup-card { padding: 16px; max-width: 100%; }
+  .bet-buttons { flex-direction: column; }
+  .btn-banker, .btn-player, .btn-tie { flex: none; padding: 16px; }
+  .btn-tie { order: -1; }
+  .unit-controls { flex-wrap: wrap; }
+  .ocr-buttons .btn-sm { width: 44px; height: 44px; }
+}
+
+/* Animation */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }

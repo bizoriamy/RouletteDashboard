@@ -1,0 +1,12 @@
+{
+  "region": [820, 200, 900, 680],
+  "name": "baccarat-half-width-full-length-pragmatic",
+  "description": "Half-width / Full-length. Pragmatic Baccarat. Approximate region: left 820 to right 1720, top 200 to bottom 880 at 1920x1080. Focused on betting buttons and result area.",
+  "game": "Baccarat",
+  "table_provider": "Pragmatic",
+  "layout_type": "Half Width / Full Length",
+  "scale_percent": 100,
+  "resolution": "1920 x 1080",
+  "calibration_method": "calibrate.py - drag box over betting + result area",
+  "notes": "Most common Pragmatic layout. Similar to existing Roulette profile approach (1660, 900, 450, 70) but adapted for Baccarat result/card display area. Confirm with calibrate.py."
+}

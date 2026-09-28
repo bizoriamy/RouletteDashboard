@@ -1,0 +1,12 @@
+{
+  "region": [820, 200, 900, 680],
+  "name": "baccarat-half-width-full-length-evolution",
+  "description": "Half-width / Full-length. Evolution Baccarat - different card/result position from Pragmatic. Region approximate; calibrate with your table open.",
+  "game": "Baccarat",
+  "table_provider": "Evolution",
+  "layout_type": "Half Width / Full Length",
+  "scale_percent": 100,
+  "resolution": "1920 x 1080",
+  "calibration_method": "calibrate.py - Evolution table has different layout from Pragmatic",
+  "notes": "Evolution's betting buttons and result display are in different positions. Do NOT assume the same region as Pragmatic. Always calibrate."
+}

@@ -1,0 +1,21 @@
+# BetPilot — what must never be committed from this folder.
+
+# Personal session history and runtime state: your betting records stay on your machine.
+# (Remove these two lines deliberately if you ever want your sessions backed up to GitHub.)
+BACARAT/data/
+BACARAT/.runtime/
+
+# Scratch directories the test suite creates and normally cleans up.
+# If a test fails midway one can survive, and it should never reach a commit.
+BACARAT/tests/.*/
+
+# Key files, in case one is ever created here by mistake. The real key lives in
+# casino-tracker/.secrets/ocr.env, which the repository root already ignores.
+.secrets/
+*.env
+ocr.env
+
+# Python and editor noise
+__pycache__/
+*.pyc
+*.log

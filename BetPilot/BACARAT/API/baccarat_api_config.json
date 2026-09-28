@@ -1,0 +1,32 @@
+{
+  "status": "superseded",
+  "supersededBy": "BACARAT/config/ocr.json",
+  "supersededNote": "This file is kept for the audit trail only. The working provider switch is BACARAT/config/ocr.json, whose default is 'deepseek' (the key that demonstrably works). The 'gemini' value below was never read by any code — the old module had no OCR implementation at all. See BACARAT/CHANGELOG.md.",
+  "game": "Baccarat",
+  "provider_support": ["Pragmatic", "Evolution", "Playtech"],
+  "provider": "gemini",
+  "switch_note": "Change ONLY this line to switch: 'deepseek' OR 'gemini'. No code changes needed.",
+  "deepseek": {
+    "api_endpoint": "https://api.deepseek.com",
+    "model": "deepseek-v4-flash-vision-exp",
+    "key_domain": "DEEPSEEK_API_KEY",
+    "temperature": 0.0
+  },
+  "gemini": {
+    "api_endpoint": "https://generativelanguage.googleapis.com/v1beta",
+    "model": "gemini-1.5-flash",
+    "key_domain": "GEMINI_API_KEY",
+    "temperature": 0.0,
+    "notes": "Requires separate Gemini API key in .secrets/ocr.env (add GEMINI_API_KEY=...)"
+  },
+  "key_location": "C:\\Users\\HP\\PawWork\\casino-tracker\\.secrets\\ocr.env",
+  "separate_from_roulette": true,
+  "folder": "BetPilot/BACARAT/API/",
+  "status": "template_only",
+  "calibration_profiles": [
+    "config_baccarat_half_width_full_length_pragmatic.json",
+    "config_baccarat_half_width_full_length_evolution.json",
+    "config_baccarat_half_width_full_length_playtech.json"
+  ],
+  "notes": "To switch to Gemini: (1) Change provider to 'gemini'; (2) Add GEMINI_API_KEY to .secrets/ocr.env; (3) Confirm with Senior Architect; (4) Keep DeepSeek key too — both remain available."
+}

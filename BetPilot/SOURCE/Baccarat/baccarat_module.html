@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BetPilot — Baccarat Module — v1.0.0-20260928-Baccarat</title>
+  <link rel="stylesheet" href="baccarat_styles.css">
+  <meta name="description" content="BetPilot Baccarat — bet assistance tool. Not a win guarantee. Check local gambling laws. 18+.">
+</head>
+<body>
+  <!-- DISCLAIMER (required — must be visible at launch) -->
+  <div class="disclaimer-bar" aria-label="Required disclaimer">
+    <strong>DISCLAIMER:</strong> BetPilot is a bet-assistance tool. It does NOT predict outcomes, guarantee winnings, or provide betting advice. All games involve random outcomes and a house edge. Only bet amounts you can afford to lose. Check local gambling laws. You must be 18+ (or local legal gambling age) to use. <strong>Responsible gambling.</strong>
+  </div>
+
+  <!-- SESSION SETUP -->
+  <section id="session-setup" class="screen active" aria-label="Baccarat session setup">
+    <div class="setup-card">
+      <h1>BetPilot — Baccarat</h1>
+      <p class="version-label">v1.0.0-20260928-Baccarat · Baccarat Module · Draft — not public</p>
+      <p class="provider-label">Provider: <span id="current-provider">Gemini 1.5 Flash</span> (switch in config)</p>
+
+      <form class="setup-form" id="setup-form" onsubmit="event.preventDefault(); startSession();">
+        <label for="casino-name">Casino / Table Name</label>
+        <input type="text" id="casino-name" placeholder="e.g., Pragmatic Table 3" value="Pragmatic Baccarat">
+
+        <label for="starting-bankroll">Starting Units (Default: 0)</label>
+        <input type="number" id="starting-bankroll" min="0" step="1" value="0">
+
+        <label for="table-type">Table Provider / Layout</label>
+        <select id="table-type">
+          <option value="pragmatic-full">Pragmatic — Full Width / Full Length</option>
+          <option value="pragmatic-half">Pragmatic — Half Width / Full Length</option>
+          <option value="pragmatic-min">Pragmatic — Min Width / Full Length</option>
+          <option value="evolution-full">Evolution — Full Width / Full Length</option>
+          <option value="evolution-half">Evolution — Half Width / Full Length</option>
+          <option value="evolution-min">Evolution — Min Width / Full Length</option>
+          <option value="playtech-full">Playtech — Full Width / Full Length</option>
+          <option value="playtech-half">Playtech — Half Width / Full Length</option>
+          <option value="playtech-min">Playtech — Min Width / Full Length</option>
+        </select>
+
+        <label for="ocr-mode">OCR Mode (optional)</label>
+        <select id="ocr-mode">
+          <option value="manual">Manual Entry (recommended to start)</option>
+          <option value="observe">Observe Only (record, no auto-enter)</option>
+          <option value="confirm">Confirm Before Entry (show result, confirm)</option>
+          <option value="auto">Automatic (with safety check — only if validated)</option>
+        </select>
+
+        <button type="submit" class="btn btn-gold">Start Session</button>
+      </form>
+
+      <div class="recent-sessions" aria-label="Recent sessions (future — not yet implemented)">
+        <h3>Previous Sessions</h3>
+        <p class="empty-message">No previous sessions yet. This feature will be available after first session.</p>
+      </div>
+
+      <div class="security-note">
+        <strong>Security Note:</strong> DeepSeek / Gemini API key stays in <code>casino-tracker/.secrets/ocr.env</code>. Not stored in this file. Not included in source. Both keys can coexist. Confirm calibration profile matches your casino layout before using automatic mode.
+      </div>
+    </div>
+  </section>
+
+  <!-- BETTING SCREEN -->
+  <section id="betting-screen" class="screen" aria-label="Baccarat betting screen">
+    <header class="session-header">
+      <div class="session-info">
+        <span class="session-label">BetPilot — Baccarat</span>
+        <span class="casino-name" id="display-casino">Casino Name</span>
+        <span class="table-type" id="display-table">Table Type</span>
+      </div>
+      <div class="balance-display">
+        <span class="balance-label">Bankroll</span>
+        <span class="balance-value" id="current-bankroll">1000</span>
+        <span class="unit-label">units</span>
+      </div>
+    </header>
+
+    <main class="betting-area" aria-label="Betting area">
+      <!-- Current Bet -->
+      <div class="current-bet" aria-label="Current bet">
+        <span class="bet-label">Current Bet</span>
+        <div class="bet-amount">
+          <span id="current-units">10</span>
+          <span class="unit-label">units</span>
+          <span id="current-dollar">—</span>
+        </div>
+      </div>
+
+      <!-- Unit Controls -->
+      <div class="unit-controls" aria-label="Unit controls">
+        <button class="btn btn-unit" onclick="adjustUnit(-5)">-5</button>
+        <button class="btn btn-unit" onclick="adjustUnit(-1)">-1</button>
+        <button class="btn btn-unit btn-double" onclick="doubleUnit()">×2</button>
+        <button class="btn btn-unit btn-clear" onclick="clearBet()">Clear</button>
+        <button class="btn btn-unit" onclick="adjustUnit(1)">+1</button>
+        <button class="btn btn-unit" onclick="adjustUnit(5)">+5</button>
+      </div>
+
+      <!-- Bet Buttons -->
+      <div class="bet-buttons" aria-label="Bet selection buttons">
+        <button class="btn btn-banker" onclick="placeBet('banker')">Banker (Red)</button>
+        <button class="btn btn-player" onclick="placeBet('player')">Player (Blue)</button>
+        <button class="btn btn-tie" onclick="placeBet('tie')">Tie (Green)</button>
+      </div>
+
+      <button class="btn btn-pass" onclick="recordPass()">PASS (No Bet)</button>
+
+      <!-- OCR / Manual Entry Area -->
+      <div class="ocr-panel" aria-label="Result entry panel">
+        <h3>Enter Hand Result</h3>
+        <p class="ocr-hint">Select the winning result from your casino screen. Confirm before saving.</p>
+        <div class="ocr-mode-side" aria-label="OCR mode selection (change on the fly inside table)" style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+          <button onclick="setTableOcr('manual')" id="table-manual" class="btn btn-small active">Manual</button>
+          <button onclick="setTableOcr('observe')" id="table-observe" class="btn btn-small">Observe</button>
+          <button onclick="setTableOcr('confirm')" id="table-confirm" class="btn btn-small">Confirm</button>
+          <button onclick="setTableOcr('auto')" id="table-auto" class="btn btn-small">Auto</button>
+        </div>
+        <div class="ocr-mode-display" id="ocr-mode-display">Mode: Manual (set at entry)</div>
+        <div class="ocr-buttons" aria-label="OCR confirmation options">
+          <button class="btn btn-banker-sm" onclick="confirmResult('banker')" aria-label="Confirm Banker result">B</button>
+          <button class="btn btn-player-sm" onclick="confirmResult('player')" aria-label="Confirm Player result">P</button>
+          <button class="btn btn-tie-sm" onclick="confirmResult('tie')" aria-label="Confirm Tie result">T</button>
+          <button class="btn btn-sm btn-pass-sm" onclick="confirmResult('pass')" aria-label="Confirm Pass result">PASS</button>
+        </div>
+        <p class="ocr-note">Using Gemini 1.5 Flash (configurable). Check calibration profile before automatic mode.</p>
+      </div>
+
+      <!-- Result Panel -->
+      <div id="result-panel" class="result-panel hidden" aria-label="Latest result">
+        <div class="bet-summary" id="bet-summary">Waiting for result...</div>
+        <div class="result-buttons" aria-label="Result confirmation">
+          <button class="btn btn-win" onclick="recordOutcome('win')">WIN</button>
+          <button class="btn btn-push" onclick="recordOutcome('push')">PUSH</button>
+          <button class="btn btn-lose" onclick="recordOutcome('lose')">LOSE</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- History Panel -->
+    <aside class="history-panel" aria-label="Hand history">
+      <div class="history-header">
+        <h3>Hand History</h3>
+        <div class="history-actions">
+          <button class="btn btn-small btn-end" onclick="endSession()">End Session</button>
+          <button class="btn btn-small btn-export" onclick="exportHistory()">Export</button>
+        </div>
+      </div>
+
+      <div class="history-stats" aria-label="Session statistics">
+        <span><strong>Hands:</strong> <span id="stat-hands">0</span></span>
+        <span><strong>Wins:</strong> <span id="stat-wins">0</span></span>
+        <span><strong>Losses:</strong> <span id="stat-losses">0</span></span>
+        <span><strong>Pushes:</strong> <span id="stat-pushes">0</span></span>
+        <span><strong>P/L:</strong> <span id="stat-pl">0</span></span>
+      </div>
+
+      <div class="history-list" id="history-list" aria-label="List of previous hands">
+        <p class="empty-state">No hands recorded yet. Place a bet and confirm a result.</p>
+      </div>
+    </aside>
+  </section>
+
+  <script src="baccarat_app.js"></script>
+</body>
+</html>

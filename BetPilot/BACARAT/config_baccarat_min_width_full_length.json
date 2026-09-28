@@ -1,0 +1,15 @@
+{
+  "region": [1060, 350, 600, 380],
+  "name": "baccarat-min-width-full-length",
+  "description": "Minimum-width / Full-length capture region. Narrow strip focused on result area only - approximately 1060-1660 horizontal, 350-730 vertical.",
+  "game": "Baccarat",
+  "table_provider": "Pragmatic",
+  "layout_type": "Min Width / Full Length",
+  "scale_percent": 125,
+  "resolution": "1920 x 1080 (or 1366 x 768 for smaller screens)",
+  "calibration_method": "Use calibrate.py OR manual entry based on screen layout",
+  "capture_target": "Only the result strip / history bar - smallest region that shows Banker/Player/Tie results",
+  "ocr_use": "Minimal capture - reads only latest result from smallest region; fastest and most reliable",
+  "signature_check": true,
+  "notes": "Smallest capture area for Baccarat. Best for users with small screens or who want fastest OCR. Region is approximate. Use calibrate.py with your exact casino layout to finalize."
+}

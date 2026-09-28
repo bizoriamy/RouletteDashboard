@@ -1,0 +1,15 @@
+{
+  "region": [820, 200, 900, 680],
+  "name": "baccarat-half-width-full-length",
+  "description": "Half-width / Full-length capture region. Approximately 820-1720 horizontal, 200-880 vertical at 1920x1080. Adjust based on actual casino layout.",
+  "game": "Baccarat",
+  "table_provider": "Pragmatic",
+  "layout_type": "Half Width / Full Length",
+  "scale_percent": 100,
+  "resolution": "1920 x 1080",
+  "calibration_method": "Use calibrate.py to select ROI over the betting/result area",
+  "capture_target": "Betting buttons (Banker/Player/Tie), result display, hand cards",
+  "ocr_use": "Reads result (Banker/Player/Tie) and optionally card values",
+  "signature_check": true,
+  "notes": "For Pragmatic-style half-width Baccarat. Region is approximate — run calibrate.py to set exact coordinates. Similar to Roulette (1660, 900, 450, 70) but for Baccarat result area."
+}

@@ -1,0 +1,12 @@
+{
+  "region": [1060, 350, 600, 380],
+  "name": "baccarat-min-width-full-length-evolution",
+  "description": "Min-width / Full-length. Evolution Baccarat - smallest region for result strip only. Region approximate; Evolution's result position differs from Pragmatic.",
+  "game": "Baccarat",
+  "table_provider": "Evolution",
+  "layout_type": "Min Width / Full Length",
+  "scale_percent": 125,
+  "resolution": "1920 x 1080",
+  "calibration_method": "calibrate.py - select only Evolution result area",
+  "notes": "Evolution's result strip position is different. Use calibrate.py to confirm exact region. This profile is approximate only."
+}

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BetPilot Baccarat — v2.0.0-20260928-Baccarat</title>
+<link rel="stylesheet" href="baccarat.css">
+<meta name="description" content="BetPilot Baccarat — bet assistance and record keeping. No win guarantee. Check local gambling laws. 18+.">
+</head>
+<body>
+
+<!-- Required disclaimer: always visible, never removable (DISCLAIMER.md, Disclaimer 1 + 2) -->
+<div class="disclaimer-bar" role="note" aria-label="Required disclaimer">
+  <strong>DISCLAIMER:</strong> BetPilot is a bet-assistance and record-keeping tool. It does NOT predict
+  outcomes, guarantee winnings, or provide betting advice. Every casino game has random outcomes and a
+  house edge. Only bet what you can afford to lose. Check your local gambling laws. You must be 18+ (or
+  the legal gambling age where you are). <strong>Responsible gambling.</strong>
+</div>
+
+<header class="top-bar">
+  <div class="brand">
+    <span class="brand-mark">BetPilot</span>
+    <span class="brand-module">Baccarat</span>
+  </div>
+  <div class="top-meta">
+    <span class="build-badge" id="build-badge">…</span>
+    <span class="conn" id="conn-state" data-state="connecting">connecting…</span>
+    <button type="button" class="btn btn-ghost btn-small" id="btn-topmost" aria-pressed="false"
+            title="Keep this window above the casino window (Windows only)">Always on top</button>
+  </div>
+</header>
+
+<div class="toast-stack" id="toast-stack" role="status" aria-live="polite"></div>
+
+<!-- ============================== SETUP (no session) ============================== -->
+<main class="screen" id="setup-screen" aria-label="Session setup">
+  <section class="setup-card">
+    <h1>Start a Baccarat session</h1>
+    <p class="setup-lede">
+      Enter your capital in dollars and the value of one unit. BetPilot works in units so the
+      arithmetic stays honest; dollars are shown alongside.
+    </p>
+
+    <div class="field-grid">
+      <label class="field">
+        <span class="field-label">Casino / table name</span>
+        <input type="text" id="input-casino" maxlength="80" placeholder="e.g. Pragmatic Table 3" value="Pragmatic Baccarat">
+      </label>
+
+      <label class="field">
+        <span class="field-label">Total capital ($)</span>
+        <input type="number" id="input-capital" min="0" step="5" value="1000">
+      </label>
+
+      <label class="field">
+        <span class="field-label">1 unit = ($, minimum bet)</span>
+        <input type="number" id="input-unit" min="1" step="1" value="5">
+      </label>
+
+      <div class="field field-readout">
+        <span class="field-label">Starting units</span>
+        <output class="readout" id="computed-units">200</output>
+        <span class="field-hint" id="computed-hint">$1000 ÷ $5 = 200 units</span>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Table provider / layout</span>
+        <select id="input-layout"></select>
+        <span class="field-hint">Used to pick the capture region once OCR is connected.</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Entry mode</span>
+        <select id="input-mode">
+          <option value="manual" selected>Manual entry</option>
+          <option value="observe">Observe only — needs OCR</option>
+          <option value="confirm">Confirm before entry — needs OCR</option>
+          <option value="auto">Automatic — needs OCR</option>
+        </select>
+        <span class="field-hint" id="mode-hint">Checking whether OCR is available on this machine…</span>
+      </label>
+    </div>
+
+    <div class="setup-actions">
+      <button type="button" class="btn btn-gold" id="btn-start">Start session</button>
+      <span class="setup-note" id="setup-error" role="alert"></span>
+    </div>
+
+    <details class="history-drawer" id="archive-drawer">
+      <summary>Previous sessions <span class="muted" id="archive-count"></span></summary>
+      <div id="archive-list" class="archive-list">
+        <p class="empty-state">No archived sessions yet.</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<!-- ============================== TABLE (session active) ============================== -->
+<main class="screen" id="table-screen" hidden aria-label="Baccarat table">
+  <section class="session-strip" aria-label="Session">
+    <div class="strip-item">
+      <span class="strip-label">Casino</span>
+      <span class="strip-value" id="hdr-casino">—</span>
+      <span class="strip-sub" id="hdr-layout">—</span>
+    </div>
+    <div class="strip-item">
+      <span class="strip-label">Unit value</span>
+      <span class="strip-value" id="hdr-unit">—</span>
+      <span class="strip-sub" id="hdr-mode">—</span>
+    </div>
+    <div class="strip-item">
+      <span class="strip-label">Bankroll</span>
+      <span class="strip-value" id="bankroll-units">0u</span>
+      <span class="strip-sub" id="bankroll-cash">$0.00</span>
+    </div>
+    <div class="strip-item">
+      <span class="strip-label">Net P&amp;L</span>
+      <span class="strip-value" id="net-pl">+0u</span>
+      <span class="strip-sub" id="net-pl-cash">$0.00</span>
+    </div>
+    <div class="strip-item">
+      <span class="strip-label">Staked / commission</span>
+      <span class="strip-value" id="staked">0u</span>
+      <span class="strip-sub" id="commission">$0.00 commission</span>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section class="bet-column" aria-label="Betting">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Your bet</h2>
+          <span class="panel-hint" id="stake-hint"></span>
+        </div>
+        <div class="stake-row">
+          <button type="button" class="btn btn-unit" id="btn-minus5" aria-label="Decrease stake by 5 units">−5</button>
+          <button type="button" class="btn btn-unit" id="btn-minus1" aria-label="Decrease stake by 1 unit">−1</button>
+          <input type="number" id="stake-units" class="stake-input" min="1" step="1" value="1" aria-label="Stake in units">
+          <button type="button" class="btn btn-unit" id="btn-plus1" aria-label="Increase stake by 1 unit">+1</button>
+          <button type="button" class="btn btn-unit" id="btn-plus5" aria-label="Increase stake by 5 units">+5</button>
+        </div>
+        <div class="stake-row">
+          <button type="button" class="btn btn-unit" id="btn-double">×2</button>
+          <button type="button" class="btn btn-unit" id="btn-halve">÷2</button>
+          <button type="button" class="btn btn-unit" id="btn-clear">Clear (back to 1u)</button>
+        </div>
+        <p class="stake-echo" id="stake-echo">1 unit = $5.00</p>
+      </div>
+
+      <div class="panel" id="bet-panel">
+        <div class="panel-head">
+          <h2>Place a bet</h2>
+          <span class="panel-hint">The result you record afterwards decides win, lose or push.</span>
+        </div>
+        <div class="bet-buttons">
+          <button type="button" class="btn btn-banker" id="btn-banker">
+            <span class="bet-name">Banker</span><span class="bet-sub">pays 0.95:1</span>
+          </button>
+          <button type="button" class="btn btn-player" id="btn-player">
+            <span class="bet-name">Player</span><span class="bet-sub">pays 1:1</span>
+          </button>
+          <button type="button" class="btn btn-tie" id="btn-tie">
+            <span class="bet-name">Tie</span><span class="bet-sub" id="tie-payout-label">pays 8:1</span>
+          </button>
+        </div>
+        <button type="button" class="btn btn-pass" id="btn-pass">PASS — no bet this hand</button>
+      </div>
+
+      <div class="panel open-bet" id="open-bet" hidden>
+        <div class="panel-head">
+          <h2>Open bet — waiting for the result</h2>
+        </div>
+        <p class="open-bet-line" id="open-bet-text">—</p>
+        <p class="open-bet-hint">
+          Record what the table actually showed. Banker and Player bets <strong>push</strong> on a Tie;
+          a Tie bet wins on a Tie and loses on anything else.
+        </p>
+        <div class="result-buttons">
+          <button type="button" class="btn btn-result r-banker" id="btn-res-banker">Banker</button>
+          <button type="button" class="btn btn-result r-player" id="btn-res-player">Player</button>
+          <button type="button" class="btn btn-result r-tie" id="btn-res-tie">Tie</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel-bet">Cancel bet</button>
+        </div>
+      </div>
+
+      <div class="panel" id="ocr-panel">
+        <div class="panel-head">
+          <h2>Screen reading (OCR)</h2>
+          <span class="panel-hint" id="ocr-availability">checking…</span>
+        </div>
+        <div class="ocr-controls">
+          <label class="field">
+            <span class="field-label">Mode</span>
+            <select id="ocr-mode">
+              <option value="observe">Observe — record every result, never a bet</option>
+              <option value="confirm" selected>Confirm — show me each hand first</option>
+              <option value="auto">Automatic — settle my open bet from the screen</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Calibration profile</span>
+            <select id="ocr-profile"></select>
+          </label>
+        </div>
+        <div class="action-row">
+          <button type="button" class="btn btn-gold btn-small" id="btn-ocr-start" disabled>Start reading</button>
+          <button type="button" class="btn btn-ghost btn-small" id="btn-ocr-stop" disabled>Stop</button>
+          <button type="button" class="btn btn-ghost btn-small" id="btn-ocr-refresh">Refresh status</button>
+        </div>
+        <p class="ocr-status" id="ocr-status">OCR is stopped.</p>
+        <p class="ocr-counters" id="ocr-counters"></p>
+        <div class="ocr-pending" id="ocr-pending" hidden>
+          <p class="open-bet-line" id="ocr-pending-line">—</p>
+          <div class="ocr-result-row">
+            <label class="field">
+              <span class="field-label">Record as</span>
+              <select id="ocr-pending-result">
+                <option value="banker">Banker</option>
+                <option value="player">Player</option>
+                <option value="tie">Tie</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn-gold" id="btn-ocr-confirm">Confirm (Enter)</button>
+            <button type="button" class="btn btn-ghost" id="btn-ocr-reject">Reject (Backspace)</button>
+          </div>
+        </div>
+        <details class="ocr-events">
+          <summary>Recent readings <span class="muted" id="ocr-event-count"></span></summary>
+          <div id="ocr-events-list" class="ocr-event-list"></div>
+        </details>
+        <p class="ocr-note" id="ocr-note">
+          OCR reads the screen and gives you the same two inputs you would type. It never predicts, and it
+          never records a hand twice — each reading carries a signature of the screen region.
+        </p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Session actions</h2>
+        </div>
+        <div class="action-row">
+          <button type="button" class="btn btn-ghost" id="btn-undo">Undo last hand</button>
+          <button type="button" class="btn btn-end" id="btn-end">End session</button>
+          <a class="btn btn-ghost" id="link-export-csv" href="/api/baccarat/export?format=csv">Export CSV</a>
+          <a class="btn btn-ghost" id="link-export-json" href="/api/baccarat/export?format=json">Export JSON</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="history-column" aria-label="History and statistics">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Bead plate</h2>
+          <span class="panel-hint">Oldest to newest, all recorded results</span>
+        </div>
+        <div class="bead-plate" id="bead-plate"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Statistics</h2></div>
+        <dl class="stats">
+          <div><dt>Hands</dt><dd id="stat-hands">0</dd></div>
+          <div><dt>Wins</dt><dd id="stat-wins">0</dd></div>
+          <div><dt>Losses</dt><dd id="stat-losses">0</dd></div>
+          <div><dt>Pushes</dt><dd id="stat-pushes">0</dd></div>
+          <div><dt>No bet</dt><dd id="stat-voids">0</dd></div>
+          <div><dt>Win rate</dt><dd id="stat-winrate">0%</dd></div>
+          <div><dt>Current streak</dt><dd id="stat-streak">—</dd></div>
+          <div><dt>Longest B/P/T</dt><dd id="stat-longest">0 / 0 / 0</dd></div>
+          <div><dt>Max drawdown</dt><dd id="stat-drawdown">$0.00</dd></div>
+        </dl>
+        <p class="stats-note">
+          Statistics describe what you recorded. They are not a prediction and cannot predict the next hand.
+        </p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Hand history</h2>
+          <span class="panel-hint" id="hands-count">0 hands</span>
+        </div>
+        <div class="table-wrap">
+          <table class="hands">
+            <thead>
+              <tr><th>#</th><th>Bet</th><th>Stake</th><th>Result</th><th>Outcome</th><th>P&amp;L</th><th>Bankroll</th></tr>
+            </thead>
+            <tbody id="hands-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ============================== ENDED (summary) ============================== -->
+<main class="screen" id="ended-screen" hidden aria-label="Session summary">
+  <section class="setup-card">
+    <h1>Session ended</h1>
+    <p class="setup-lede" id="ended-lede">—</p>
+    <dl class="stats stats-wide" id="ended-stats"></dl>
+    <div class="setup-actions">
+      <button type="button" class="btn btn-gold" id="btn-new-session">Start a new session</button>
+      <a class="btn btn-ghost" id="ended-export-csv" href="/api/baccarat/export?format=csv">Export CSV</a>
+      <a class="btn btn-ghost" id="ended-export-json" href="/api/baccarat/export?format=json">Export JSON</a>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>Manual entry — nothing is recorded until you record it.</span>
+  <span id="foot-build">BetPilot Baccarat</span>
+</footer>
+
+<script src="engine.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>

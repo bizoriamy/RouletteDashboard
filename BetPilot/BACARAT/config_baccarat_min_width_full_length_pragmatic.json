@@ -1,0 +1,12 @@
+{
+  "region": [1060, 350, 600, 380],
+  "name": "baccarat-min-width-full-length-pragmatic",
+  "description": "Min-width / Full-length. Pragmatic Baccarat - smallest region focused only on result strip. Fastest OCR, reads only latest Banker/Player/Tie.",
+  "game": "Baccarat",
+  "table_provider": "Pragmatic",
+  "layout_type": "Min Width / Full Length",
+  "scale_percent": 125,
+  "resolution": "1920 x 1080",
+  "calibration_method": "calibrate.py - select the narrow result strip only",
+  "notes": "Smallest and fastest. Only captures the result display area (not betting buttons). Best for users who only need to record results quickly. Confirm region with calibrate.py."
+}

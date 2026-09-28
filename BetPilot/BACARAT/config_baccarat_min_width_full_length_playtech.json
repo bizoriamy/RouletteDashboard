@@ -1,0 +1,12 @@
+{
+  "region": [1060, 350, 600, 380],
+  "name": "baccarat-min-width-full-length-playtech",
+  "description": "Min-width / Full-length. Playtech Baccarat - smallest region. Playtech has a wider layout, so the min-width region may need adjustment. Calibrate before use.",
+  "game": "Baccarat",
+  "table_provider": "Playtech",
+  "layout_type": "Min Width / Full Length",
+  "scale_percent": 125,
+  "resolution": "1920 x 1080",
+  "calibration_method": "calibrate.py with Playtech - result strip may be in different position",
+  "notes": "Playtech's result display may be wider or positioned differently than Pragmatic. This profile is a starting point only. Always calibrate."
+}

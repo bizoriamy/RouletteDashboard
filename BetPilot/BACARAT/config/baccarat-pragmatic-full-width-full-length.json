@@ -1,0 +1,21 @@
+{
+  "name": "baccarat-pragmatic-full-width-full-length",
+  "label": "Pragmatic — Full Width / Full Length",
+  "provider": "Pragmatic",
+  "layout": "Full Width / Full Length",
+  "region": [
+    0,
+    0,
+    1920,
+    1080
+  ],
+  "regionConvention": "x, y, width, height",
+  "scalePercent": 100,
+  "resolution": "1920 x 1080",
+  "calibrated": false,
+  "captureTarget": "The whole casino window: table, betting area and result strip.",
+  "ocrUse": "Reads Banker/Player/Tie and, if you enable it, card values.",
+  "signatureCheck": true,
+  "calibrationMethod": "python app/tools/calibrate.py --profile baccarat-pragmatic-full-width-full-length",
+  "notes": "Safest starting point, and the slowest to read. Prefer a tighter region once you have calibrated. Pragmatic places the result strip and betting buttons differently from the others. Run calibration with your casino window open before enabling OCR; this region is a starting point, not a measurement."
+}

@@ -1,0 +1,12 @@
+{
+  "region": [0, 0, 1920, 1080],
+  "name": "baccarat-full-width-full-length-evolution",
+  "description": "Full screen capture. Evolution Baccarat - Full Width / Full Length layout. Evolution places card and result display differently from Pragmatic; full capture ensures all elements included before trimming.",
+  "game": "Baccarat",
+  "table_provider": "Evolution",
+  "layout_type": "Full Width / Full Length",
+  "scale_percent": 100,
+  "resolution": "1920 x 1080 (or 1280 x 720 if lower)",
+  "calibration_method": "calibrate.py with Evolution table open",
+  "notes": "Evolution's Baccarat has different card display and betting button positions. Full-width capture is the safest starting point. After calibration, you may reduce to half-width."
+}

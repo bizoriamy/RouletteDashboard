@@ -18,8 +18,19 @@ function Fail([string]$Message, [int]$Code) {
 }
 
 function Invoke-LocalGit([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments) {
-    $output = & git.exe -C $repo @Arguments 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    # Git writes ordinary warnings to stderr — a line-ending conversion notice, for one. With
+    # $ErrorActionPreference = 'Stop' at the top of this script, that warning becomes a terminating
+    # error even though the command succeeded. Relax the preference around the call and judge the
+    # command by its exit code, which is what actually signals failure.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & git.exe -C $repo @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($exitCode -ne 0) {
         throw "git $($Arguments -join ' ') failed:`n$($output -join [Environment]::NewLine)"
     }
     return @($output)
@@ -88,11 +99,13 @@ try {
     $remoteHash = (($remoteResult.Output | Select-Object -Last 1) -split '\s+')[0]
 
     # Synchronize the active Roulette/OCR project and its repository-level
-    # documentation. Unrelated PawWork experiments remain untouched.
+    # documentation, plus the BetPilot Baccarat module. Unrelated PawWork
+    # experiments remain untouched.
     $syncPaths = @(
         '.gitignore',
         'README.md',
         'Sync PawWork to GitHub.bat',
+        'BetPilot',
         'casino-tracker/roulette',
         'OCR'
     )
@@ -101,7 +114,10 @@ try {
     $forbidden = @($staged | Where-Object {
         $_ -match '(^|/)(\.secrets|backup-before-[^/]*|__pycache__|\.pending)(/|$)' -or
         $_ -match '\.(pyc|log|tmp|temp)$' -or
-        $_ -match '^casino-tracker/roulette/data/ocr-(events\.jsonl|corrections/)'
+        $_ -match '^casino-tracker/roulette/data/ocr-(events\.jsonl|corrections/)' -or
+        # BetPilot: never commit personal session data, runtime state, or a key file.
+        $_ -match '^BetPilot/BACARAT/(data|\.runtime)(/|$)' -or
+        $_ -match '(^|/)ocr\.env$'
     })
     if ($forbidden.Count -gt 0) {
         Fail "Protected runtime or private paths were staged unexpectedly:`n$($forbidden -join [Environment]::NewLine)" 31

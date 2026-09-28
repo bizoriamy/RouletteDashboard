@@ -1,0 +1,25 @@
+{
+  "provider": "deepseek",
+  "providerNote": "Change ONLY this line to switch provider: \"deepseek\" or \"gemini\". Both keys can live in .secrets/ocr.env at the same time.",
+  "deepseek": {
+    "baseUrl": "https://api.deepseek.com",
+    "model": "deepseek-v4-flash-vision-exp",
+    "keyName": "DEEPSEEK_API_KEY",
+    "temperature": 0
+  },
+  "gemini": {
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+    "model": "gemini-1.5-flash",
+    "keyName": "GEMINI_API_KEY",
+    "temperature": 0,
+    "note": "Update the model id to one your key supports before switching; the default above is the id the old Baccarat docs used."
+  },
+  "scan": {
+    "intervalSeconds": 1.5,
+    "confirmDelaySeconds": 1.5,
+    "stableReads": 2,
+    "minConfidence": 0.5,
+    "note": "stableReads 2 means every hand is read twice, separated by confirmDelaySeconds, and both reads must agree. Raise minConfidence if you see wrong results; lower it only if real results are being ignored."
+  },
+  "keysLocation": "casino-tracker/.secrets/ocr.env — never copy a key into this file or any other file in the repository"
+}

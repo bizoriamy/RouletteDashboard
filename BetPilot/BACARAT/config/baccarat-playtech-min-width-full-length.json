@@ -1,0 +1,21 @@
+{
+  "name": "baccarat-playtech-min-width-full-length",
+  "label": "Playtech — Min Width / Full Length",
+  "provider": "Playtech",
+  "layout": "Min Width / Full Length",
+  "region": [
+    1060,
+    350,
+    600,
+    380
+  ],
+  "regionConvention": "x, y, width, height",
+  "scalePercent": 125,
+  "resolution": "1920 x 1080",
+  "calibrated": false,
+  "captureTarget": "The result strip only — the smallest area that still shows the outcome.",
+  "ocrUse": "Reads only the latest result. Fastest and least error-prone, but no card values.",
+  "signatureCheck": true,
+  "calibrationMethod": "python app/tools/calibrate.py --profile baccarat-playtech-min-width-full-length",
+  "notes": "Best for small screens or a 125% display scale. Calibrate before trusting it. Playtech runs a wider table, so a half-width region may need to be wider. Run calibration with your casino window open before enabling OCR; this region is a starting point, not a measurement."
+}
