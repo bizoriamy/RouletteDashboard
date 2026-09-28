@@ -5,6 +5,80 @@ Every entry states what changed in plain language, what was verified, and what i
 
 ---
 
+## v2.6.0-20260928-Baccarat (2026-09-28) — THE READER MEETS THE REAL TABLE
+
+The user supplied four real screenshots of their casino table. **The reader got every one of them
+right**, and the exercise exposed three genuine defects that synthetic images had hidden.
+
+### Result on the real table
+
+| Sample | Shown | Reader | Confidence |
+|---|---|---|---|
+| real-01 | Player 7, Banker 8 (cards 7♣ J♦ / A♦ 7♣) | BANKER | 0.99 |
+| real-02 | Player 9, Banker 2 (2♣ 7♥ / K♣ 2♠), full layout with the history grid visible | PLAYER | 1.00 |
+| real-03 | Player 6, Banker 7 (3♥ 3♦ / 4♥ 3♠) | BANKER | 0.99 |
+| real-04 | the first hand again, cropped taller to include the dealt cards | BANKER | 0.98 |
+
+Every reading has been correct on every run (12 of 12 across three passes). The evidence shows real
+reasoning rather than luck: *"Player shows 7, Banker shows 8; red Banker totals 8 over blue Player 7"*
+and *"Player cards 2+7=9; Banker K+2=2"*.
+
+**What the table actually looks like, and why that mattered:** the result is never written as a word.
+The winner is shown by the hand totals in coloured boxes (blue = Player, red = Banker) plus the
+brightening of the winning side's panel — while the panels are *permanently* labelled PLAYER, BANKER
+and TIE with their odds. A reader that merely looks for the word "BANKER" would be right half the time
+by accident. It is not; it compares totals. A history grid of B/P/T markers sits beside the live hand
+and is correctly ignored.
+
+### Fixed — three defects that only a real screen exposed
+
+1. **Replies were being truncated and thrown away.** No `max_tokens` was sent, so the provider's small
+   default cut a reply off before its closing brace and a perfectly good reading was discarded as
+   unparseable — a silently missed hand. An explicit budget is now sent, and `parse_result_json`
+   salvages a reply whose `result` value is complete instead of discarding it. A half-written result
+   is still refused, never guessed.
+2. **A cluttered image could return nothing at all.** The vision model is a reasoning model: on a hard
+   image it spends its output budget before writing the JSON, returning empty with
+   `finish_reason=length` — measured at 2400 tokens and 18 seconds. The reader now notices *why* it
+   stopped, retries once with double the budget, and if that fails reports "no result" (which is safe:
+   the hand is recorded by hand) rather than stalling the scan loop. A 30-second client timeout bounds
+   the worst case.
+3. **An empty reply was dropped instead of retried.** Measured at roughly one call in fifteen. The
+   reader now asks once more for the same picture before giving up — free of risk, since the read is
+   stateless and the image has not changed. Transport errors still surface immediately.
+
+### Changed
+
+- The prompt now covers **both** presentation styles: a real table's totals-and-highlight layout *and*
+  the simpler word, letter, marker or strip forms. It states that on a full layout the panel words are
+  decoration, that equal totals mean a Tie, and that a lone word or marker *is* the result. Two new
+  fixtures cover the Tie (equal totals, bright green panel — read correctly at 0.99) and a hand still
+  being dealt (correctly refused).
+- `ocr_check.py` no longer copies an already-saved image back into `data\samples` when reading it,
+  which was polluting the folder for the next `--all` run. A deliberately ambiguous stress fixture is
+  reported as unreadable without failing the run, so a real regression stays visible.
+
+### Verified
+
+- `powershell -ExecutionPolicy Bypass -File tests\run-all.ps1` — all seven steps pass.
+- The graded fixture set: **10 of 10 correct** including the new Tie and dealing cases; your real
+  table **4 of 4**.
+- Gemini: the branch now reaches the API with a valid model id (`gemini-3.8-flash`) and returns a
+  clear message, but Google is answering **HTTP 503** for this key on every call, so it remains
+  unusable for the moment. DeepSeek is the working provider.
+- Note: the configured DeepSeek model, `deepseek-v4-flash-vision-exp`, is not even listed by
+  `/models` for this key (which offers `deepseek-flash` and `deepseek-v4-pro`). It works, but it is an
+  experimental id, so a future change there should be expected.
+
+### Still open
+
+- **The capture region is still unmeasured.** The crop is what the reader sees, and it must be
+  expressed in screen coordinates. All 9 calibration profiles remain `"calibrated": false`.
+- A real **Tie** on this table has not been seen: the Tie rule is verified only on a mock built to
+  match the layout.
+
+---
+
 ## v2.5.2-20260928-Baccarat (2026-09-28) — CAPTURE A SAMPLE FROM THE MODULE ITSELF
 
 Judging a calibration region needed a terminal command, which is the wrong ask for a non-programmer.

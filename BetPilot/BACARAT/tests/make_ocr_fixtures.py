@@ -1,4 +1,4 @@
-﻿"""BetPilot — synthetic Baccarat display fixtures.
+"""BetPilot — synthetic Baccarat display fixtures.
 
 Run: python make_ocr_fixtures.py
 
@@ -57,6 +57,16 @@ def centre_text(draw, width, height, text, font, fill):
     except AttributeError:  # very old Pillow
         text_width, text_height = draw.textsize(text, font=font)
     draw.text(((width - text_width) / 2, (height - text_height) / 2 - 2), text, font=font, fill=fill)
+
+
+def centre_box(draw, x0, y0, x1, y1, text, font, fill=(255, 255, 255)):
+    """Centre text inside a rectangle — for hand-total boxes."""
+    try:
+        box = draw.textbbox((0, 0), text, font=font)
+        width, height = box[2] - box[0], box[3] - box[1]
+    except AttributeError:  # very old Pillow
+        width, height = draw.textsize(text, font=font)
+    draw.text((x0 + (x1 - x0 - width) / 2, y0 + (y1 - y0 - height) / 2 - 2), text, font=font, fill=fill)
 
 
 def write(image, name):
@@ -135,14 +145,45 @@ def main():
     centre_text(draw, 260, 70, "TIE", big_font, GREEN)
     made.append(write(image, "08-plain-expected-TIE.png"))
 
-    # 09 — a tiny result marker on a busy table mock: small dot, lots of other colour around it.
+    # 09 — STRESS CASE, deliberately ungraded: a bare grid of coloured dots with no layout context.
+    # Which dot is "newest" depends on a fill convention that is not visible in the picture, so a
+    # refusal is a legitimate answer and grading it would be unfair. Kept because it exposed a real
+    # limit: on an ambiguous image the model can spend its whole token budget reasoning and return
+    # nothing, which the reader reports as "no result" rather than inventing one.
     image = Image.new("RGB", (360, 120), (28, 24, 20))
     draw = ImageDraw.Draw(image)
     for index in range(6):  # decoy dots
         x = 20 + 58 * index
         draw.ellipse([x, 20, x + 26, 46], fill=(RED, BLUE, RED, GREEN, RED, BLUE)[index])
-    draw.ellipse([300, 78, 326, 104], fill=RED)  # newest, bottom-right
-    made.append(write(image, "09-busy-latest-expected-BANKER.png"))
+    draw.ellipse([300, 78, 326, 104], fill=RED)  # one further dot, bottom-right
+    made.append(write(image, "09-stress-decoy-grid.png"))
+
+    # 10 — a Tie on a layout like the user's real table: equal totals, bright green Tie panel, both
+    # side panels dimmed. This is the case a totals-based rule has to get right.
+    image = Image.new("RGB", (560, 200), (222, 196, 168))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle([190, 6, 240, 52], radius=6, fill=(30, 80, 190))   # Player total: 7
+    centre_box(draw, 190, 6, 240, 52, "7", big_font)
+    draw.rounded_rectangle([400, 6, 450, 52], radius=6, fill=RED)             # Banker total: 7
+    centre_box(draw, 400, 6, 450, 52, "7", big_font)
+    draw.rectangle([150, 60, 250, 190], fill=(26, 34, 66))                   # Player panel, dimmed
+    draw.text((158, 72), "PLAYER", font=small_font, fill=(120, 134, 170))
+    draw.rectangle([310, 60, 410, 190], fill=(46, 176, 108))                 # Tie panel, bright
+    draw.rectangle([362, 60, 410, 190], fill=(46, 176, 108))
+    draw.text((325, 72), "TIE", font=small_font, fill=WHITE)
+    draw.rectangle([420, 60, 520, 190], fill=(86, 26, 34))                   # Banker panel, dimmed
+    draw.text((428, 72), "BANKER", font=small_font, fill=(150, 96, 96))
+    made.append(write(image, "10-equal-totals-expected-TIE.png"))
+
+    # 11 — a hand still being dealt: no totals and no settled cards. The only correct answer is "none".
+    image = Image.new("RGB", (560, 200), (222, 196, 168))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([150, 60, 250, 190], outline=(90, 100, 140), width=2)
+    draw.rectangle([310, 60, 410, 190], outline=(90, 140, 110), width=2)
+    draw.rectangle([420, 60, 520, 190], outline=(140, 90, 90), width=2)
+    centre_text(draw, 560, 40, "DEALING...", small_font, (60, 60, 70))
+    draw.text((158, 120), "cards in motion", font=tiny_font, fill=(110, 110, 120))
+    made.append(write(image, "11-hand-in-progress-expected-NONE.png"))
 
     print("wrote %d fixtures to %s" % (len(made), OUT_DIR))
     print("font: %s | CJK font: %s" % (font_name, cjk_name))

@@ -48,6 +48,9 @@ DEFAULT_CONFIG = {
         "model": "deepseek-v4-flash-vision-exp",
         "keyName": "DEEPSEEK_API_KEY",
         "temperature": 0,
+        # Generous on purpose: a reasoning vision model spends tokens before it writes the JSON, and a
+        # tight cap makes cluttered images come back empty. The reply itself is only a few dozen tokens.
+        "maxTokens": 800,
     },
     "gemini": {
         "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
@@ -66,12 +69,29 @@ DEFAULT_CONFIG = {
 }
 
 PROMPT = (
-    "You are reading a baccarat result display from a screenshot. Reply with STRICT JSON only, "
-    "no prose, no code fences:\n"
+    "You are reading the result of the CURRENT baccarat hand from a screenshot of a casino table. "
+    "Reply with STRICT JSON only, no prose, no code fences:\n"
     '{"result": "banker|player|tie" or null, "confidence": 0.0-1.0, "evidence": "short reason"}\n'
-    "Conventions: Banker is usually the red side, Player the blue side, Tie the green side. "
-    'If the image does not clearly show a finished hand, reply {"result": null, "confidence": 0.0, '
-    '"evidence": "no clear result"}. Never guess: a wrong result is worse than no result.'
+    "\n"
+    "Conventions: red = Banker, blue = Player, green = Tie. A result may be shown as a word "
+    "(BANKER / PLAYER / TIE), a single letter (B / P / T, or the characters 庄 / 闲 / 和), a coloured "
+    "marker or light, or a hand total.\n"
+    "\n"
+    "Many tables show the result as hand totals in small coloured boxes above the betting panels: the "
+    "blue box is Player's total, the red box is Banker's total, and the HIGHER total wins. Baccarat "
+    "totals run 0-9 (face cards count 0, an Ace counts 1). The winning side's panel is bright while the "
+    "losing side's is dimmed, and equal totals mean a Tie. On such a full layout the panels are labelled "
+    "PLAYER / BANKER / TIE with odds such as \"0.95:1\" on every hand, winner or not: there, decide from "
+    "the totals and the highlighted panel rather than from the mere presence of a word. When the image "
+    "shows only one word or one marker instead (for example a single blue panel reading PLAYER), that "
+    "word or marker IS the result. If the image is a row or grid of markers with no totals, the newest "
+    "(last) marker is the current hand.\n"
+    "\n"
+    "Refuse rather than guess:\n"
+    "- If a hand is still being dealt (cards moving or blurred, no settled totals, a timer or "
+    "countdown), or no hand is visible at all, reply "
+    '{"result": null, "confidence": 0.0, "evidence": "no clear result"}.\n'
+    "- A wrong result is worse than no result."
 )
 
 
@@ -213,6 +233,25 @@ def capture_full_screen():
 # --------------------------------------------------------------------------- providers
 
 
+def salvage_truncated_json(text):
+    """Recover {result, confidence, evidence} from a reply cut off before its closing brace.
+
+    Some providers cap output tokens hard enough to truncate the JSON. If the "result" value is
+    complete in the text, the reading is still good and throwing it away would lose a hand. The
+    result must be a COMPLETE quoted string here — a half-written value is refused, never guessed.
+    """
+    result = re.search(r'"result"\s*:\s*"(banker|player|tie|none)"', text, re.IGNORECASE)
+    if not result:
+        return None
+    confidence = re.search(r'"confidence"\s*:\s*([0-9]*\.?[0-9]+)', text)
+    evidence = re.search(r'"evidence"\s*:\s*"([^"]*)', text)
+    return {
+        "result": result.group(1),
+        "confidence": confidence.group(1) if confidence else 0.0,
+        "evidence": (evidence.group(1) if evidence else "") + " [recovered from a truncated reply]",
+    }
+
+
 def parse_result_json(text):
     """Parse the model's reply into {result, confidence, evidence}. Tolerates code fences."""
     if not text:
@@ -220,12 +259,15 @@ def parse_result_json(text):
     cleaned = text.strip()
     cleaned = re.sub(r"^```(?:json)?|```$", "", cleaned, flags=re.MULTILINE).strip()
     match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-    if not match:
-        raise OcrError("The vision model did not return JSON: %s" % cleaned[:160])
     try:
-        payload = json.loads(match.group())
-    except json.JSONDecodeError as error:
-        raise OcrError("The vision model returned unreadable JSON: %s" % cleaned[:160]) from error
+        payload = json.loads(match.group()) if match else None
+    except json.JSONDecodeError:
+        payload = None
+    if payload is None:
+        # The braces may be missing because the reply was cut short. Salvage what is complete.
+        payload = salvage_truncated_json(cleaned)
+        if payload is None:
+            raise OcrError("The vision model did not return JSON I could use: %s" % cleaned[:160])
     result = payload.get("result")
     if isinstance(result, str):
         result = result.strip().lower()
@@ -248,20 +290,42 @@ def parse_result_json(text):
 
 def read_with_deepseek(image_bytes, section, api_key):
     from openai import OpenAI
-    client = OpenAI(api_key=api_key, base_url=section.get("baseUrl", DEFAULT_CONFIG["deepseek"]["baseUrl"]))
+    client = OpenAI(api_key=api_key, base_url=section.get("baseUrl", DEFAULT_CONFIG["deepseek"]["baseUrl"]),
+                    timeout=float(section.get("timeoutSeconds", 30)))
     encoded = base64.b64encode(image_bytes).decode("ascii")
-    response = client.chat.completions.create(
-        model=section.get("model", DEFAULT_CONFIG["deepseek"]["model"]),
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": PROMPT},
-                {"type": "image_url", "image_url": {"url": "data:image/png;base64," + encoded}},
-            ],
-        }],
-        temperature=float(section.get("temperature", 0)),
+    base_budget = int(section.get("maxTokens", 800))
+    last_finish = None
+    last_content = ""
+    # A reasoning-style vision model spends output tokens before it writes the JSON. On a cluttered
+    # image that can eat a modest budget whole and the reply comes back empty with finish_reason
+    # "length" — a good hand silently lost. Escalate the budget once when that happens, but keep the
+    # ceiling modest: an image the model cannot settle within it is better treated as "no result"
+    # (which the caller logs and the user records by hand) than left to stall the scan loop.
+    for budget in (base_budget, base_budget * 2):
+        response = client.chat.completions.create(
+            model=section.get("model", DEFAULT_CONFIG["deepseek"]["model"]),
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": PROMPT},
+                    {"type": "image_url", "image_url": {"url": "data:image/png;base64," + encoded}},
+                ],
+            }],
+            temperature=float(section.get("temperature", 0)),
+            max_tokens=budget,
+        )
+        choice = response.choices[0]
+        last_finish = getattr(choice, "finish_reason", None)
+        last_content = choice.message.content or ""
+        if last_content.strip():
+            return last_content
+        if last_finish != "length":
+            return last_content  # empty for another reason; the retry wrapper deals with it
+    raise OcrError(
+        "The vision model produced no content within a %d-token budget (finish_reason=%s). The image "
+        "is probably too ambiguous to read; treat it as no result, or raise maxTokens for deepseek in "
+        "config/ocr.json." % (base_budget * 2, last_finish)
     )
-    return response.choices[0].message.content
 
 
 def read_with_gemini(image_bytes, section, api_key):
@@ -277,7 +341,10 @@ def read_with_gemini(image_bytes, section, api_key):
                                  "data": base64.b64encode(image_bytes).decode("ascii")}},
             ]
         }],
-        "generationConfig": {"temperature": float(section.get("temperature", 0))},
+        "generationConfig": {
+            "temperature": float(section.get("temperature", 0)),
+            "maxOutputTokens": int(section.get("maxTokens", 300)),
+        },
     }
     response = requests.post(url, params={"key": api_key}, json=payload, timeout=45)
     if response.status_code == 404:
@@ -301,6 +368,32 @@ def read_with_gemini(image_bytes, section, api_key):
         raise OcrError("Gemini returned an unexpected shape: %s" % json.dumps(body)[:200]) from error
 
 
+def with_retry(read, attempts=2, delay=0.7, sleep=time.sleep):
+    """Retry a read that came back empty or unusable.
+
+    Providers occasionally answer with an empty body (~1 call in 15 measured on 2026-09-28). In a live
+    session that is a missed hand, and asking again for the same picture is free of risk: the read is
+    stateless and the image has not changed. Transport errors still raise immediately — they are not
+    something a silent retry should paper over mid-hand.
+    """
+    def reader(image_bytes):
+        last = None
+        for attempt in range(1, max(1, attempts) + 1):
+            try:
+                text = read(image_bytes)
+            except (OcrError, ValueError, TypeError):
+                raise
+            except Exception as error:  # noqa: BLE001 - network and provider errors
+                raise OcrError("%s: %s" % (type(error).__name__, error)) from error
+            if text and str(text).strip():
+                return text
+            last = text
+            if attempt < attempts:
+                sleep(delay)
+        raise OcrError("The vision model returned nothing after %d attempts." % attempts)
+    return reader
+
+
 def make_reader(config=None, secrets=None):
     """Build the read(image_bytes) callable for the configured provider."""
     config = config or load_config()
@@ -316,9 +409,9 @@ def make_reader(config=None, secrets=None):
             % (section.get("keyName"), SECRETS_FILE)
         )
     if provider == "deepseek":
-        return lambda image_bytes: read_with_deepseek(image_bytes, section, api_key)
+        return with_retry(lambda image_bytes: read_with_deepseek(image_bytes, section, api_key))
     if provider == "gemini":
-        return lambda image_bytes: read_with_gemini(image_bytes, section, api_key)
+        return with_retry(lambda image_bytes: read_with_gemini(image_bytes, section, api_key))
     raise OcrError("Unknown OCR provider: %s" % provider)
 
 

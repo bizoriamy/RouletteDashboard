@@ -5,14 +5,17 @@
     "baseUrl": "https://api.deepseek.com",
     "model": "deepseek-v4-flash-vision-exp",
     "keyName": "DEEPSEEK_API_KEY",
-    "temperature": 0
+    "temperature": 0,
+    "maxTokens": 800,
+    "note": "maxTokens is deliberately generous: a reasoning vision model spends output tokens before writing the JSON, and a tight cap makes cluttered images return empty (finish_reason=length). The reader escalates the budget once if that happens."
   },
   "gemini": {
     "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
     "model": "gemini-3.8-flash",
     "keyName": "GEMINI_API_KEY",
     "temperature": 0,
-    "note": "Model id verified against this key on 2026-09-28: Google's API told us gemini-1.5-flash and gemini-2.5-flash are no longer served to this key and recommended gemini-3.8-flash. Gemini occasionally answers HTTP 503 under demand spikes; DeepSeek is the default for that reason. If an id is retired the error names it — list the ids available to the key at https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY"
+    "note": "Model id verified against this key on 2026-09-28: Google's API told us gemini-1.5-flash and gemini-2.5-flash are no longer served to this key and recommended gemini-3.8-flash. Gemini occasionally answers HTTP 503 under demand spikes; DeepSeek is the default for that reason. If an id is retired the error names it — list the ids available to the key at https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY",
+    "maxTokens": 800
   },
   "scan": {
     "intervalSeconds": 1.5,

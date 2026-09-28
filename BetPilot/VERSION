@@ -1,10 +1,10 @@
-BetPilot — v2.5.2-20260928-Baccarat
+BetPilot — v2.6.0-20260928-Baccarat
 ========================================
 Product:   BetPilot (PC-side betting assistant)
 Module:    Baccarat (local server application)
-Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.5.2-20260928-Baccarat)
-Status:    core complete and verified; OCR prompt proven general across nine synthetic displays,
-           but NOT yet validated on the user's real casino display
+Module dir: BACARAT/  (module VERSION: BACARAT/VERSION = v2.6.0-20260928-Baccarat)
+Status:    core complete and verified; the screen reader reads the user's REAL table correctly
+           (4 of 4 screenshots, every run), but the capture region is not yet calibrated
 Build:     2026-09-28
 
 This VERSION file is the authoritative build identifier.
@@ -18,14 +18,18 @@ removed page scrolling. v2.2.x put the panels beside the betting column for half
 bead plate a fixed 10 x 10 box of small colour-only hands and renamed the panels. v2.3.0 made PASS
 record the table's result. v2.4.0 gave the Tie insurance its own stake.
 
-v2.5.0 added the OCR spot-check tool, an accuracy readout built from the audit log, a working Gemini
-model id (gemini-3.8-flash) and removed a phantom "stop" event from that log. v2.5.1 proved the
-reading prompt against nine synthetic result displays (all nine correct, including 11px text, a
-Chinese label and a busy table with decoy markers), made that check re-runnable with grading, and
-fixed a crash when the model's quoted evidence contained non-Latin characters. v2.5.2 adds a
-"Save a screenshot sample" button so a capture region can be judged without using a terminal.
+v2.5.0 added the OCR spot-check tool, an accuracy readout built from the audit log and a working
+Gemini model id (gemini-3.8-flash). v2.5.1 proved the reading prompt against synthetic displays and
+made that check gradable. v2.5.2 added a "Save a screenshot sample" button so a capture region can be
+judged without a terminal.
 
-IMPORTANT: the screen reader has never read the user's casino display and no calibration region has
-been measured. Do not treat OCR as working until a real screenshot of the table reads correctly.
+v2.6.0 is where the reader met the real table: all four of the user's real screenshots read correctly,
+and the exercise exposed three defects synthetic images had hidden — truncated replies discarded as
+unparseable, a reasoning model returning nothing on a cluttered image, and empty replies not retried.
+It also uncovered a private file accidentally synced to the public repository, which was removed and
+now cannot happen again (the sync refuses images).
+
+IMPORTANT: the capture region has not been calibrated (all 9 profiles are "calibrated": false), so the
+module is not yet reading the live screen end to end. Gemini returns HTTP 503 for this key.
 
 The per-release record for the module is BACARAT/CHANGELOG.md.

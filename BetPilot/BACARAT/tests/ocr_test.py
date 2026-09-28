@@ -446,12 +446,86 @@ def test_event_stats():
             os.remove(path)
 
 
+def test_truncated_replies():
+    print("\nTRUNCATED REPLIES ARE SALVAGED, NEVER GUESSED")
+    # A provider token cap once cut a good reply off before its closing brace. Losing the reading is
+    # worse than recovering it, provided the result value itself is complete.
+    salvaged = ocr.parse_result_json(
+        '{"result": "player", "confidence": 0.95, "evidence": "Single blue panel reading PLAYER"')
+    check("a reply cut off after a complete result still reads",
+          salvaged["result"] == "player", salvaged)
+    check("its confidence survives", salvaged["confidence"] == 0.95, salvaged["confidence"])
+    check("the salvage is admitted in the evidence",
+          "truncated" in salvaged["evidence"], salvaged["evidence"])
+    check("a missing confidence falls back to zero",
+          ocr.parse_result_json('{"result": "tie"')["confidence"] == 0.0)
+
+    for bad in ('{"result": "pla', '{"result":', 'not json at all', ''):
+        try:
+            parsed = ocr.parse_result_json(bad)
+            check("an incomplete reply is refused, never guessed (%r)" % bad[:18], False,
+                  "accepted it as %r" % (parsed,))
+        except ocr.OcrError:
+            check("an incomplete reply is refused, never guessed (%r)" % bad[:18], True)
+
+    # A reply with no result field at all is a refusal, not an error: nothing is claimed.
+    check("a reply with no result field becomes a refusal",
+          ocr.parse_result_json('{"confidence": 0.9}')["result"] is None)
+
+    fenced = '```json\n{"result": "tie", "confidence": 0.9, "evidence": "green"}\n```'
+    check("code fences are still tolerated", ocr.parse_result_json(fenced)["result"] == "tie")
+    check("an upper-case result is normalised",
+          ocr.parse_result_json('{"result": "BANKER", "confidence": 0.9}')["result"] == "banker")
+    check("'none' becomes a null result",
+          ocr.parse_result_json('{"result": "none", "confidence": 0.0}')["result"] is None)
+
+
+def test_retry():
+    print("\nAN EMPTY REPLY IS RETRIED, NOT DROPPED")
+    calls = {"n": 0}
+
+    def flaky(image_bytes):
+        calls["n"] += 1
+        return "" if calls["n"] == 1 else '{"result": "banker", "confidence": 0.9, "evidence": "ok"}'
+
+    reader = ocr.with_retry(flaky, attempts=2, delay=0, sleep=lambda _s: None)
+    check("an empty first reply is asked again", reader(b"x").find("banker") >= 0, "no retry happened")
+    check("the retry is a second call", calls["n"] == 2, calls["n"])
+
+    calls["n"] = 0
+
+    def always_empty(image_bytes):
+        calls["n"] += 1
+        return ""
+
+    reader = ocr.with_retry(always_empty, attempts=3, delay=0, sleep=lambda _s: None)
+    try:
+        reader(b"x")
+        check("persistent emptiness raises rather than looping", False, "no error")
+    except ocr.OcrError as error:
+        check("persistent emptiness raises rather than looping", calls["n"] == 3, calls["n"])
+        check("and says so", "returned nothing" in str(error), error)
+
+    def boom(image_bytes):
+        raise RuntimeError("connection reset")
+
+    reader = ocr.with_retry(boom, attempts=2, delay=0, sleep=lambda _s: None)
+    try:
+        reader(b"x")
+        check("a transport error is surfaced, not silently retried", False, "no error")
+    except ocr.OcrError as error:
+        check("a transport error is surfaced, not silently retried",
+              "connection reset" in str(error), error)
+
+
 def main():
     test_scan_decisions()
     test_parsing()
     test_modes()
     test_bad_start_requests()
     test_event_stats()
+    test_truncated_replies()
+    test_retry()
 
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     print("\n%s — %d passed, %d failed\n" % ("PASS" if not failed else "FAIL", len(passed), len(failed)))

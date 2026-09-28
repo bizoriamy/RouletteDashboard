@@ -1,7 +1,66 @@
 # BETPILOT CHANGELOG
-Version tracking: v2.5.2-20260928-Baccarat
+Version tracking: v2.6.0-20260928-Baccarat
 Format: NEWEST RELEASE AT THE TOP
 Date format: YYYY-MM-DD
+
+---
+
+## v2.6.0-20260928-Baccarat (2026-09-28) — THE READER MEETS THE REAL TABLE
+
+The user supplied four real screenshots of their casino table. **The reader got every one of them
+right**, and the exercise exposed three genuine defects that synthetic images had hidden.
+
+### Result on the real table
+| Sample | Shown | Reader | Confidence |
+|---|---|---|---|
+| real-01 | Player 7, Banker 8 | BANKER | 0.99 |
+| real-02 | Player 9, Banker 2 (full layout, history grid visible) | PLAYER | 1.00 |
+| real-03 | Player 6, Banker 7 | BANKER | 0.99 |
+| real-04 | the first hand, cropped to include the cards | BANKER | 0.98 |
+
+Correct on every run (12 of 12 across three passes), with evidence showing real reasoning: *"Player
+shows 7, Banker shows 8; red Banker totals 8 over blue Player 7"*.
+
+**Why the layout mattered:** the result is never written as a word. It is shown by the hand totals in
+coloured boxes (blue = Player, red = Banker) plus the brightening of the winning side's panel, while
+the panels are permanently labelled PLAYER / BANKER / TIE with their odds. A reader that just looked
+for the word "BANKER" would be right by accident half the time.
+
+### Fixed — three defects only a real screen exposed
+1. **Truncated replies were discarded.** No `max_tokens` was sent, so the provider's small default cut
+   the JSON off before its closing brace and a good reading was thrown away as unparseable. An
+   explicit budget is sent, and a reply whose `result` value is complete is now salvaged; a
+   half-written result is still refused.
+2. **A cluttered image could return nothing.** The vision model is a reasoning model: on a hard image
+   it spends its budget before writing the JSON (measured at 2400 tokens and 18 seconds). The reader
+   now detects `finish_reason=length`, retries once with double the budget, and then reports "no
+   result" rather than stalling. A 30-second client timeout bounds the worst case.
+3. **Empty replies were dropped.** Measured at roughly one call in fifteen; the reader now asks once
+   more for the same picture before giving up.
+
+### Security
+- **A private file was accidentally published and has been removed.** A GitHub billing receipt (email
+  address, transaction id, card last four) had been saved into `BetPilot\SOURCE\OCR\`, an automatically
+  synced folder, and was pushed to the **public** repository on the `local-sync` branch for about two
+  minutes. It was moved into `BACARAT\data\private\` (never synced), stripped from the commit and
+  force-pushed away; `main` never contained it. The sync script now **refuses any image or PDF** unless
+  it is one of four allowlisted project assets, verified by reproducing the mistake.
+- Residual: GitHub retains unreachable objects, so the old commit and blob remain fetchable by SHA.
+  A support request can purge them; the practical exposure is the email address.
+
+### Verified
+- `powershell -ExecutionPolicy Bypass -File BACARAT\tests\run-all.ps1` — all seven steps pass
+  (72 OCR checks now, including truncated/empty reply handling).
+- Graded fixtures: 10 of 10 correct, including a Tie with equal totals (0.99) and a hand in progress
+  (correctly refused). Real screenshots: 4 of 4.
+- Gemini reaches the API with a valid model id but returns **HTTP 503** on every call for this key.
+- The configured DeepSeek model `deepseek-v4-flash-vision-exp` is not listed by `/models` for this key
+  (which offers `deepseek-flash` and `deepseek-v4-pro`); it works, but expect that id to move.
+
+### Still open
+- **The capture region is still unmeasured** — all 9 profiles are `"calibrated": false`, so the module
+  is not yet reading the live screen end to end.
+- No real **Tie** has been seen on this table; the Tie rule is verified on a matching mock only.
 
 ---
 

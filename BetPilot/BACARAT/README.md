@@ -1,7 +1,7 @@
 # BetPilot — Baccarat (rebuilt)
 
-Version: **v2.5.2-20260928-Baccarat** (see `VERSION`)
-Status: **core complete and verified; OCR prompt proven general, but NOT yet validated on a real casino display**
+Version: **v2.6.0-20260928-Baccarat** (see `VERSION`)
+Status: **core complete and verified; the reader is correct on real screenshots of the user's table, but the capture region is not yet calibrated**
 
 This is a rebuild of the Baccarat module after the review in
 [REVIEW_Baccarat_v1.0.0-20260928.md](REVIEW_Baccarat_v1.0.0-20260928.md). The old module was five
@@ -117,7 +117,7 @@ powershell -ExecutionPolicy Bypass -File tests\run-all.ps1
 | `node tests\generate-vectors.js` | emits 576 settlement cases + 4 session derivations from the browser rules |
 | `python tests\settlement_test.py` | recomputes every vector with the server rules — the two implementations must agree, including the hedged-hand vector |
 | `python tests\ui_wiring_test.py` | 56 static checks on the UI: no id used but absent from the HTML, no undefined handler, no unstyled class, disclaimer at the bottom, page does not scroll, two columns at half screen width, fixed 10 × 10 bead box, PASS records the result, the Tie has its own stake, the OCR accuracy line and the sample button |
-| `python tests\ocr_test.py` | 55 checks on the OCR reader, the observe/confirm/auto rules and the accuracy arithmetic, driven by a fake screen and a fake model |
+| `python tests\ocr_test.py` | 72 checks on the OCR reader, the observe/confirm/auto rules, the accuracy arithmetic, and the handling of truncated, empty and unparseable model replies |
 | `python tests\server_smoke.py` | 90 checks driving the real server over HTTP — most of them about what must be **refused**, including a real captured sample |
 | `python tests\provider_check.py` | one real call to the configured provider, to prove the key, endpoint, model and parser work together (run manually; it costs a fraction of a cent) |
 | `python app\tools\ocr_check.py --all` | reads every saved sample in `data\samples\` and prints what the model made of each (manual, and the tool for judging a region) |
@@ -166,18 +166,26 @@ not clearly show the hand result, the region is wrong, and no prompt can save it
 Each run saves the exact crop that was sent to the model, so what the model saw can be compared with
 what you see. Drop screenshots into `data\samples\` and `--all` reads the whole batch at once.
 
-**The prompt is regression-checked against nine synthetic displays** — bold text, 11px text, a single
-letter, a strip of past results, a Chinese label (庄), a low-contrast panel, a card-value mock, and a
-busy table with decoy markers. All nine read correctly:
+**The prompt is regression-checked against both synthetic displays and the real table.** Synthetic
+fixtures cover bold text, 11px text, a single letter, a strip of past results, a Chinese label (庄), a
+low-contrast panel, a card-value mock, a Tie with equal totals, and a hand still being dealt; the four
+real screenshots in `data\samples\` cover the actual casino layout:
 
 ```
 python tests\make_ocr_fixtures.py
 python app\tools\ocr_check.py --all --samples-dir data\samples-synthetic --grade
+python app\tools\ocr_check.py --all --samples-dir data\samples --grade
 ```
 
-Each fixture's filename ends `-expected-BANKER|PLAYER|TIE`, so `--grade` reports CORRECT or WRONG and
-exits non-zero on a regression. An 11px label read at 0.95 confidence, which is why no image
-preprocessing was added: the evidence did not call for it.
+Each fixture's filename ends `-expected-BANKER|PLAYER|TIE|NONE`, so `--grade` reports CORRECT or WRONG
+and exits non-zero on a regression. All 10 graded synthetic fixtures and all 4 real screens read
+correctly. An 11px label read at 0.95 confidence, which is why no image preprocessing was added: the
+evidence did not call for it.
+
+**What the real table looks like** (this is why the prompt is worded as it is): the result is never
+written as a word. The hand totals appear in coloured boxes — blue for Player, red for Banker — and the
+winning side's panel brightens while the loser's dims, but the panels are *permanently* labelled
+PLAYER / BANKER / TIE with their odds. A history grid of B/P/T markers sits beside the live hand.
 
 **Do not trust Automatic mode until the readout says so.** The module shows an accuracy line built
 from its own audit log: readings taken, accepted, how many you had to correct, rejected, and the
